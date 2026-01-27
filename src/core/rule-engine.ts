@@ -213,6 +213,13 @@ export class RuleEngine {
     return this.factStore.query(pattern);
   }
 
+  /**
+   * Vrátí všechny fakty.
+   */
+  getAllFacts(): Fact[] {
+    return this.factStore.getAll();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //                           EMITOVÁNÍ EVENTŮ
   // ═══════════════════════════════════════════════════════════════════════════
