@@ -1,3 +1,5 @@
+import type { StorageAdapter } from '@hamicek/noex';
+
 export * from './fact.js';
 export * from './event.js';
 export * from './timer.js';
@@ -24,8 +26,14 @@ export interface EngineStats {
 
 /** Konfigurace persistence */
 export interface PersistenceConfig {
-  adapter: unknown;  // TODO: definovat adapter interface
-  path?: string;
+  /** Storage adapter (např. SQLiteAdapter z @hamicek/noex) */
+  adapter: StorageAdapter;
+
+  /** Klíč pro uložení v databázi (výchozí: 'rules') */
+  key?: string;
+
+  /** Verze schématu pro migrace (výchozí: 1) */
+  schemaVersion?: number;
 }
 
 /** Konfigurace Rule Engine */
