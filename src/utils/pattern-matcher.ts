@@ -1,4 +1,32 @@
 /**
+ * Globální cache pro zkompilované regulární výrazy.
+ * Klíč: `${separator}:${pattern}`
+ */
+const regexCache = new Map<string, RegExp>();
+
+/**
+ * Získá nebo vytvoří zkompilovaný regex pro daný pattern.
+ */
+function getOrCreateRegex(pattern: string, separator: string): RegExp {
+  const cacheKey = `${separator}:${pattern}`;
+  let regex = regexCache.get(cacheKey);
+  if (!regex) {
+    const escapedSeparator = separator === '.' ? '\\.' : separator;
+    const regexPattern = '^' + pattern.replace(new RegExp(escapedSeparator, 'g'), escapedSeparator).replace(/\*/g, `[^${separator}]+`) + '$';
+    regex = new RegExp(regexPattern);
+    regexCache.set(cacheKey, regex);
+  }
+  return regex;
+}
+
+/**
+ * Vymaže cache regulárních výrazů. Užitečné pro testy.
+ */
+export function clearPatternCache(): void {
+  regexCache.clear();
+}
+
+/**
  * Kontroluje, zda topic matchuje pattern.
  * Podporuje wildcardy: "order.*" matchuje "order.created", "order.updated"
  */
@@ -12,9 +40,9 @@ export function matchesTopic(topic: string, pattern: string): boolean {
     return topic.startsWith(prefix + '.');
   }
 
-  // Wildcard uprostřed: "order.*.status" - TODO: podpora více wildcardů
+  // Wildcard uprostřed nebo na začátku - použij cached regex
   if (pattern.includes('*')) {
-    const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '[^.]+') + '$');
+    const regex = getOrCreateRegex(pattern, '.');
     return regex.test(topic);
   }
 
@@ -28,8 +56,14 @@ export function matchesTopic(topic: string, pattern: string): boolean {
 export function matchesFactPattern(key: string, pattern: string): boolean {
   if (pattern === key) return true;
 
+  // Fast path: trailing wildcard "customer:*"
+  if (pattern.endsWith(':*') && !pattern.slice(0, -2).includes('*')) {
+    const prefix = pattern.slice(0, -1);
+    return key.startsWith(prefix) && key.indexOf(':', prefix.length) === -1;
+  }
+
   if (pattern.includes('*')) {
-    const regex = new RegExp('^' + pattern.replace(/:/g, ':').replace(/\*/g, '[^:]+') + '$');
+    const regex = getOrCreateRegex(pattern, ':');
     return regex.test(key);
   }
 
@@ -43,8 +77,14 @@ export function matchesFactPattern(key: string, pattern: string): boolean {
 export function matchesTimerPattern(name: string, pattern: string): boolean {
   if (pattern === name) return true;
 
+  // Fast path: trailing wildcard "payment-timeout:*"
+  if (pattern.endsWith(':*') && !pattern.slice(0, -2).includes('*')) {
+    const prefix = pattern.slice(0, -1);
+    return name.startsWith(prefix) && name.indexOf(':', prefix.length) === -1;
+  }
+
   if (pattern.includes('*')) {
-    const regex = new RegExp('^' + pattern.replace(/:/g, ':').replace(/\*/g, '[^:]+') + '$');
+    const regex = getOrCreateRegex(pattern, ':');
     return regex.test(name);
   }
 

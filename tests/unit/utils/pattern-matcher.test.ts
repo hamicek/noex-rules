@@ -5,6 +5,7 @@ import {
   matchesTimerPattern,
   matchesFilter,
   getNestedValue,
+  clearPatternCache,
 } from '../../../src/utils/pattern-matcher';
 
 describe('matchesTopic', () => {
@@ -411,5 +412,59 @@ describe('getNestedValue', () => {
       expect(getNestedValue(obj, 'count')).toBe(0);
       expect(getNestedValue(obj, 'active')).toBe(false);
     });
+  });
+});
+
+describe('clearPatternCache', () => {
+  it('clears regex cache without affecting matching behavior', () => {
+    // Populate cache
+    expect(matchesTopic('order.123.status', 'order.*.status')).toBe(true);
+    expect(matchesFactPattern('customer:123:age', 'customer:*:age')).toBe(true);
+    expect(matchesTimerPattern('payment-timeout:order123', 'payment-timeout:*')).toBe(true);
+
+    // Clear cache
+    clearPatternCache();
+
+    // Matching should still work correctly after cache clear
+    expect(matchesTopic('order.123.status', 'order.*.status')).toBe(true);
+    expect(matchesTopic('order.456.status', 'order.*.status')).toBe(true);
+    expect(matchesFactPattern('customer:123:age', 'customer:*:age')).toBe(true);
+    expect(matchesFactPattern('customer:456:age', 'customer:*:age')).toBe(true);
+    expect(matchesTimerPattern('payment-timeout:order123', 'payment-timeout:*')).toBe(true);
+    expect(matchesTimerPattern('payment-timeout:order456', 'payment-timeout:*')).toBe(true);
+  });
+
+  it('can be called multiple times without error', () => {
+    clearPatternCache();
+    clearPatternCache();
+    clearPatternCache();
+    expect(matchesTopic('order.created', 'order.*')).toBe(true);
+  });
+});
+
+describe('regex cache efficiency', () => {
+  it('uses cached regex for repeated pattern matching', () => {
+    clearPatternCache();
+
+    // Multiple calls with same pattern should use cached regex
+    for (let i = 0; i < 100; i++) {
+      expect(matchesTopic(`order.${i}.status`, 'order.*.status')).toBe(true);
+    }
+  });
+
+  it('caches different patterns separately', () => {
+    clearPatternCache();
+
+    // Different patterns
+    expect(matchesTopic('order.123.status', 'order.*.status')).toBe(true);
+    expect(matchesTopic('user.john.profile', 'user.*.profile')).toBe(true);
+    expect(matchesFactPattern('customer:123:age', 'customer:*:age')).toBe(true);
+    expect(matchesFactPattern('order:456:status', 'order:*:status')).toBe(true);
+
+    // Verify they still work after caching
+    expect(matchesTopic('order.456.status', 'order.*.status')).toBe(true);
+    expect(matchesTopic('user.jane.profile', 'user.*.profile')).toBe(true);
+    expect(matchesFactPattern('customer:789:age', 'customer:*:age')).toBe(true);
+    expect(matchesFactPattern('order:123:status', 'order:*:status')).toBe(true);
   });
 });
