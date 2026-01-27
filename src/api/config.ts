@@ -13,6 +13,9 @@ export interface ServerConfig {
   /** Zapnout CORS (výchozí: true) */
   cors: boolean;
 
+  /** Zapnout Swagger/OpenAPI dokumentaci (výchozí: true) */
+  swagger: boolean;
+
   /** Zapnout logování (výchozí: true) */
   logger: boolean;
 
@@ -28,6 +31,7 @@ export function resolveConfig(input: ServerConfigInput = {}): ServerConfig {
     host: input.host ?? '0.0.0.0',
     apiPrefix: input.apiPrefix ?? '/api/v1',
     cors: input.cors ?? true,
+    swagger: input.swagger ?? true,
     logger: input.logger ?? true,
     fastifyOptions: input.fastifyOptions
   };

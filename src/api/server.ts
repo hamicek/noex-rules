@@ -5,6 +5,7 @@ import type { RuleEngineConfig } from '../types/index.js';
 import { resolveConfig, type ServerConfig, type ServerConfigInput } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes/index.js';
+import { registerSwagger } from './swagger.js';
 import { WebhookManager, type WebhookManagerConfig } from './notifications/webhook-manager.js';
 import { SSEManager, type SSEManagerConfig } from './notifications/sse-manager.js';
 
@@ -62,6 +63,10 @@ export class RuleEngineServer {
 
     if (config.cors) {
       await fastify.register(cors);
+    }
+
+    if (config.swagger) {
+      await registerSwagger(fastify);
     }
 
     let engine: RuleEngine;
