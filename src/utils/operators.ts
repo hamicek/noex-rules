@@ -1,5 +1,15 @@
 import type { RuleCondition } from '../types/condition.js';
 
+/** Cache pro RegExp objekty v matches operátoru */
+const matchesRegexCache = new Map<string, RegExp>();
+
+/**
+ * Vyčistí cache regex objektů. Užitečné pro testy.
+ */
+export function clearMatchesCache(): void {
+  matchesRegexCache.clear();
+}
+
 /**
  * Vyhodnotí podmínku s danou hodnotou.
  */
@@ -53,12 +63,16 @@ export function evaluateCondition(
 
     case 'matches':
       if (typeof value === 'string' && typeof compareValue === 'string') {
-        try {
-          const regex = new RegExp(compareValue);
-          return regex.test(value);
-        } catch {
-          return false;
+        let regex = matchesRegexCache.get(compareValue);
+        if (!regex) {
+          try {
+            regex = new RegExp(compareValue);
+            matchesRegexCache.set(compareValue, regex);
+          } catch {
+            return false;
+          }
         }
+        return regex.test(value);
       }
       return false;
 

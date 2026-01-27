@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { evaluateCondition } from '../../../src/utils/operators';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { evaluateCondition, clearMatchesCache } from '../../../src/utils/operators';
 import type { RuleCondition } from '../../../src/types/condition';
 
 /**
@@ -265,6 +265,10 @@ describe('evaluateCondition', () => {
   describe('matches operator', () => {
     const cond = condition('matches');
 
+    beforeEach(() => {
+      clearMatchesCache();
+    });
+
     it('returns true when string matches regex pattern', () => {
       expect(evaluateCondition(cond, 'hello123', '\\d+')).toBe(true);
       expect(evaluateCondition(cond, 'test@example.com', '@')).toBe(true);
@@ -291,6 +295,28 @@ describe('evaluateCondition', () => {
     it('returns false for non-string patterns', () => {
       expect(evaluateCondition(cond, 'test', 123 as unknown as string)).toBe(false);
       expect(evaluateCondition(cond, 'test', null)).toBe(false);
+    });
+
+    it('uses cached regex for repeated patterns', () => {
+      // First call compiles and caches the regex
+      expect(evaluateCondition(cond, 'hello123', '\\d+')).toBe(true);
+      // Subsequent calls use cached regex
+      expect(evaluateCondition(cond, 'world456', '\\d+')).toBe(true);
+      expect(evaluateCondition(cond, 'nodigits', '\\d+')).toBe(false);
+    });
+
+    it('clearMatchesCache clears the cache', () => {
+      expect(evaluateCondition(cond, 'test123', '\\d+')).toBe(true);
+      clearMatchesCache();
+      // After clear, still works (recompiles)
+      expect(evaluateCondition(cond, 'test456', '\\d+')).toBe(true);
+    });
+
+    it('does not cache invalid regex patterns', () => {
+      // Invalid pattern should return false
+      expect(evaluateCondition(cond, 'test', '[')).toBe(false);
+      // Valid pattern should still work
+      expect(evaluateCondition(cond, 'test', 'test')).toBe(true);
     });
   });
 
