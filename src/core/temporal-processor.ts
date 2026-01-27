@@ -31,7 +31,7 @@ export interface PatternInstance {
   matchedEvents: Event[];
   startedAt: number;
   expiresAt: number;
-  groupKey?: string;
+  groupKey?: string | undefined;
 }
 
 /**
@@ -42,7 +42,7 @@ export interface PatternMatch {
   instanceId: string;
   pattern: TemporalPattern;
   matchedEvents: Event[];
-  groupKey?: string;
+  groupKey?: string | undefined;
   aggregateValue?: number;
   count?: number;
 }

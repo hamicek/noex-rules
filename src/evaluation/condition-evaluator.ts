@@ -4,6 +4,7 @@ import type { Event } from '../types/event.js';
 import { evaluateCondition } from '../utils/operators.js';
 import { getNestedValue, matchesFactPattern } from '../utils/pattern-matcher.js';
 import type { FactStore } from '../core/fact-store.js';
+import { interpolate, type InterpolationContext } from '../utils/interpolation.js';
 
 export interface EvaluationContext {
   trigger: {
@@ -46,8 +47,10 @@ export class ConditionEvaluator {
   ): unknown {
     switch (source.type) {
       case 'fact': {
+        // Interpolate pattern before querying (supports ${event.orderId} etc.)
+        const interpolatedPattern = interpolate(source.pattern, context as InterpolationContext);
         // Pattern matching - najdi první matchující fakt
-        const facts = context.facts.query(source.pattern);
+        const facts = context.facts.query(interpolatedPattern);
         return facts[0]?.value;
       }
 
@@ -69,7 +72,9 @@ export class ConditionEvaluator {
 
       switch (source) {
         case 'fact': {
-          const fact = context.facts.get(path.join('.'));
+          // Interpolate fact key to support dynamic references
+          const factKey = interpolate(path.join('.'), context as InterpolationContext);
+          const fact = context.facts.get(factKey);
           return fact?.value;
         }
 

@@ -51,7 +51,8 @@ export function resolveRef(ref: string, ctx: InterpolationContext): unknown {
       break;
 
     case 'fact': {
-      const factKey = path.join('.');
+      // Interpolate the fact key to support dynamic references like fact.order:${event.orderId}:paymentId
+      const factKey = interpolate(path.join('.'), ctx);
       root = ctx.facts.get(factKey)?.value;
       return root;
     }

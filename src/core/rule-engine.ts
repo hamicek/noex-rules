@@ -53,6 +53,7 @@ export class RuleEngine {
 
   private running = false;
   private processingQueue: Promise<void> = Promise.resolve();
+  private processingDepth = 0;
 
   private constructor(
     factStore: FactStore,
@@ -445,18 +446,32 @@ export class RuleEngine {
   private async processTrigger(
     trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
   ): Promise<void> {
+    // Pokud jsme již uvnitř zpracování pravidla (např. emit_event v akci),
+    // zpracujeme přímo bez čekání na frontu - předejdeme deadlocku
+    if (this.processingDepth > 0) {
+      await this.processTriggeredRules(trigger);
+      return;
+    }
+
     // Zřetězení zpracování pro zachování pořadí
     this.processingQueue = this.processingQueue.then(async () => {
       if (!this.running) return;
-
-      const rules = this.findMatchingRules(trigger);
-      if (rules.length === 0) return;
-
-      // Paralelní zpracování s limitem souběžnosti
-      await this.processRulesWithConcurrencyLimit(rules, trigger);
+      await this.processTriggeredRules(trigger);
     });
 
     await this.processingQueue;
+  }
+
+  private async processTriggeredRules(
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
+  ): Promise<void> {
+    if (!this.running) return;
+
+    const rules = this.findMatchingRules(trigger);
+    if (rules.length === 0) return;
+
+    // Paralelní zpracování s limitem souběžnosti
+    await this.processRulesWithConcurrencyLimit(rules, trigger);
   }
 
   private findMatchingRules(
@@ -532,7 +547,12 @@ export class RuleEngine {
         }
       }
 
-      await this.actionExecutor.execute(rule.actions, execContext);
+      this.processingDepth++;
+      try {
+        await this.actionExecutor.execute(rule.actions, execContext);
+      } finally {
+        this.processingDepth--;
+      }
 
       this.internals.totalRulesExecuted++;
       this.internals.totalProcessingTimeMs += Date.now() - startTime;
