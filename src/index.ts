@@ -13,5 +13,8 @@ export * from './evaluation/index.js';
 // Utils
 export * from './utils/index.js';
 
+// Persistence
+export * from './persistence/index.js';
+
 // Hlavní RuleEngine class
 export { RuleEngine } from './core/rule-engine.js';

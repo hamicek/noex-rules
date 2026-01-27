@@ -7,7 +7,7 @@ import { FactStore, type FactStoreConfig } from './fact-store.js';
 import { EventStore, type EventStoreConfig } from './event-store.js';
 import { TimerManager, type TimerManagerConfig } from './timer-manager.js';
 import { RuleManager } from './rule-manager.js';
-import { RulePersistence } from '../persistence/rule-persistence.js';
+import { RulePersistence, type RulePersistenceOptions } from '../persistence/rule-persistence.js';
 import { ConditionEvaluator, type EvaluationContext } from '../evaluation/condition-evaluator.js';
 import { ActionExecutor, type ExecutionContext } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
@@ -102,10 +102,14 @@ export class RuleEngine {
 
     // Nastavení persistence, pokud je nakonfigurována
     if (config.persistence) {
-      const persistence = new RulePersistence(config.persistence.adapter, {
-        key: config.persistence.key,
-        schemaVersion: config.persistence.schemaVersion,
-      });
+      const options: RulePersistenceOptions = {};
+      if (config.persistence.key !== undefined) {
+        options.key = config.persistence.key;
+      }
+      if (config.persistence.schemaVersion !== undefined) {
+        options.schemaVersion = config.persistence.schemaVersion;
+      }
+      const persistence = new RulePersistence(config.persistence.adapter, options);
       ruleManager.setPersistence(persistence);
       await ruleManager.restore();
     }
