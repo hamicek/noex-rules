@@ -3,4 +3,4 @@ export * from './event-store.js';
 export * from './timer-manager.js';
 export * from './rule-manager.js';
 export * from './rule-engine.js';
-// export * from './temporal-processor.js';  // TODO: Temporální vzory
+export * from './temporal-processor.js';
