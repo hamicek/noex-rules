@@ -36,9 +36,50 @@ export class FactStore {
   private readonly name: string;
   private readonly changeListener: FactChangeListener | undefined;
 
+  /**
+   * Prefix index pro rychlejší pattern matching.
+   * Mapuje první segment klíče (před ':') na množinu plných klíčů.
+   */
+  private prefixIndex: Map<string, Set<string>> = new Map();
+
   constructor(config: FactStoreConfig = {}) {
     this.name = config.name ?? 'facts';
     this.changeListener = config.onFactChange;
+  }
+
+  /**
+   * Extrahuje prefix (první segment před ':') z klíče.
+   */
+  private getPrefix(key: string): string {
+    const colonIndex = key.indexOf(':');
+    return colonIndex === -1 ? key : key.slice(0, colonIndex);
+  }
+
+  /**
+   * Přidá klíč do prefix indexu.
+   */
+  private indexKey(key: string): void {
+    const prefix = this.getPrefix(key);
+    let keys = this.prefixIndex.get(prefix);
+    if (!keys) {
+      keys = new Set();
+      this.prefixIndex.set(prefix, keys);
+    }
+    keys.add(key);
+  }
+
+  /**
+   * Odebere klíč z prefix indexu.
+   */
+  private unindexKey(key: string): void {
+    const prefix = this.getPrefix(key);
+    const keys = this.prefixIndex.get(prefix);
+    if (keys) {
+      keys.delete(key);
+      if (keys.size === 0) {
+        this.prefixIndex.delete(prefix);
+      }
+    }
   }
 
   static async start(config: FactStoreConfig = {}): Promise<FactStore> {
@@ -56,6 +97,10 @@ export class FactStore {
     };
 
     this.facts.set(key, fact);
+
+    if (!existing) {
+      this.indexKey(key);
+    }
 
     this.notifyChange({
       type: existing ? 'updated' : 'created',
@@ -77,6 +122,7 @@ export class FactStore {
     }
 
     this.facts.delete(key);
+    this.unindexKey(key);
 
     this.notifyChange({
       type: 'deleted',
@@ -90,11 +136,37 @@ export class FactStore {
    * Pattern matching: "customer:*:age" → všechny věky zákazníků
    */
   query(pattern: string): Fact[] {
-    const results: Fact[] = [];
+    // Fast path: exact match (bez wildcardů)
+    if (!pattern.includes('*')) {
+      const fact = this.facts.get(pattern);
+      return fact ? [fact] : [];
+    }
 
-    for (const fact of this.facts.values()) {
-      if (matchesFactPattern(fact.key, pattern)) {
-        results.push(fact);
+    // Pattern začínající wildcardlem musí projít full scan
+    const patternPrefix = this.getPrefix(pattern);
+    if (patternPrefix === '*') {
+      const results: Fact[] = [];
+      for (const fact of this.facts.values()) {
+        if (matchesFactPattern(fact.key, pattern)) {
+          results.push(fact);
+        }
+      }
+      return results;
+    }
+
+    // Použij prefix index pro zúžení kandidátů
+    const candidateKeys = this.prefixIndex.get(patternPrefix);
+    if (!candidateKeys) {
+      return [];
+    }
+
+    const results: Fact[] = [];
+    for (const key of candidateKeys) {
+      if (matchesFactPattern(key, pattern)) {
+        const fact = this.facts.get(key);
+        if (fact) {
+          results.push(fact);
+        }
       }
     }
 
@@ -127,6 +199,7 @@ export class FactStore {
    */
   clear(): void {
     this.facts.clear();
+    this.prefixIndex.clear();
   }
 
   /**
