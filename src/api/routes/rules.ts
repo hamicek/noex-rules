@@ -65,13 +65,13 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
       const input: RuleInput = {
         id: body.id,
         name: body.name,
-        description: body.description,
         priority: body.priority ?? 0,
         enabled: body.enabled ?? true,
         tags: body.tags ?? [],
         trigger: body.trigger,
         conditions: body.conditions ?? [],
-        actions: body.actions ?? []
+        actions: body.actions ?? [],
+        ...(body.description !== undefined && { description: body.description })
       };
 
       const rule = engine.registerRule(input);
@@ -98,16 +98,17 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
       engine.unregisterRule(id);
 
       // Register updated rule
+      const description = body.description ?? existingRule.description;
       const input: RuleInput = {
         id,
         name: body.name ?? existingRule.name,
-        description: body.description ?? existingRule.description,
         priority: body.priority ?? existingRule.priority,
         enabled: body.enabled ?? existingRule.enabled,
         tags: body.tags ?? existingRule.tags,
         trigger: body.trigger ?? existingRule.trigger,
         conditions: body.conditions ?? existingRule.conditions,
-        actions: body.actions ?? existingRule.actions
+        actions: body.actions ?? existingRule.actions,
+        ...(description !== undefined && { description })
       };
 
       return engine.registerRule(input);
