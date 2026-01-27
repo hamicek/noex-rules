@@ -1,20 +1,44 @@
 import type { Fact } from '../types/fact.js';
 import { matchesFactPattern } from '../utils/pattern-matcher.js';
 
+/**
+ * Typy změn faktů pro notifikace.
+ */
+export type FactChangeType = 'created' | 'updated' | 'deleted';
+
+/**
+ * Událost změny faktu.
+ */
+export interface FactChangeEvent {
+  type: FactChangeType;
+  fact: Fact;
+  previousValue?: unknown;
+}
+
+/**
+ * Callback pro notifikace o změnách faktů.
+ */
+export type FactChangeListener = (event: FactChangeEvent) => void;
+
 export interface FactStoreConfig {
   name?: string;
+  onFactChange?: FactChangeListener;
   // persistence?: PersistenceConfig;  // TODO
 }
 
 /**
  * Rychlé in-memory úložiště faktů s pattern matchingem.
+ *
+ * Podporuje notifikace o změnách pomocí callbacku `onFactChange`.
  */
 export class FactStore {
   private facts: Map<string, Fact> = new Map();
   private readonly name: string;
+  private readonly changeListener: FactChangeListener | undefined;
 
   constructor(config: FactStoreConfig = {}) {
     this.name = config.name ?? 'facts';
+    this.changeListener = config.onFactChange;
   }
 
   static async start(config: FactStoreConfig = {}): Promise<FactStore> {
@@ -33,7 +57,11 @@ export class FactStore {
 
     this.facts.set(key, fact);
 
-    // TODO: Notifikovat o změně přes EventBus
+    this.notifyChange({
+      type: existing ? 'updated' : 'created',
+      fact,
+      previousValue: existing?.value
+    });
 
     return fact;
   }
@@ -43,12 +71,19 @@ export class FactStore {
   }
 
   delete(key: string): boolean {
-    const existed = this.facts.has(key);
+    const existing = this.facts.get(key);
+    if (!existing) {
+      return false;
+    }
+
     this.facts.delete(key);
 
-    // TODO: Notifikovat o smazání přes EventBus
+    this.notifyChange({
+      type: 'deleted',
+      fact: existing
+    });
 
-    return existed;
+    return true;
   }
 
   /**
@@ -92,5 +127,18 @@ export class FactStore {
    */
   clear(): void {
     this.facts.clear();
+  }
+
+  /**
+   * Notifikuje listener o změně faktu.
+   */
+  private notifyChange(event: FactChangeEvent): void {
+    if (this.changeListener) {
+      try {
+        this.changeListener(event);
+      } catch (error) {
+        console.error(`[${this.name}] Error in fact change listener:`, error);
+      }
+    }
   }
 }
