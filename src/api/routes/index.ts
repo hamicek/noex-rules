@@ -1,16 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import type { RuleEngine } from '../../core/rule-engine.js';
 import type { WebhookManager } from '../notifications/webhook-manager.js';
+import type { SSEManager } from '../notifications/sse-manager.js';
 import { registerRulesRoutes } from './rules.js';
 import { registerFactsRoutes } from './facts.js';
 import { registerEventsRoutes } from './events.js';
 import { registerTimersRoutes } from './timers.js';
 import { registerHealthRoutes } from './health.js';
 import { registerWebhooksRoutes } from './webhooks.js';
+import { registerStreamRoutes } from './stream.js';
 
 export interface RouteContext {
   engine: RuleEngine;
   webhookManager: WebhookManager;
+  sseManager: SSEManager;
 }
 
 export async function registerRoutes(
@@ -25,6 +28,7 @@ export async function registerRoutes(
   await registerEventsRoutes(fastify);
   await registerTimersRoutes(fastify);
   await registerWebhooksRoutes(fastify, context.webhookManager);
+  await registerStreamRoutes(fastify, context.sseManager);
 }
 
 declare module 'fastify' {

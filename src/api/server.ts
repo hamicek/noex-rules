@@ -6,6 +6,7 @@ import { resolveConfig, type ServerConfig, type ServerConfigInput } from './conf
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes/index.js';
 import { WebhookManager, type WebhookManagerConfig } from './notifications/webhook-manager.js';
+import { SSEManager, type SSEManagerConfig } from './notifications/sse-manager.js';
 
 export interface ServerOptions {
   /** Konfigurace HTTP serveru */
@@ -19,6 +20,9 @@ export interface ServerOptions {
 
   /** Konfigurace pro WebhookManager */
   webhookConfig?: WebhookManagerConfig;
+
+  /** Konfigurace pro SSEManager */
+  sseConfig?: SSEManagerConfig;
 }
 
 export class RuleEngineServer {
@@ -27,6 +31,7 @@ export class RuleEngineServer {
   private readonly config: ServerConfig;
   private readonly ownsEngine: boolean;
   private readonly _webhookManager: WebhookManager;
+  private readonly _sseManager: SSEManager;
   private started = false;
 
   private constructor(
@@ -34,13 +39,15 @@ export class RuleEngineServer {
     engine: RuleEngine,
     config: ServerConfig,
     ownsEngine: boolean,
-    webhookManager: WebhookManager
+    webhookManager: WebhookManager,
+    sseManager: SSEManager
   ) {
     this.fastify = fastify;
     this.engine = engine;
     this.config = config;
     this.ownsEngine = ownsEngine;
     this._webhookManager = webhookManager;
+    this._sseManager = sseManager;
   }
 
   static async start(options: ServerOptions = {}): Promise<RuleEngineServer> {
@@ -69,17 +76,30 @@ export class RuleEngineServer {
     }
 
     const webhookManager = new WebhookManager(options.webhookConfig);
+    const sseManager = new SSEManager(options.sseConfig);
+
+    // Spustit SSE heartbeat
+    sseManager.start();
+
+    // Propojit engine eventy s notifikačními manažery
+    engine.subscribe('*', (event, topic) => {
+      // Webhook delivery je async, spustíme na pozadí
+      webhookManager.deliver(event, topic).catch(() => {
+        // Chyby doručení jsou logovány v WebhookManager
+      });
+      sseManager.broadcast(event, topic);
+    });
 
     await fastify.register(
       async (instance) => {
-        await registerRoutes(instance, { engine, webhookManager });
+        await registerRoutes(instance, { engine, webhookManager, sseManager });
       },
       { prefix: config.apiPrefix }
     );
 
     await fastify.listen({ port: config.port, host: config.host });
 
-    return new RuleEngineServer(fastify, engine, config, ownsEngine, webhookManager);
+    return new RuleEngineServer(fastify, engine, config, ownsEngine, webhookManager, sseManager);
   }
 
   getEngine(): RuleEngine {
@@ -88,6 +108,10 @@ export class RuleEngineServer {
 
   getWebhookManager(): WebhookManager {
     return this._webhookManager;
+  }
+
+  getSSEManager(): SSEManager {
+    return this._sseManager;
   }
 
   get address(): string {
@@ -106,6 +130,9 @@ export class RuleEngineServer {
   }
 
   async stop(): Promise<void> {
+    // Zastavit SSE manager (uzavře všechna připojení)
+    this._sseManager.stop();
+
     await this.fastify.close();
 
     if (this.ownsEngine) {
