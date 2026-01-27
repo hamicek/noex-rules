@@ -21,7 +21,11 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build",
+    "bench": "vitest bench",
+    "bench:core": "vitest bench tests/benchmarks/core",
+    "bench:evaluation": "vitest bench tests/benchmarks/evaluation",
+    "bench:integration": "vitest bench tests/benchmarks/integration"
   },
   "keywords": [
     "rule-engine",
