@@ -1,0 +1,48 @@
+{
+  "name": "@hamicek/noex-rules",
+  "version": "0.1.0",
+  "description": "Rule Engine with Complex Event Processing (CEP) built on noex",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "rule-engine",
+    "cep",
+    "complex-event-processing",
+    "business-rules",
+    "temporal-patterns",
+    "noex",
+    "genserver"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@hamicek/noex": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
