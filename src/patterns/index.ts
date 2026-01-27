@@ -8,8 +8,8 @@
  */
 
 export * from './sequence.js';
+export * from './absence.js';
 
 // TODO: Implementovat zbývající vzory
-// export * from './absence.js';     // Absence eventu
 // export * from './count.js';       // Počet eventů
 // export * from './aggregate.js';   // Agregace hodnot
