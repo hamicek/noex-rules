@@ -8,9 +8,18 @@ import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/
  */
 export class RuleManager {
   private rules: Map<string, Rule> = new Map();
-  private byFactPattern: Map<string, Set<string>> = new Map();
-  private byEventTopic: Map<string, Set<string>> = new Map();
-  private byTimerName: Map<string, Set<string>> = new Map();
+
+  // Dvouúrovňová indexace pro optimální vyhledávání
+  // Exact indexy - O(1) lookup
+  private exactFactPatterns: Map<string, Set<string>> = new Map();
+  private exactEventTopics: Map<string, Set<string>> = new Map();
+  private exactTimerNames: Map<string, Set<string>> = new Map();
+
+  // Wildcard indexy - O(k) scan kde k << n
+  private wildcardFactPatterns: Map<string, Set<string>> = new Map();
+  private wildcardEventTopics: Map<string, Set<string>> = new Map();
+  private wildcardTimerNames: Map<string, Set<string>> = new Map();
+
   private byTags: Map<string, Set<string>> = new Map();
   private temporalRules: Set<string> = new Set();
   private nextVersion = 1;
@@ -83,11 +92,22 @@ export class RuleManager {
 
   /**
    * Vrátí pravidla podle fact patternu.
+   * Optimalizováno: O(1) lookup pro exact match + O(k) scan pro wildcardy.
    */
   getByFactPattern(key: string): Rule[] {
     const results: Rule[] = [];
 
-    for (const [pattern, ruleIds] of this.byFactPattern) {
+    // O(1) exact match lookup
+    const exactRuleIds = this.exactFactPatterns.get(key);
+    if (exactRuleIds) {
+      for (const id of exactRuleIds) {
+        const rule = this.rules.get(id);
+        if (rule?.enabled) results.push(rule);
+      }
+    }
+
+    // O(k) wildcard scan kde k << n
+    for (const [pattern, ruleIds] of this.wildcardFactPatterns) {
       if (matchesFactPattern(key, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
@@ -101,11 +121,22 @@ export class RuleManager {
 
   /**
    * Vrátí pravidla podle event topicu.
+   * Optimalizováno: O(1) lookup pro exact match + O(k) scan pro wildcardy.
    */
   getByEventTopic(topic: string): Rule[] {
     const results: Rule[] = [];
 
-    for (const [pattern, ruleIds] of this.byEventTopic) {
+    // O(1) exact match lookup
+    const exactRuleIds = this.exactEventTopics.get(topic);
+    if (exactRuleIds) {
+      for (const id of exactRuleIds) {
+        const rule = this.rules.get(id);
+        if (rule?.enabled) results.push(rule);
+      }
+    }
+
+    // O(k) wildcard scan kde k << n
+    for (const [pattern, ruleIds] of this.wildcardEventTopics) {
       if (matchesTopic(topic, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
@@ -120,11 +151,22 @@ export class RuleManager {
   /**
    * Vrátí pravidla podle timer jména.
    * Podporuje wildcardy: "payment-timeout:*" matchuje "payment-timeout:order123"
+   * Optimalizováno: O(1) lookup pro exact match + O(k) scan pro wildcardy.
    */
   getByTimerName(name: string): Rule[] {
     const results: Rule[] = [];
 
-    for (const [pattern, ruleIds] of this.byTimerName) {
+    // O(1) exact match lookup
+    const exactRuleIds = this.exactTimerNames.get(name);
+    if (exactRuleIds) {
+      for (const id of exactRuleIds) {
+        const rule = this.rules.get(id);
+        if (rule?.enabled) results.push(rule);
+      }
+    }
+
+    // O(k) wildcard scan kde k << n
+    for (const [pattern, ruleIds] of this.wildcardTimerNames) {
       if (matchesTimerPattern(name, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
@@ -161,15 +203,24 @@ export class RuleManager {
 
   private indexRule(rule: Rule): void {
     switch (rule.trigger.type) {
-      case 'fact':
-        this.addToIndex(this.byFactPattern, rule.trigger.pattern, rule.id);
+      case 'fact': {
+        const pattern = rule.trigger.pattern;
+        const index = pattern.includes('*') ? this.wildcardFactPatterns : this.exactFactPatterns;
+        this.addToIndex(index, pattern, rule.id);
         break;
-      case 'event':
-        this.addToIndex(this.byEventTopic, rule.trigger.topic, rule.id);
+      }
+      case 'event': {
+        const topic = rule.trigger.topic;
+        const index = topic.includes('*') ? this.wildcardEventTopics : this.exactEventTopics;
+        this.addToIndex(index, topic, rule.id);
         break;
-      case 'timer':
-        this.addToIndex(this.byTimerName, rule.trigger.name, rule.id);
+      }
+      case 'timer': {
+        const name = rule.trigger.name;
+        const index = name.includes('*') ? this.wildcardTimerNames : this.exactTimerNames;
+        this.addToIndex(index, name, rule.id);
         break;
+      }
       case 'temporal':
         this.temporalRules.add(rule.id);
         break;
@@ -182,15 +233,24 @@ export class RuleManager {
 
   private unindexRule(rule: Rule): void {
     switch (rule.trigger.type) {
-      case 'fact':
-        this.removeFromIndex(this.byFactPattern, rule.trigger.pattern, rule.id);
+      case 'fact': {
+        const pattern = rule.trigger.pattern;
+        const index = pattern.includes('*') ? this.wildcardFactPatterns : this.exactFactPatterns;
+        this.removeFromIndex(index, pattern, rule.id);
         break;
-      case 'event':
-        this.removeFromIndex(this.byEventTopic, rule.trigger.topic, rule.id);
+      }
+      case 'event': {
+        const topic = rule.trigger.topic;
+        const index = topic.includes('*') ? this.wildcardEventTopics : this.exactEventTopics;
+        this.removeFromIndex(index, topic, rule.id);
         break;
-      case 'timer':
-        this.removeFromIndex(this.byTimerName, rule.trigger.name, rule.id);
+      }
+      case 'timer': {
+        const name = rule.trigger.name;
+        const index = name.includes('*') ? this.wildcardTimerNames : this.exactTimerNames;
+        this.removeFromIndex(index, name, rule.id);
         break;
+      }
       case 'temporal':
         this.temporalRules.delete(rule.id);
         break;
