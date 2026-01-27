@@ -21,7 +21,7 @@ export interface CountInstance {
   readonly events: Event[];
   readonly windowStart: number;
   readonly windowEnd: number;
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -33,7 +33,7 @@ export interface CountMatch {
   readonly pattern: CountPattern;
   readonly count: number;
   readonly events: readonly Event[];
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -100,8 +100,8 @@ export class CountMatcher {
   private readonly byGroup: Map<string, string> = new Map(); // groupKey → instanceId
   private readonly patterns: Map<string, CountPattern> = new Map();
 
-  private readonly onMatchCallback?: CountMatchCallback;
-  private readonly onWindowExpireCallback?: (instance: CountInstance) => void | Promise<void>;
+  private readonly onMatchCallback: CountMatchCallback | undefined;
+  private readonly onWindowExpireCallback: ((instance: CountInstance) => void | Promise<void>) | undefined;
   private readonly now: () => number;
 
   constructor(config: CountMatcherConfig = {}) {
@@ -447,7 +447,7 @@ export class CountMatcher {
 
   private pruneEvents(instance: CountInstance, windowStart: number): void {
     // Odstranit eventy starší než window start
-    while (instance.events.length > 0 && instance.events[0].timestamp < windowStart) {
+    while (instance.events.length > 0 && instance.events[0]!.timestamp < windowStart) {
       instance.events.shift();
     }
   }

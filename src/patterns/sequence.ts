@@ -20,7 +20,7 @@ export interface SequenceInstance {
   readonly matchedEvents: Event[];
   readonly startedAt: number;
   readonly expiresAt: number;
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -30,7 +30,7 @@ export interface SequenceMatch {
   readonly instanceId: string;
   readonly pattern: SequencePattern;
   readonly matchedEvents: readonly Event[];
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -94,8 +94,8 @@ export class SequenceMatcher {
   private readonly byGroup: Map<string, Set<string>> = new Map();
   private readonly patterns: Map<string, SequencePattern> = new Map();
 
-  private readonly onMatchCallback?: SequenceMatchCallback;
-  private readonly onExpireCallback?: (instance: SequenceInstance) => void | Promise<void>;
+  private readonly onMatchCallback: SequenceMatchCallback | undefined;
+  private readonly onExpireCallback: ((instance: SequenceInstance) => void | Promise<void>) | undefined;
   private readonly now: () => number;
 
   constructor(config: SequenceMatcherConfig = {}) {

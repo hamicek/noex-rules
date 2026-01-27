@@ -20,7 +20,7 @@ export interface AbsenceInstance {
   readonly triggerEvent: Event;
   readonly startedAt: number;
   readonly expiresAt: number;
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -30,7 +30,7 @@ export interface AbsenceMatch {
   readonly instanceId: string;
   readonly pattern: AbsencePattern;
   readonly triggerEvent: Event;
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -101,8 +101,8 @@ export class AbsenceMatcher {
   private readonly byGroup: Map<string, Set<string>> = new Map();
   private readonly patterns: Map<string, AbsencePattern> = new Map();
 
-  private readonly onMatchCallback?: AbsenceMatchCallback;
-  private readonly onCancelCallback?: AbsenceCancelCallback;
+  private readonly onMatchCallback: AbsenceMatchCallback | undefined;
+  private readonly onCancelCallback: AbsenceCancelCallback | undefined;
   private readonly now: () => number;
 
   constructor(config: AbsenceMatcherConfig = {}) {

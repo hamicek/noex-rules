@@ -21,7 +21,7 @@ export interface AggregateInstance {
   readonly events: Event[];
   readonly windowStart: number;
   readonly windowEnd: number;
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -33,7 +33,7 @@ export interface AggregateMatch {
   readonly pattern: AggregatePattern;
   readonly value: number;
   readonly events: readonly Event[];
-  readonly groupKey?: string;
+  readonly groupKey: string | undefined;
 }
 
 /**
@@ -102,8 +102,8 @@ export class AggregateMatcher {
   private readonly byGroup: Map<string, string> = new Map(); // groupKey → instanceId
   private readonly patterns: Map<string, AggregatePattern> = new Map();
 
-  private readonly onMatchCallback?: AggregateMatchCallback;
-  private readonly onWindowExpireCallback?: (instance: AggregateInstance) => void | Promise<void>;
+  private readonly onMatchCallback: AggregateMatchCallback | undefined;
+  private readonly onWindowExpireCallback: ((instance: AggregateInstance) => void | Promise<void>) | undefined;
   private readonly now: () => number;
 
   constructor(config: AggregateMatcherConfig = {}) {
@@ -432,7 +432,7 @@ export class AggregateMatcher {
   }
 
   private pruneEvents(instance: AggregateInstance, windowStart: number): void {
-    while (instance.events.length > 0 && instance.events[0].timestamp < windowStart) {
+    while (instance.events.length > 0 && instance.events[0]!.timestamp < windowStart) {
       instance.events.shift();
     }
   }
