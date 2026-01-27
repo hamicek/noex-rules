@@ -145,12 +145,17 @@ export class WebhookManager {
       id,
       url: registration.url,
       patterns: registration.patterns?.length ? registration.patterns : ['*'],
-      secret: registration.secret,
-      headers: registration.headers,
       timeout: registration.timeout ?? this.defaultTimeout,
       enabled: true,
       createdAt: Date.now()
     };
+
+    if (registration.secret !== undefined) {
+      webhook.secret = registration.secret;
+    }
+    if (registration.headers !== undefined) {
+      webhook.headers = registration.headers;
+    }
 
     this.webhooks.set(id, webhook);
     return webhook;
@@ -291,32 +296,44 @@ export class WebhookManager {
     this.totalDeliveries++;
     this.failedDeliveries++;
 
-    return {
+    const result: WebhookDeliveryResult = {
       webhookId: webhook.id,
       eventId: event.id,
       success: false,
-      statusCode: lastStatusCode,
       attempts: this.maxRetries,
-      duration: Date.now() - startTime,
-      error: lastError
+      duration: Date.now() - startTime
     };
+
+    if (lastStatusCode !== undefined) {
+      result.statusCode = lastStatusCode;
+    }
+    if (lastError !== undefined) {
+      result.error = lastError;
+    }
+
+    return result;
   }
 
   /**
    * Vytvoří payload pro webhook.
    */
   private createPayload(webhook: WebhookConfig, event: Event, topic: string): WebhookPayload {
+    const eventPayload: WebhookPayload['event'] = {
+      id: event.id,
+      topic,
+      data: event.data,
+      timestamp: event.timestamp,
+      source: event.source
+    };
+
+    if (event.correlationId !== undefined) {
+      eventPayload.correlationId = event.correlationId;
+    }
+
     return {
       id: randomUUID(),
       webhookId: webhook.id,
-      event: {
-        id: event.id,
-        topic,
-        data: event.data,
-        timestamp: event.timestamp,
-        correlationId: event.correlationId,
-        source: event.source
-      },
+      event: eventPayload,
       deliveredAt: Date.now()
     };
   }
