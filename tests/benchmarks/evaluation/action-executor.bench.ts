@@ -1,8 +1,33 @@
-import { bench, describe } from 'vitest';
+import { bench, describe, beforeAll, afterAll } from 'vitest';
 import { ActionExecutor, type ExecutionContext } from '../../../src/evaluation/action-executor.js';
 import { FactStore } from '../../../src/core/fact-store.js';
 import { TimerManager } from '../../../src/core/timer-manager.js';
 import type { RuleAction } from '../../../src/types/action.js';
+
+// Suppress console output during benchmarks (log actions write to console)
+const originalConsole = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+  debug: console.debug
+};
+
+beforeAll(() => {
+  console.log = () => {};
+  console.info = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+  console.debug = () => {};
+});
+
+afterAll(() => {
+  console.log = originalConsole.log;
+  console.info = originalConsole.info;
+  console.warn = originalConsole.warn;
+  console.error = originalConsole.error;
+  console.debug = originalConsole.debug;
+});
 
 function createExecutionContext(overrides: Partial<ExecutionContext> = {}): ExecutionContext {
   return {
@@ -222,8 +247,6 @@ describe('ActionExecutor', () => {
     });
 
     bench('log - info level', async () => {
-      const originalLog = console.info;
-      console.info = () => {};
       const actions: RuleAction[] = [{
         type: 'log',
         level: 'info',
@@ -232,7 +255,6 @@ describe('ActionExecutor', () => {
       for (let i = 0; i < 100; i++) {
         await executor.execute(actions, ctx);
       }
-      console.info = originalLog;
     });
 
     bench('set_timer', async () => {
