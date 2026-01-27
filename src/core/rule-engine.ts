@@ -7,6 +7,7 @@ import { FactStore, type FactStoreConfig } from './fact-store.js';
 import { EventStore, type EventStoreConfig } from './event-store.js';
 import { TimerManager, type TimerManagerConfig } from './timer-manager.js';
 import { RuleManager } from './rule-manager.js';
+import { RulePersistence } from '../persistence/rule-persistence.js';
 import { ConditionEvaluator, type EvaluationContext } from '../evaluation/condition-evaluator.js';
 import { ActionExecutor, type ExecutionContext } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
@@ -98,6 +99,16 @@ export class RuleEngine {
     const eventStore = await EventStore.start(eventStoreConfig);
     const timerManager = await TimerManager.start({});
     const ruleManager = await RuleManager.start();
+
+    // Nastavení persistence, pokud je nakonfigurována
+    if (config.persistence) {
+      const persistence = new RulePersistence(config.persistence.adapter, {
+        key: config.persistence.key,
+        schemaVersion: config.persistence.schemaVersion,
+      });
+      ruleManager.setPersistence(persistence);
+      await ruleManager.restore();
+    }
 
     const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, config);
     engine.running = true;
@@ -344,6 +355,9 @@ export class RuleEngine {
 
     // Počkat na dokončení zpracování
     await this.processingQueue;
+
+    // Finální uložení pravidel před ukončením
+    await this.ruleManager.persist();
 
     await this.timerManager.stop();
     this.subscribers.clear();
