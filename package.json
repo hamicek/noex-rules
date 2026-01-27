@@ -39,7 +39,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@hamicek/noex": "^0.1.0"
+    "@fastify/cors": "^11.2.0",
+    "@hamicek/noex": "^0.1.0",
+    "fastify": "^5.7.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

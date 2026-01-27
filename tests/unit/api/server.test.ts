@@ -1,0 +1,145 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { RuleEngineServer } from '../../../src/api/server';
+import { RuleEngine } from '../../../src/core/rule-engine';
+
+describe('RuleEngineServer', () => {
+  let server: RuleEngineServer | undefined;
+  let externalEngine: RuleEngine | undefined;
+
+  afterEach(async () => {
+    if (server) {
+      await server.stop();
+      server = undefined;
+    }
+    if (externalEngine) {
+      await externalEngine.stop();
+      externalEngine = undefined;
+    }
+  });
+
+  describe('start and stop', () => {
+    it('starts server with default configuration', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false }
+      });
+
+      expect(server.address).toMatch(/^http:\/\//);
+      expect(server.getEngine()).toBeDefined();
+      expect(server.getEngine().isRunning).toBe(true);
+    });
+
+    it('stops server and internal engine', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false }
+      });
+
+      const engine = server.getEngine();
+
+      await server.stop();
+      server = undefined;
+
+      expect(engine.isRunning).toBe(false);
+    });
+
+    it('uses provided engine and does not stop it', async () => {
+      externalEngine = await RuleEngine.start({ name: 'external' });
+
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        engine: externalEngine
+      });
+
+      expect(server.getEngine()).toBe(externalEngine);
+
+      await server.stop();
+      server = undefined;
+
+      expect(externalEngine.isRunning).toBe(true);
+    });
+
+    it('respects custom port configuration', async () => {
+      const port = 9876;
+      server = await RuleEngineServer.start({
+        server: { port, logger: false }
+      });
+
+      expect(server.port).toBe(port);
+      expect(server.address).toContain(`:${port}`);
+    });
+  });
+
+  describe('health endpoint', () => {
+    it('returns health status', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.status).toBe('ok');
+      expect(data.timestamp).toBeTypeOf('number');
+      expect(data.uptime).toBeTypeOf('number');
+    });
+  });
+
+  describe('stats endpoint', () => {
+    it('returns engine statistics', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false }
+      });
+
+      const engine = server.getEngine();
+      await engine.setFact('test', 'value');
+      await engine.emit('test.event', { data: 1 });
+
+      const response = await fetch(`${server.address}/api/v1/stats`);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.factsCount).toBe(1);
+      expect(data.eventsProcessed).toBe(1);
+      expect(data.rulesCount).toBe(0);
+    });
+  });
+
+  describe('configuration', () => {
+    it('uses custom API prefix', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false, apiPrefix: '/custom/api' }
+      });
+
+      const healthRes = await fetch(`${server.address}/custom/api/health`);
+      expect(healthRes.status).toBe(200);
+
+      const defaultRes = await fetch(`${server.address}/api/v1/health`);
+      expect(defaultRes.status).toBe(404);
+    });
+
+    it('enables CORS by default', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://example.com',
+          'Access-Control-Request-Method': 'GET'
+        }
+      });
+
+      expect(response.headers.get('access-control-allow-origin')).toBeDefined();
+    });
+
+    it('passes engine config to created engine', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        engineConfig: { name: 'custom-engine' }
+      });
+
+      expect(server.getEngine().isRunning).toBe(true);
+    });
+  });
+});
