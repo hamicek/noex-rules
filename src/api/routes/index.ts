@@ -4,6 +4,7 @@ import { registerRulesRoutes } from './rules.js';
 import { registerFactsRoutes } from './facts.js';
 import { registerEventsRoutes } from './events.js';
 import { registerTimersRoutes } from './timers.js';
+import { registerHealthRoutes } from './health.js';
 
 export interface RouteContext {
   engine: RuleEngine;
@@ -15,18 +16,7 @@ export async function registerRoutes(
 ): Promise<void> {
   fastify.decorate('engine', context.engine);
 
-  fastify.get('/health', async () => {
-    return {
-      status: 'ok',
-      timestamp: Date.now(),
-      uptime: process.uptime()
-    };
-  });
-
-  fastify.get('/stats', async () => {
-    return context.engine.getStats();
-  });
-
+  await registerHealthRoutes(fastify);
   await registerRulesRoutes(fastify);
   await registerFactsRoutes(fastify);
   await registerEventsRoutes(fastify);
