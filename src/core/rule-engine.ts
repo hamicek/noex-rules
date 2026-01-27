@@ -364,6 +364,10 @@ export class RuleEngine {
     this.timerManager.onExpire(async (timer: Timer) => {
       if (!this.running) return;
 
+      // Zpracovat pravidla s timer triggerem
+      await this.processTrigger({ type: 'timer', data: timer });
+
+      // Emitovat event nakonfigurovaný v timeru
       const event: Event = {
         id: generateId(),
         topic: timer.onExpire.topic,
@@ -438,7 +442,9 @@ export class RuleEngine {
     return patternParts.length === topicParts.length;
   }
 
-  private async processTrigger(trigger: { type: 'fact' | 'event'; data: Fact | Event }): Promise<void> {
+  private async processTrigger(
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
+  ): Promise<void> {
     // Zřetězení zpracování pro zachování pořadí
     this.processingQueue = this.processingQueue.then(async () => {
       if (!this.running) return;
@@ -453,12 +459,16 @@ export class RuleEngine {
     await this.processingQueue;
   }
 
-  private findMatchingRules(trigger: { type: 'fact' | 'event'; data: Fact | Event }): Rule[] {
+  private findMatchingRules(
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
+  ): Rule[] {
     switch (trigger.type) {
       case 'fact':
         return this.ruleManager.getByFactPattern((trigger.data as Fact).key);
       case 'event':
         return this.ruleManager.getByEventTopic((trigger.data as Event).topic);
+      case 'timer':
+        return this.ruleManager.getByTimerName((trigger.data as Timer).name);
       default:
         return [];
     }
@@ -466,7 +476,7 @@ export class RuleEngine {
 
   private async processRulesWithConcurrencyLimit(
     rules: Rule[],
-    trigger: { type: 'fact' | 'event'; data: Fact | Event }
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
   ): Promise<void> {
     const limit = this.config.maxConcurrency;
     const chunks: Rule[][] = [];
@@ -484,17 +494,17 @@ export class RuleEngine {
 
   private async evaluateAndExecuteRule(
     rule: Rule,
-    trigger: { type: 'fact' | 'event'; data: Fact | Event }
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
   ): Promise<void> {
     const startTime = Date.now();
 
     try {
+      const triggerData = this.buildTriggerData(trigger);
+
       const evalContext: EvaluationContext = {
         trigger: {
           type: trigger.type,
-          data: trigger.type === 'fact'
-            ? { fact: trigger.data }
-            : (trigger.data as Event).data
+          data: triggerData
         },
         facts: this.factStore,
         variables: new Map()
@@ -515,6 +525,11 @@ export class RuleEngine {
           execContext.correlationId = eventData.correlationId;
         }
         execContext.matchedEvents = [eventData];
+      } else if (trigger.type === 'timer') {
+        const timerData = trigger.data as Timer;
+        if (timerData.correlationId) {
+          execContext.correlationId = timerData.correlationId;
+        }
       }
 
       await this.actionExecutor.execute(rule.actions, execContext);
@@ -526,6 +541,29 @@ export class RuleEngine {
         `[${this.config.name}] Error executing rule "${rule.name}" (${rule.id}):`,
         error
       );
+    }
+  }
+
+  private buildTriggerData(
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
+  ): Record<string, unknown> {
+    switch (trigger.type) {
+      case 'fact':
+        return { fact: trigger.data };
+      case 'event':
+        return (trigger.data as Event).data;
+      case 'timer': {
+        const timer = trigger.data as Timer;
+        return {
+          timerId: timer.id,
+          timerName: timer.name,
+          expiresAt: timer.expiresAt,
+          correlationId: timer.correlationId,
+          ...timer.onExpire.data
+        };
+      }
+      default:
+        return {};
     }
   }
 

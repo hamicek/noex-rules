@@ -1,5 +1,5 @@
 import type { Rule, RuleInput } from '../types/rule.js';
-import { matchesTopic, matchesFactPattern } from '../utils/pattern-matcher.js';
+import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/pattern-matcher.js';
 
 /**
  * Správa pravidel s indexací podle triggerů.
@@ -119,13 +119,21 @@ export class RuleManager {
 
   /**
    * Vrátí pravidla podle timer jména.
+   * Podporuje wildcardy: "payment-timeout:*" matchuje "payment-timeout:order123"
    */
   getByTimerName(name: string): Rule[] {
-    const ruleIds = this.byTimerName.get(name) ?? new Set();
-    return [...ruleIds]
-      .map(id => this.rules.get(id))
-      .filter((r): r is Rule => r !== undefined && r.enabled)
-      .sort((a, b) => b.priority - a.priority);
+    const results: Rule[] = [];
+
+    for (const [pattern, ruleIds] of this.byTimerName) {
+      if (matchesTimerPattern(name, pattern)) {
+        for (const id of ruleIds) {
+          const rule = this.rules.get(id);
+          if (rule?.enabled) results.push(rule);
+        }
+      }
+    }
+
+    return results.sort((a, b) => b.priority - a.priority);
   }
 
   /**

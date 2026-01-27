@@ -37,6 +37,21 @@ export function matchesFactPattern(key: string, pattern: string): boolean {
 }
 
 /**
+ * Kontroluje, zda timer name matchuje pattern.
+ * Podporuje wildcardy: "payment-timeout:*" matchuje "payment-timeout:order123"
+ */
+export function matchesTimerPattern(name: string, pattern: string): boolean {
+  if (pattern === name) return true;
+
+  if (pattern.includes('*')) {
+    const regex = new RegExp('^' + pattern.replace(/:/g, ':').replace(/\*/g, '[^:]+') + '$');
+    return regex.test(name);
+  }
+
+  return false;
+}
+
+/**
  * Kontroluje, zda data matchují filtr.
  */
 export function matchesFilter(data: Record<string, unknown>, filter: Record<string, unknown>): boolean {

@@ -465,6 +465,167 @@ describe('Rule Execution Integration', () => {
   });
 
   describe('timer-triggered rules', () => {
+    it('rule with timer trigger executes when timer expires', async () => {
+      vi.useFakeTimers();
+
+      // Rule that triggers on timer name (not event topic)
+      const timerTriggeredRule: RuleInput = {
+        id: 'timer-name-rule',
+        name: 'Timer Name Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'timer', name: 'payment-timeout:*' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'timer-trigger:executed', value: true },
+          { type: 'set_fact', key: 'timer-trigger:name', value: { ref: 'trigger.timerName' } }
+        ]
+      };
+
+      engine.registerRule(timerTriggeredRule);
+
+      // Set a timer that matches the pattern
+      await engine.setTimer({
+        name: 'payment-timeout:order-123',
+        duration: '2s',
+        onExpire: {
+          topic: 'some.other.topic',
+          data: { orderId: 'order-123' }
+        }
+      });
+
+      expect(engine.getFact('timer-trigger:executed')).toBeUndefined();
+
+      await vi.advanceTimersByTimeAsync(2100);
+
+      expect(engine.getFact('timer-trigger:executed')).toBe(true);
+      expect(engine.getFact('timer-trigger:name')).toBe('payment-timeout:order-123');
+
+      vi.useRealTimers();
+    });
+
+    it('timer trigger accesses timer data including onExpire data', async () => {
+      vi.useFakeTimers();
+
+      const rule: RuleInput = {
+        id: 'timer-data-rule',
+        name: 'Timer Data Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'timer', name: 'reminder:*' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'reminder:userId', value: { ref: 'trigger.userId' } }
+        ]
+      };
+
+      engine.registerRule(rule);
+
+      await engine.setTimer({
+        name: 'reminder:user-456',
+        duration: '1s',
+        onExpire: {
+          topic: 'reminder.sent',
+          data: { userId: 'user-456', type: 'weekly' }
+        }
+      });
+
+      await vi.advanceTimersByTimeAsync(1100);
+
+      expect(engine.getFact('reminder:userId')).toBe('user-456');
+
+      vi.useRealTimers();
+    });
+
+    it('both timer trigger rule and event trigger rule execute on timer expiry', async () => {
+      vi.useFakeTimers();
+
+      // Rule triggered by timer name
+      const timerRule: RuleInput = {
+        id: 'timer-rule',
+        name: 'Timer Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'timer', name: 'dual-trigger:*' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'timer-rule:executed', value: true }
+        ]
+      };
+
+      // Rule triggered by event topic from timer's onExpire
+      const eventRule: RuleInput = {
+        id: 'event-rule',
+        name: 'Event Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'dual.expired' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'event-rule:executed', value: true }
+        ]
+      };
+
+      engine.registerRule(timerRule);
+      engine.registerRule(eventRule);
+
+      await engine.setTimer({
+        name: 'dual-trigger:test',
+        duration: '500ms',
+        onExpire: {
+          topic: 'dual.expired',
+          data: {}
+        }
+      });
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      // Both rules should have executed
+      expect(engine.getFact('timer-rule:executed')).toBe(true);
+      expect(engine.getFact('event-rule:executed')).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('timer trigger rule with conditions evaluates correctly', async () => {
+      vi.useFakeTimers();
+
+      await engine.setFact('config:enabled', true);
+
+      const rule: RuleInput = {
+        id: 'conditional-timer-rule',
+        name: 'Conditional Timer Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'timer', name: 'conditional:*' },
+        conditions: [
+          { source: { type: 'fact', pattern: 'config:enabled' }, operator: 'eq', value: true }
+        ],
+        actions: [
+          { type: 'set_fact', key: 'conditional:executed', value: true }
+        ]
+      };
+
+      engine.registerRule(rule);
+
+      await engine.setTimer({
+        name: 'conditional:test',
+        duration: '100ms',
+        onExpire: { topic: 'ignored', data: {} }
+      });
+
+      await vi.advanceTimersByTimeAsync(150);
+
+      expect(engine.getFact('conditional:executed')).toBe(true);
+
+      vi.useRealTimers();
+    });
+
     it('rule action sets timer that triggers another rule', async () => {
       vi.useFakeTimers();
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   matchesTopic,
   matchesFactPattern,
+  matchesTimerPattern,
   matchesFilter,
   getNestedValue,
 } from '../../../src/utils/pattern-matcher';
@@ -164,6 +165,69 @@ describe('matchesFactPattern', () => {
     it('wildcard does not span multiple segments', () => {
       expect(matchesFactPattern('a:b:c', 'a:*')).toBe(false);
       expect(matchesFactPattern('a:b', '*:b:c')).toBe(false);
+    });
+  });
+});
+
+describe('matchesTimerPattern', () => {
+  describe('exact match', () => {
+    it('matches identical timer names', () => {
+      expect(matchesTimerPattern('payment-timeout:order123', 'payment-timeout:order123')).toBe(true);
+      expect(matchesTimerPattern('reminder', 'reminder')).toBe(true);
+      expect(matchesTimerPattern('cleanup:session:abc', 'cleanup:session:abc')).toBe(true);
+    });
+
+    it('does not match different timer names', () => {
+      expect(matchesTimerPattern('payment-timeout:order123', 'payment-timeout:order456')).toBe(false);
+      expect(matchesTimerPattern('reminder', 'notification')).toBe(false);
+    });
+  });
+
+  describe('wildcard matching', () => {
+    it('matches timer names with wildcard in middle segment', () => {
+      expect(matchesTimerPattern('payment-timeout:order123', 'payment-timeout:*')).toBe(true);
+      expect(matchesTimerPattern('payment-timeout:order456', 'payment-timeout:*')).toBe(true);
+      expect(matchesTimerPattern('unlock:user123', 'unlock:*')).toBe(true);
+    });
+
+    it('matches timer names with wildcard at start', () => {
+      expect(matchesTimerPattern('payment-timeout:order123', '*:order123')).toBe(true);
+      expect(matchesTimerPattern('shipping-timeout:order123', '*:order123')).toBe(true);
+    });
+
+    it('matches timer names with multiple wildcards', () => {
+      expect(matchesTimerPattern('cleanup:session:abc', '*:*:abc')).toBe(true);
+      expect(matchesTimerPattern('expire:cache:xyz', '*:*:xyz')).toBe(true);
+      expect(matchesTimerPattern('a:b:c', '*:*:*')).toBe(true);
+    });
+
+    it('does not match timer names with wrong segments', () => {
+      expect(matchesTimerPattern('payment-timeout:order123', 'shipping-timeout:*')).toBe(false);
+      expect(matchesTimerPattern('cleanup:session:abc', 'cleanup:*:xyz')).toBe(false);
+    });
+
+    it('does not match timer names with different segment count', () => {
+      expect(matchesTimerPattern('payment-timeout', 'payment-timeout:*')).toBe(false);
+      expect(matchesTimerPattern('a:b:c:d', 'a:*:c')).toBe(false);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles single segment timer names', () => {
+      expect(matchesTimerPattern('cleanup', 'cleanup')).toBe(true);
+      expect(matchesTimerPattern('cleanup', '*')).toBe(true);
+      expect(matchesTimerPattern('cleanup', 'garbage')).toBe(false);
+    });
+
+    it('handles empty strings', () => {
+      expect(matchesTimerPattern('', '')).toBe(true);
+      expect(matchesTimerPattern('timer', '')).toBe(false);
+      expect(matchesTimerPattern('', 'timer')).toBe(false);
+    });
+
+    it('wildcard does not span multiple segments', () => {
+      expect(matchesTimerPattern('a:b:c', 'a:*')).toBe(false);
+      expect(matchesTimerPattern('a:b', '*:b:c')).toBe(false);
     });
   });
 });
