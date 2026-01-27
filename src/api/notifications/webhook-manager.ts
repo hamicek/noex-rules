@@ -414,6 +414,8 @@ export class WebhookManager {
       const topicPart = topicParts[i];
 
       if (patternPart === '*') {
+        // Wildcard matchuje jeden segment - musí existovat
+        if (topicPart === undefined) return false;
         // Wildcard na konci matchuje zbytek
         if (i === patternParts.length - 1) return true;
         continue;
