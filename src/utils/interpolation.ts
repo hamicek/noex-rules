@@ -19,6 +19,11 @@ export interface InterpolationContext {
  * Interpoluje string template: "order:${event.data.orderId}:status"
  */
 export function interpolate(template: string, ctx: InterpolationContext): string {
+  // Fast path - no interpolation needed for static strings
+  if (!template.includes('${')) {
+    return template;
+  }
+
   return template.replace(/\$\{([^}]+)\}/g, (_, ref: string) => {
     const value = resolveRef(ref, ctx);
     return String(value ?? '');
