@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { RuleEngine } from '../../core/rule-engine.js';
+import { registerRulesRoutes } from './rules.js';
 
 export interface RouteContext {
   engine: RuleEngine;
@@ -22,6 +23,8 @@ export async function registerRoutes(
   fastify.get('/stats', async () => {
     return context.engine.getStats();
   });
+
+  await registerRulesRoutes(fastify);
 }
 
 declare module 'fastify' {
