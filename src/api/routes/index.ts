@@ -3,6 +3,7 @@ import type { RuleEngine } from '../../core/rule-engine.js';
 import { registerRulesRoutes } from './rules.js';
 import { registerFactsRoutes } from './facts.js';
 import { registerEventsRoutes } from './events.js';
+import { registerTimersRoutes } from './timers.js';
 
 export interface RouteContext {
   engine: RuleEngine;
@@ -29,6 +30,7 @@ export async function registerRoutes(
   await registerRulesRoutes(fastify);
   await registerFactsRoutes(fastify);
   await registerEventsRoutes(fastify);
+  await registerTimersRoutes(fastify);
 }
 
 declare module 'fastify' {

@@ -305,6 +305,13 @@ export class RuleEngine {
     return this.timerManager.getTimer(name);
   }
 
+  /**
+   * Vrátí všechny aktivní timery.
+   */
+  getTimers(): Timer[] {
+    return this.timerManager.getAll();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //                           SUBSCRIBOVÁNÍ
   // ═══════════════════════════════════════════════════════════════════════════
