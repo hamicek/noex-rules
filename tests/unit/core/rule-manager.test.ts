@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { MemoryAdapter } from '@hamicek/noex';
 import { RuleManager } from '../../../src/core/rule-manager';
+import { RulePersistence } from '../../../src/persistence/rule-persistence';
 import type { RuleInput } from '../../../src/types/rule';
 
 const createFactRule = (overrides: Partial<RuleInput> = {}): RuleInput => ({
@@ -601,6 +603,208 @@ describe('RuleManager', () => {
         expect(manager.getByEventTopic('order.123.completed')).toHaveLength(1);
         expect(manager.getByEventTopic('order.abc.completed')).toHaveLength(1);
         expect(manager.getByEventTopic('order.123.pending')).toHaveLength(0);
+      });
+    });
+  });
+
+  describe('persistence integration', () => {
+    let adapter: MemoryAdapter;
+    let persistence: RulePersistence;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      adapter = new MemoryAdapter();
+      persistence = new RulePersistence(adapter);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    describe('setPersistence()', () => {
+      it('sets persistence adapter', async () => {
+        manager.setPersistence(persistence);
+
+        // Ověříme, že persistence funguje přes persist()
+        await expect(manager.persist()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('restore()', () => {
+      it('returns 0 when no persistence is set', async () => {
+        const count = await manager.restore();
+
+        expect(count).toBe(0);
+      });
+
+      it('returns 0 when persistence is empty', async () => {
+        manager.setPersistence(persistence);
+
+        const count = await manager.restore();
+
+        expect(count).toBe(0);
+        expect(manager.size).toBe(0);
+      });
+
+      it('loads rules from persistence and returns count', async () => {
+        // Uložíme pravidla přímo přes persistence
+        const rules = [
+          { ...createFactRule({ id: 'r1' }), version: 1, createdAt: Date.now(), updatedAt: Date.now() },
+          { ...createFactRule({ id: 'r2' }), version: 2, createdAt: Date.now(), updatedAt: Date.now() },
+        ];
+        await persistence.save(rules as any);
+
+        manager.setPersistence(persistence);
+        const count = await manager.restore();
+
+        expect(count).toBe(2);
+        expect(manager.size).toBe(2);
+        expect(manager.get('r1')).toBeDefined();
+        expect(manager.get('r2')).toBeDefined();
+      });
+
+      it('indexes restored rules correctly', async () => {
+        const rules = [
+          {
+            ...createFactRule({ id: 'r1', trigger: { type: 'fact' as const, pattern: 'test:*:key' } }),
+            version: 1,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ];
+        await persistence.save(rules as any);
+
+        manager.setPersistence(persistence);
+        await manager.restore();
+
+        const found = manager.getByFactPattern('test:123:key');
+        expect(found).toHaveLength(1);
+        expect(found[0].id).toBe('r1');
+      });
+
+      it('sets nextVersion higher than restored rules', async () => {
+        const rules = [
+          { ...createFactRule({ id: 'r1' }), version: 5, createdAt: Date.now(), updatedAt: Date.now() },
+          { ...createFactRule({ id: 'r2' }), version: 10, createdAt: Date.now(), updatedAt: Date.now() },
+        ];
+        await persistence.save(rules as any);
+
+        manager.setPersistence(persistence);
+        await manager.restore();
+
+        // Nové pravidlo by mělo mít verzi 11
+        const newRule = manager.register(createFactRule({ id: 'r3' }));
+        expect(newRule.version).toBe(11);
+      });
+    });
+
+    describe('persist()', () => {
+      it('does nothing when no persistence is set', async () => {
+        manager.register(createFactRule());
+
+        await expect(manager.persist()).resolves.toBeUndefined();
+      });
+
+      it('saves all rules to persistence', async () => {
+        manager.setPersistence(persistence);
+        manager.register(createFactRule({ id: 'r1' }));
+        manager.register(createFactRule({ id: 'r2' }));
+
+        await manager.persist();
+
+        const loaded = await persistence.load();
+        expect(loaded).toHaveLength(2);
+        expect(loaded.map(r => r.id).sort()).toEqual(['r1', 'r2']);
+      });
+
+      it('cancels pending scheduled persist', async () => {
+        manager.setPersistence(persistence);
+        manager.register(createFactRule({ id: 'r1' }));
+
+        // Explicitní persist by měl zrušit scheduled
+        await manager.persist();
+
+        // Rychle přidáme další a unregistrujeme první
+        manager.register(createFactRule({ id: 'r2' }));
+        manager.unregister('r1');
+        await manager.persist();
+
+        const loaded = await persistence.load();
+        expect(loaded).toHaveLength(1);
+        expect(loaded[0].id).toBe('r2');
+      });
+    });
+
+    describe('automatic persistence', () => {
+      it('schedules persist after register()', async () => {
+        manager.setPersistence(persistence);
+
+        manager.register(createFactRule({ id: 'r1' }));
+
+        // Počkáme na debounce
+        await vi.advanceTimersByTimeAsync(20);
+
+        const loaded = await persistence.load();
+        expect(loaded).toHaveLength(1);
+        expect(loaded[0].id).toBe('r1');
+      });
+
+      it('schedules persist after unregister()', async () => {
+        manager.setPersistence(persistence);
+        manager.register(createFactRule({ id: 'r1' }));
+        await vi.advanceTimersByTimeAsync(20);
+
+        manager.unregister('r1');
+        await vi.advanceTimersByTimeAsync(20);
+
+        const loaded = await persistence.load();
+        expect(loaded).toHaveLength(0);
+      });
+
+      it('schedules persist after enable()', async () => {
+        manager.setPersistence(persistence);
+        manager.register(createFactRule({ id: 'r1', enabled: false }));
+        await vi.advanceTimersByTimeAsync(20);
+
+        manager.enable('r1');
+        await vi.advanceTimersByTimeAsync(20);
+
+        const loaded = await persistence.load();
+        expect(loaded[0].enabled).toBe(true);
+      });
+
+      it('schedules persist after disable()', async () => {
+        manager.setPersistence(persistence);
+        manager.register(createFactRule({ id: 'r1', enabled: true }));
+        await vi.advanceTimersByTimeAsync(20);
+
+        manager.disable('r1');
+        await vi.advanceTimersByTimeAsync(20);
+
+        const loaded = await persistence.load();
+        expect(loaded[0].enabled).toBe(false);
+      });
+
+      it('debounces multiple rapid changes', async () => {
+        manager.setPersistence(persistence);
+        const saveSpy = vi.spyOn(persistence, 'save');
+
+        manager.register(createFactRule({ id: 'r1' }));
+        manager.register(createFactRule({ id: 'r2' }));
+        manager.register(createFactRule({ id: 'r3' }));
+
+        // Žádné save ještě neproběhlo
+        expect(saveSpy).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(20);
+
+        // Pouze jedno save po debounce
+        expect(saveSpy).toHaveBeenCalledTimes(1);
+        expect(saveSpy).toHaveBeenCalledWith(expect.arrayContaining([
+          expect.objectContaining({ id: 'r1' }),
+          expect.objectContaining({ id: 'r2' }),
+          expect.objectContaining({ id: 'r3' }),
+        ]));
       });
     });
   });

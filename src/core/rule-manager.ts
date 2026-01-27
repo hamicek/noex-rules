@@ -1,4 +1,5 @@
 import type { Rule, RuleInput } from '../types/rule.js';
+import type { RulePersistence } from '../persistence/rule-persistence.js';
 import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/pattern-matcher.js';
 
 /**
@@ -8,6 +9,9 @@ import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/
  */
 export class RuleManager {
   private rules: Map<string, Rule> = new Map();
+  private persistence: RulePersistence | null = null;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly persistDebounceMs = 10;
 
   // Dvouúrovňová indexace pro optimální vyhledávání
   // Exact indexy - O(1) lookup
@@ -41,6 +45,7 @@ export class RuleManager {
 
     this.rules.set(rule.id, rule);
     this.indexRule(rule);
+    this.schedulePersist();
 
     return rule;
   }
@@ -55,6 +60,7 @@ export class RuleManager {
     this.unindexRule(rule);
     this.rules.delete(ruleId);
     this.temporalRules.delete(ruleId);
+    this.schedulePersist();
 
     return true;
   }
@@ -68,6 +74,7 @@ export class RuleManager {
 
     rule.enabled = true;
     rule.updatedAt = Date.now();
+    this.schedulePersist();
     return true;
   }
 
@@ -80,6 +87,7 @@ export class RuleManager {
 
     rule.enabled = false;
     rule.updatedAt = Date.now();
+    this.schedulePersist();
     return true;
   }
 
@@ -275,5 +283,76 @@ export class RuleManager {
         index.delete(key);
       }
     }
+  }
+
+  /**
+   * Nastaví persistence adapter pro ukládání pravidel.
+   */
+  setPersistence(persistence: RulePersistence): void {
+    this.persistence = persistence;
+  }
+
+  /**
+   * Načte pravidla z persistence storage.
+   * @returns Počet načtených pravidel
+   */
+  async restore(): Promise<number> {
+    if (!this.persistence) {
+      return 0;
+    }
+
+    const rules = await this.persistence.load();
+    let maxVersion = 0;
+
+    for (const rule of rules) {
+      this.rules.set(rule.id, rule);
+      this.indexRule(rule);
+      if (rule.version > maxVersion) {
+        maxVersion = rule.version;
+      }
+    }
+
+    // Zajistí, že nová pravidla budou mít vyšší verzi než načtená
+    this.nextVersion = maxVersion + 1;
+
+    return rules.length;
+  }
+
+  /**
+   * Manuálně uloží všechna pravidla do persistence storage.
+   */
+  async persist(): Promise<void> {
+    if (!this.persistence) {
+      return;
+    }
+
+    // Zruš případný naplánovaný persist
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+
+    await this.persistence.save(this.getAll());
+  }
+
+  /**
+   * Naplánuje debounced persist.
+   * Volá se automaticky při změnách pravidel.
+   */
+  private schedulePersist(): void {
+    if (!this.persistence) {
+      return;
+    }
+
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+    }
+
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      this.persistence?.save(this.getAll()).catch(() => {
+        // Ignoruj chyby při background persistenci
+      });
+    }, this.persistDebounceMs);
   }
 }
