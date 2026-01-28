@@ -6,24 +6,30 @@ import { requireNonEmptyString, requireDuration } from '../helpers/validators.js
 import { DslValidationError } from '../helpers/errors.js';
 
 /**
- * Konfigurace pro setTimer s podporou ref().
+ * Configuration object for {@link setTimer} when using the options-based overload.
  */
 export interface SetTimerOptions {
+  /** Unique timer name. */
   name: string;
+  /** Duration until expiration (string or milliseconds). */
   duration: string | number;
+  /** Event emitted when the timer expires. */
   onExpire: {
+    /** Topic of the emitted event. */
     topic: string;
+    /** Optional event payload (values may be {@link ref}). */
     data?: Record<string, unknown>;
   };
+  /** Optional repeat configuration. */
   repeat?: {
+    /** Interval between repetitions (string or milliseconds). */
     interval: string | number;
+    /** Maximum number of repetitions. */
     maxCount?: number;
   };
 }
 
-/**
- * Builder pro set_timer akci.
- */
+/** @internal */
 class SetTimerBuilder implements ActionBuilder {
   private readonly config: SetTimerOptions;
 
@@ -61,9 +67,7 @@ class SetTimerBuilder implements ActionBuilder {
   }
 }
 
-/**
- * Fluent builder pro postupné vytváření timer konfigurace.
- */
+/** @internal Fluent builder returned by `setTimer(name)`. */
 class TimerFluentBuilder implements ActionBuilder {
   private readonly timerName: string;
   private timerDuration: string | number = '1m';
@@ -77,9 +81,10 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Nastaví dobu do expirace timeru.
+   * Sets the duration before the timer expires.
    *
-   * @param duration - Doba trvání ("15m", "24h", "7d" nebo ms)
+   * @param duration - Duration string (e.g. `"15m"`, `"24h"`) or milliseconds.
+   * @returns `this` for chaining.
    */
   after(duration: string | number): TimerFluentBuilder {
     requireDuration(duration, 'setTimer().after() duration');
@@ -88,10 +93,11 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Nastaví event, který se emituje při expiraci.
+   * Sets the event emitted when the timer expires.
    *
-   * @param topic - Topic emitovaného eventu
-   * @param data - Data eventu (podporuje ref())
+   * @param topic - Topic of the emitted event.
+   * @param data  - Optional payload (values may be {@link ref}).
+   * @returns `this` for chaining.
    */
   emit(topic: string, data: Record<string, unknown> = {}): TimerFluentBuilder {
     requireNonEmptyString(topic, 'setTimer().emit() topic');
@@ -101,10 +107,11 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Nastaví opakování timeru.
+   * Configures the timer to repeat after each expiration.
    *
-   * @param interval - Interval opakování ("5m", "1h" nebo ms)
-   * @param maxCount - Maximální počet opakování (volitelné)
+   * @param interval - Repeat interval (string or milliseconds).
+   * @param maxCount - Optional maximum number of repetitions.
+   * @returns `this` for chaining.
    */
   repeat(interval: string | number, maxCount?: number): TimerFluentBuilder {
     requireDuration(interval, 'setTimer().repeat() interval');
@@ -143,9 +150,7 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 }
 
-/**
- * Builder pro cancel_timer akci.
- */
+/** @internal */
 class CancelTimerBuilder implements ActionBuilder {
   constructor(private readonly timerName: string) {}
 
@@ -158,12 +163,13 @@ class CancelTimerBuilder implements ActionBuilder {
 }
 
 /**
- * Vytvoří akci pro nastavení timeru.
+ * Creates an action that sets a timer.
  *
- * Podporuje dva způsoby použití:
+ * Supports two usage styles:
  *
- * 1. S objektem konfigurace:
+ * **1. Options object** — pass a complete {@link SetTimerOptions}:
  * @example
+ * ```typescript
  * setTimer({
  *   name: 'payment-timeout',
  *   duration: '15m',
@@ -172,15 +178,21 @@ class CancelTimerBuilder implements ActionBuilder {
  *     data: { orderId: ref('event.orderId') }
  *   }
  * })
+ * ```
  *
- * 2. S fluent API:
+ * **2. Fluent API** — pass just the timer name and chain methods:
  * @example
+ * ```typescript
  * setTimer('payment-timeout')
  *   .after('15m')
  *   .emit('order.payment_timeout', { orderId: ref('event.orderId') })
  *   .repeat('5m', 3)
+ * ```
  *
- * @param nameOrConfig - Název timeru pro fluent API nebo kompletní konfigurace
+ * @param nameOrConfig - Timer name (fluent) or a complete
+ *                       {@link SetTimerOptions} object.
+ * @returns An {@link ActionBuilder} (options form) or a `TimerFluentBuilder`
+ *          (string form).
  */
 export function setTimer(nameOrConfig: string | SetTimerOptions): ActionBuilder | TimerFluentBuilder {
   if (typeof nameOrConfig === 'string') {
@@ -191,13 +203,16 @@ export function setTimer(nameOrConfig: string | SetTimerOptions): ActionBuilder 
 }
 
 /**
- * Vytvoří akci pro zrušení timeru.
+ * Creates an action that cancels a running timer.
+ *
+ * @param name - Timer name to cancel (supports `${}` interpolation).
+ * @returns An {@link ActionBuilder} for use with {@link RuleBuilder.then}.
  *
  * @example
+ * ```typescript
  * cancelTimer('payment-timeout')
  * cancelTimer('payment-timeout:${event.orderId}')
- *
- * @param name - Název timeru k zrušení (podporuje interpolaci)
+ * ```
  */
 export function cancelTimer(name: string): ActionBuilder {
   requireNonEmptyString(name, 'cancelTimer() name');

@@ -1,7 +1,8 @@
 /**
- * Tagged template literal pro definici pravidel.
+ * Tagged template literal for defining rules in a compact DSL syntax.
  *
  * @example
+ * ```typescript
  * import { rule } from 'noex-rules/dsl';
  *
  * const myRule = rule`
@@ -13,9 +14,11 @@
  *   IF event.amount >= 100
  *   THEN emit notification.send { orderId: event.orderId }
  * `;
+ * ```
  *
  * @example
- * // S interpolací
+ * ```typescript
+ * // With interpolation
  * const topic = 'order.created';
  * const threshold = 100;
  *
@@ -25,23 +28,27 @@
  *   IF event.amount >= ${threshold}
  *   THEN emit result
  * `;
+ * ```
+ *
+ * @module
  */
 
 import type { RuleInput } from '../../types/rule.js';
 import { parseRuleTemplate } from './parser.js';
 
 /**
- * Tagged template literal pro definici pravidel.
+ * Tagged template literal that parses a rule definition string into
+ * a `RuleInput` object ready for engine registration.
  *
- * Kombinuje template string s interpolovanými hodnotami
- * a parsuje výsledek do RuleInput objektu.
+ * Interpolated values are stringified and spliced into the template
+ * before parsing.
  *
- * @param strings - Template string části
- * @param values - Interpolované hodnoty
- * @returns RuleInput objekt připravený k registraci
+ * @param strings - Static template string segments.
+ * @param values  - Interpolated values.
+ * @returns A validated `RuleInput` object.
  *
- * @throws {ParseError} Při syntaktické chybě
- * @throws {Error} Při chybějícím povinném poli
+ * @throws {ParseError} On syntax errors.
+ * @throws {Error} If required fields (id, WHEN, THEN) are missing.
  */
 export function rule(strings: TemplateStringsArray, ...values: unknown[]): RuleInput {
   let result = '';

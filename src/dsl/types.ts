@@ -3,7 +3,14 @@ import type { RuleAction } from '../types/action.js';
 import type { RuleTrigger, RuleInput } from '../types/rule.js';
 
 /**
- * Reference na hodnotu z kontextu.
+ * A dynamic reference to a runtime value resolved during rule evaluation.
+ *
+ * References point to event data, facts, or context variables using
+ * a dot-notated path such as `"event.orderId"` or `"fact.customer:vip"`.
+ *
+ * @typeParam T - The expected resolved type (used for compile-time safety only)
+ *
+ * @see {@link ref} — factory function for creating `Ref` instances
  */
 export interface Ref<T = unknown> {
   ref: string;
@@ -11,38 +18,54 @@ export interface Ref<T = unknown> {
 }
 
 /**
- * Podporované operátory pro podmínky.
+ * Union of all supported condition comparison operators.
+ *
+ * Derived directly from the core {@link RuleCondition} type.
  */
 export type ConditionOperator = RuleCondition['operator'];
 
 /**
- * Zdroj dat pro podmínku.
+ * Discriminated union describing the data source for a condition.
+ *
+ * Possible source types:
+ * - `event`   — a field from the triggering event (`{ type: 'event', field }`)
+ * - `fact`    — a value from the fact store (`{ type: 'fact', pattern }`)
+ * - `context` — a context variable (`{ type: 'context', key }`)
  */
 export type ConditionSource = RuleCondition['source'];
 
 /**
- * Builder pro podmínky - vrací RuleCondition.
+ * Builder interface for conditions.
+ *
+ * Implemented by {@link SourceExpr} to provide a fluent operator API.
  */
 export interface ConditionBuilder {
+  /** Builds and returns the underlying {@link RuleCondition} object. */
   build(): RuleCondition;
 }
 
 /**
- * Builder pro triggery - vrací RuleTrigger.
+ * Builder interface for triggers.
+ *
+ * Implemented by event, fact, timer, and temporal trigger builders.
  */
 export interface TriggerBuilder {
+  /** Builds and returns the underlying {@link RuleTrigger} object. */
   build(): RuleTrigger;
 }
 
 /**
- * Builder pro akce - vrací RuleAction.
+ * Builder interface for actions.
+ *
+ * Implemented by emit, fact, timer, service, and log action builders.
  */
 export interface ActionBuilder {
+  /** Builds and returns the underlying {@link RuleAction} object. */
   build(): RuleAction;
 }
 
 /**
- * Kontext pro rule builder - sleduje stav buildu.
+ * Internal state accumulated by {@link RuleBuilder} during the build process.
  */
 export interface RuleBuildContext {
   id?: string;
@@ -57,11 +80,13 @@ export interface RuleBuildContext {
 }
 
 /**
- * Výsledek buildu pravidla.
+ * The output of {@link RuleBuilder.build} — an alias for the core `RuleInput` type.
  */
 export type BuiltRule = RuleInput;
 
 /**
- * Hodnota nebo reference.
+ * A value that may be either a literal `T` or a {@link Ref} resolved at runtime.
+ *
+ * @typeParam T - The literal value type
  */
 export type ValueOrRef<T> = T | Ref<T>;

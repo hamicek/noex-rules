@@ -5,27 +5,31 @@ import { requireNonEmptyString, requireDuration } from '../../helpers/validators
 import { DslValidationError } from '../../helpers/errors.js';
 
 /**
- * Fluent builder pro absence temporální vzor.
+ * Fluent builder for an **absence** temporal pattern.
  *
- * Absence detekuje situaci, kdy po spouštěcím eventu NEPŘIJDE
- * očekávaný event v daném časovém okně.
+ * An absence pattern detects the situation where an expected event does
+ * NOT arrive within a given time window after a trigger event.
  *
  * @example
+ * ```typescript
  * absence()
  *   .after('order.created')
  *   .expected('payment.received')
  *   .within('15m')
  *   .groupBy('orderId')
  *   .build();
+ * ```
  *
  * @example
- * // S filtry na data eventu
+ * ```typescript
+ * // With data filters
  * absence()
  *   .after('registration.started', { source: 'web' })
  *   .expected('registration.completed')
  *   .within('24h')
  *   .groupBy('userId')
  *   .build();
+ * ```
  */
 export class AbsenceBuilder implements TriggerBuilder {
   private afterMatcher: EventMatcher | undefined;
@@ -34,10 +38,11 @@ export class AbsenceBuilder implements TriggerBuilder {
   private groupByField: string | undefined;
 
   /**
-   * Nastaví spouštěcí event, po kterém se začne čekat na expected event.
+   * Sets the initiating event that starts the absence window.
    *
-   * @param topic  - Topic pattern pro matching eventů
-   * @param filter - Volitelný filtr na data eventu
+   * @param topic  - Event topic pattern.
+   * @param filter - Optional data filter for the event.
+   * @returns `this` for chaining.
    */
   after(topic: string, filter?: Record<string, unknown>): this {
     requireNonEmptyString(topic, 'absence().after() topic');
@@ -47,10 +52,11 @@ export class AbsenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví očekávaný event, jehož absence triggeruje pravidlo.
+   * Sets the event whose absence triggers the rule.
    *
-   * @param topic  - Topic pattern pro matching eventů
-   * @param filter - Volitelný filtr na data eventu
+   * @param topic  - Event topic pattern.
+   * @param filter - Optional data filter for the event.
+   * @returns `this` for chaining.
    */
   expected(topic: string, filter?: Record<string, unknown>): this {
     requireNonEmptyString(topic, 'absence().expected() topic');
@@ -60,9 +66,10 @@ export class AbsenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví časové okno, po jehož uplynutí se absence vyhodnotí.
+   * Sets the time window after which the absence is evaluated.
    *
-   * @param value - Duration string ("15m", "1h") nebo číslo v milisekundách
+   * @param value - Duration string (e.g. `"15m"`, `"1h"`) or milliseconds.
+   * @returns `this` for chaining.
    */
   within(value: string | number): this {
     requireDuration(value, 'absence().within()');
@@ -71,9 +78,10 @@ export class AbsenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Seskupí instance podle pole v datech eventu.
+   * Groups pattern instances by a field in the event data.
    *
-   * @param field - Cesta k poli v datech eventu (např. "orderId")
+   * @param field - Dot-notated path (e.g. `"orderId"`).
+   * @returns `this` for chaining.
    */
   groupBy(field: string): this {
     requireNonEmptyString(field, 'absence().groupBy()');
@@ -81,6 +89,12 @@ export class AbsenceBuilder implements TriggerBuilder {
     return this;
   }
 
+  /**
+   * Builds the temporal trigger.
+   *
+   * @returns A `RuleTrigger` of type `'temporal'` with an `AbsencePattern`.
+   * @throws {DslValidationError} If `after`, `expected`, or `within` are missing.
+   */
   build(): RuleTrigger {
     if (!this.afterMatcher) {
       throw new DslValidationError('absence() requires .after() to set the trigger event');
@@ -106,9 +120,12 @@ export class AbsenceBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří builder pro absence temporální vzor.
+ * Creates a new {@link AbsenceBuilder} for defining an absence temporal pattern.
+ *
+ * @returns A fresh builder instance.
  *
  * @example
+ * ```typescript
  * Rule.create('payment-timeout')
  *   .when(absence()
  *     .after('order.created')
@@ -118,6 +135,7 @@ export class AbsenceBuilder implements TriggerBuilder {
  *   )
  *   .then(emit('order.payment_timeout'))
  *   .build();
+ * ```
  */
 export function absence(): AbsenceBuilder {
   return new AbsenceBuilder();

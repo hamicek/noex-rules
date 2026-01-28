@@ -12,9 +12,14 @@ import { SourceExpr } from '../condition/operators.js';
 import { DslValidationError } from '../helpers/errors.js';
 
 /**
- * Fluent builder pro vytváření pravidel.
+ * Fluent builder for assembling rule definitions.
+ *
+ * Use the static {@link RuleBuilder.create} method (also exported as `Rule`)
+ * as the entry point, then chain configuration methods and finish with
+ * {@link RuleBuilder.build}.
  *
  * @example
+ * ```typescript
  * Rule.create('order-notification')
  *   .name('Send Order Notification')
  *   .priority(100)
@@ -23,6 +28,7 @@ import { DslValidationError } from '../helpers/errors.js';
  *   .if(event('amount').gte(100))
  *   .then(emit('notification.send', { orderId: ref('event.orderId') }))
  *   .build();
+ * ```
  */
 export class RuleBuilder {
   private ctx: RuleBuildContext;
@@ -37,9 +43,11 @@ export class RuleBuilder {
   }
 
   /**
-   * Vytvoří nový rule builder.
+   * Creates a new rule builder with the given unique identifier.
    *
-   * @param id - Unikátní identifikátor pravidla
+   * @param id - Unique rule identifier (must be a non-empty string).
+   * @returns A fresh {@link RuleBuilder} instance.
+   * @throws {DslValidationError} If `id` is empty or not a string.
    */
   static create(id: string): RuleBuilder {
     if (!id || typeof id !== 'string') {
@@ -49,7 +57,10 @@ export class RuleBuilder {
   }
 
   /**
-   * Nastaví název pravidla.
+   * Sets a human-readable name for the rule.
+   *
+   * @param value - Display name (defaults to the rule ID if not set).
+   * @returns `this` for chaining.
    */
   name(value: string): this {
     this.ctx.name = value;
@@ -57,7 +68,10 @@ export class RuleBuilder {
   }
 
   /**
-   * Nastaví popis pravidla.
+   * Sets an optional description for the rule.
+   *
+   * @param value - Free-text description.
+   * @returns `this` for chaining.
    */
   description(value: string): this {
     this.ctx.description = value;
@@ -65,7 +79,11 @@ export class RuleBuilder {
   }
 
   /**
-   * Nastaví prioritu pravidla (vyšší = dříve).
+   * Sets the evaluation priority (higher value = evaluated sooner).
+   *
+   * @param value - A finite number (defaults to `0`).
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `value` is not a finite number.
    */
   priority(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -76,7 +94,10 @@ export class RuleBuilder {
   }
 
   /**
-   * Nastaví, zda je pravidlo aktivní.
+   * Enables or disables the rule.
+   *
+   * @param value - `true` to enable, `false` to disable (defaults to `true`).
+   * @returns `this` for chaining.
    */
   enabled(value: boolean): this {
     this.ctx.enabled = value;
@@ -84,7 +105,10 @@ export class RuleBuilder {
   }
 
   /**
-   * Přidá tagy k pravidlu.
+   * Appends one or more tags for categorization / filtering.
+   *
+   * @param values - Tag strings to add.
+   * @returns `this` for chaining.
    */
   tags(...values: string[]): this {
     this.ctx.tags.push(...values);
@@ -92,9 +116,11 @@ export class RuleBuilder {
   }
 
   /**
-   * Nastaví trigger pravidla (kdy se spustí).
+   * Sets the trigger that determines when the rule fires.
    *
-   * @param trigger - TriggerBuilder nebo RuleTrigger objekt
+   * @param trigger - A {@link TriggerBuilder} (e.g. `onEvent`, `sequence`) or
+   *                  a raw `RuleTrigger` object.
+   * @returns `this` for chaining.
    */
   when(trigger: TriggerBuilder | RuleTrigger): this {
     this.ctx.trigger = 'build' in trigger ? trigger.build() : trigger;
@@ -102,9 +128,11 @@ export class RuleBuilder {
   }
 
   /**
-   * Přidá podmínku k pravidlu.
+   * Adds a condition that must be satisfied for the rule to execute.
    *
-   * @param condition - ConditionBuilder (SourceExpr) nebo RuleCondition objekt
+   * @param condition - A {@link ConditionBuilder} (e.g. `event('x').gte(1)`)
+   *                    or a raw `RuleCondition` object.
+   * @returns `this` for chaining.
    */
   if(condition: ConditionBuilder | RuleCondition): this {
     const built = 'build' in condition ? condition.build() : condition;
@@ -113,16 +141,21 @@ export class RuleBuilder {
   }
 
   /**
-   * Alias pro if() - přidá další podmínku.
+   * Alias for {@link RuleBuilder.if} — adds another condition (logical AND).
+   *
+   * @param condition - A {@link ConditionBuilder} or raw `RuleCondition`.
+   * @returns `this` for chaining.
    */
   and(condition: ConditionBuilder | RuleCondition): this {
     return this.if(condition);
   }
 
   /**
-   * Přidá akci k pravidlu.
+   * Adds an action to execute when the rule fires.
    *
-   * @param action - ActionBuilder nebo RuleAction objekt
+   * @param action - An {@link ActionBuilder} (e.g. `emit(...)`) or a raw
+   *                 `RuleAction` object.
+   * @returns `this` for chaining.
    */
   then(action: ActionBuilder | RuleAction): this {
     const built = 'build' in action ? action.build() : action;
@@ -131,16 +164,20 @@ export class RuleBuilder {
   }
 
   /**
-   * Alias pro then() - přidá další akci.
+   * Alias for {@link RuleBuilder.then} — adds another action.
+   *
+   * @param action - An {@link ActionBuilder} or raw `RuleAction`.
+   * @returns `this` for chaining.
    */
   also(action: ActionBuilder | RuleAction): this {
     return this.then(action);
   }
 
   /**
-   * Sestaví finální pravidlo.
+   * Validates the accumulated state and returns the final rule definition.
    *
-   * @throws Error pokud chybí povinná pole
+   * @returns A {@link BuiltRule} ready to be registered with the engine.
+   * @throws {DslValidationError} If the rule ID, trigger, or actions are missing.
    */
   build(): BuiltRule {
     if (!this.ctx.id) {
@@ -175,6 +212,14 @@ export class RuleBuilder {
 }
 
 /**
- * Entry point pro DSL.
+ * Entry-point alias for {@link RuleBuilder}.
+ *
+ * @example
+ * ```typescript
+ * const myRule = Rule.create('my-rule')
+ *   .when(onEvent('order.created'))
+ *   .then(emit('notification.send'))
+ *   .build();
+ * ```
  */
 export const Rule = RuleBuilder;

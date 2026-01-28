@@ -1,9 +1,14 @@
 /**
- * DSL (Domain Specific Language) pro noex-rules.
+ * DSL (Domain Specific Language) for **noex-rules**.
  *
- * Poskytuje fluent builder API pro vytváření pravidel s plnou TypeScript podporou.
+ * Provides three complementary ways to define rules:
+ *
+ * 1. **Fluent Builder API** — TypeScript-native, type-safe, IDE-friendly.
+ * 2. **Tagged Template Literals** — compact syntax for simple rules.
+ * 3. **YAML Loader** — external configuration files.
  *
  * @example
+ * ```typescript
  * import { Rule, onEvent, event, emit, ref } from 'noex-rules/dsl';
  *
  * const rule = Rule.create('order-notification')
@@ -17,6 +22,7 @@
  *     message: 'Large order received!'
  *   }))
  *   .build();
+ * ```
  *
  * @module dsl
  */

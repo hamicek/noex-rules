@@ -1,7 +1,9 @@
 /**
- * Parser pro rule template syntax.
+ * Parser for the rule template DSL syntax.
  *
- * Podporuje line-oriented formát:
+ * The format is line-oriented — each line is either a property declaration
+ * (`key: value`), a trigger (`WHEN`), a condition (`IF` / `AND`), or an
+ * action (`THEN`). Blank lines and comments (`#` / `//`) are ignored.
  *
  * ```
  * id: order-notification
@@ -15,6 +17,8 @@
  * THEN emit notification.send { orderId: event.orderId }
  * THEN log info "Large order received"
  * ```
+ *
+ * @module
  */
 
 import type { RuleInput, RuleTrigger } from '../../types/rule.js';
@@ -27,7 +31,9 @@ import { DslError } from '../helpers/errors.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Chyba parsování rule template s informací o řádku.
+ * Thrown when the rule template parser encounters a syntax error.
+ *
+ * Includes the offending line number and source text for diagnostics.
  */
 export class ParseError extends DslError {
   readonly line: number;
@@ -68,9 +74,7 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 
 // Tokenizer helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Rozdělí výraz na tokeny podle mezer, respektuje uvozovky a závorky.
- */
+/** Tokenizes an expression by spaces while respecting quotes and brackets. */
 function tokenizeExpression(input: string): string[] {
   const tokens: string[] = [];
   let current = '';
@@ -117,9 +121,7 @@ function tokenizeExpression(input: string): string[] {
   return tokens;
 }
 
-/**
- * Rozdělí string podle čárek, respektuje uvozovky a vnořené závorky.
- */
+/** Splits a string by commas while respecting quotes and nested brackets. */
 function splitByComma(input: string): string[] {
   const parts: string[] = [];
   let current = '';
@@ -523,14 +525,20 @@ const PROPERTY_KEYS: ReadonlySet<string> = new Set([
 // ---------------------------------------------------------------------------
 
 /**
- * Parsuje rule template string a vrací RuleInput objekt.
+ * Parses a rule template string into a `RuleInput` object.
  *
- * Syntax je line-oriented — každý řádek je buď property (key: value),
- * trigger (WHEN), podmínka (IF/AND), nebo akce (THEN).
- * Prázdné řádky a komentáře (# nebo //) jsou ignorovány.
+ * Each line is treated as one of:
+ * - **Property** — `key: value` (id, name, description, priority, enabled, tags)
+ * - **Trigger** — `WHEN event|fact|timer <target>`
+ * - **Condition** — `IF <source> <op> <value>` / `AND ...`
+ * - **Action** — `THEN emit|setFact|deleteFact|log|cancelTimer ...`
  *
- * @throws {ParseError} Při syntaktické chybě (obsahuje číslo řádku)
- * @throws {Error} Při chybějícím id, triggeru nebo akci
+ * Blank lines and comments (`#` / `//`) are ignored.
+ *
+ * @param input - The raw template string.
+ * @returns A validated `RuleInput` object.
+ * @throws {ParseError} On syntax errors (includes the line number).
+ * @throws {Error} If `id`, `WHEN`, or `THEN` are missing.
  */
 export function parseRuleTemplate(input: string): RuleInput {
   const lines = input.split('\n');

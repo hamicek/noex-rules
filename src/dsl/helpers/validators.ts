@@ -1,8 +1,10 @@
 /**
- * Validační funkce pro DSL vstupy.
+ * Validation helpers for DSL builder inputs.
  *
- * Zajišťují fail-fast chování při nesprávných vstupech —
- * chyby se odhalí přímo v místě volání, nikoliv až při build().
+ * These guards enforce a fail-fast approach — invalid input is rejected
+ * at the call-site rather than deferred until `build()`.
+ *
+ * @module
  */
 
 import { DslValidationError } from './errors.js';
@@ -10,11 +12,11 @@ import { DslValidationError } from './errors.js';
 const DURATION_RE = /^\d+(ms|s|m|h|d|w|y)$/;
 
 /**
- * Ověří, že hodnota je neprázdný string.
+ * Asserts that `value` is a non-empty string.
  *
- * @param value  - Validovaná hodnota
- * @param label  - Lidsky čitelný popis parametru pro chybovou hlášku
- * @throws {DslValidationError} Pokud hodnota není string nebo je prázdná
+ * @param value - The value to validate.
+ * @param label - A human-readable parameter name used in the error message.
+ * @throws {DslValidationError} If `value` is not a string or is empty.
  */
 export function requireNonEmptyString(value: unknown, label: string): asserts value is string {
   if (typeof value !== 'string' || value.length === 0) {
@@ -23,14 +25,16 @@ export function requireNonEmptyString(value: unknown, label: string): asserts va
 }
 
 /**
- * Ověří, že hodnota je platný duration formát.
+ * Asserts that `value` is a valid duration.
  *
- * Přijímá buď kladné číslo (milisekundy) nebo string ve formátu
- * `<číslo><jednotka>` kde jednotka je ms|s|m|h|d|w|y.
+ * Accepted formats:
+ * - A positive finite number interpreted as milliseconds.
+ * - A string matching `<digits><unit>` where unit is one of
+ *   `ms`, `s`, `m`, `h`, `d`, `w`, `y`.
  *
- * @param value  - Validovaná hodnota
- * @param label  - Lidsky čitelný popis parametru pro chybovou hlášku
- * @throws {DslValidationError} Pokud hodnota není platný duration
+ * @param value - The value to validate.
+ * @param label - A human-readable parameter name used in the error message.
+ * @throws {DslValidationError} If `value` is not a valid duration.
  */
 export function requireDuration(value: unknown, label: string): asserts value is string | number {
   if (typeof value === 'number') {

@@ -6,15 +6,14 @@ import { DslValidationError } from '../helpers/errors.js';
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 const VALID_LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
 
-/**
- * Builder pro log akci.
- */
+/** @internal */
 class LogBuilder implements ActionBuilder {
   constructor(
     private readonly level: LogLevel,
     private readonly message: string
   ) {}
 
+  /** @returns A `RuleAction` of type `'log'`. */
   build(): RuleAction {
     return {
       type: 'log',
@@ -25,17 +24,21 @@ class LogBuilder implements ActionBuilder {
 }
 
 /**
- * Vytvoří akci pro logování.
+ * Creates a logging action.
  *
- * Zpráva podporuje interpolaci pomocí ${} syntaxe.
+ * The message supports `${}` interpolation that is resolved at runtime.
+ *
+ * @param level   - Log level: `'debug'`, `'info'`, `'warn'`, or `'error'`.
+ * @param message - Message to log (supports `${}` interpolation).
+ * @returns An {@link ActionBuilder} for use with {@link RuleBuilder.then}.
+ * @throws {DslValidationError} If `level` is invalid or `message` is not a string.
  *
  * @example
+ * ```typescript
  * log('info', 'Processing order ${event.orderId}')
  * log('error', 'Payment failed for customer ${fact.customerId}')
  * log('debug', 'Rule triggered at ${context.timestamp}')
- *
- * @param level - Úroveň logu: 'debug', 'info', 'warn', 'error'
- * @param message - Zpráva k zalogování (podporuje ${} interpolaci)
+ * ```
  */
 export function log(level: LogLevel, message: string): ActionBuilder {
   requireNonEmptyString(level, 'log() level');
@@ -48,10 +51,11 @@ export function log(level: LogLevel, message: string): ActionBuilder {
   return new LogBuilder(level, message);
 }
 
-/**
- * Helper funkce pro jednotlivé log úrovně.
- */
+/** Shorthand for `log('debug', message)`. */
 log.debug = (message: string): ActionBuilder => log('debug', message);
+/** Shorthand for `log('info', message)`. */
 log.info = (message: string): ActionBuilder => log('info', message);
+/** Shorthand for `log('warn', message)`. */
 log.warn = (message: string): ActionBuilder => log('warn', message);
+/** Shorthand for `log('error', message)`. */
 log.error = (message: string): ActionBuilder => log('error', message);

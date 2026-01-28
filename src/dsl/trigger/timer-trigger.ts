@@ -2,12 +2,11 @@ import type { RuleTrigger } from '../../types/rule.js';
 import type { TriggerBuilder } from '../types.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 
-/**
- * Builder pro timer trigger.
- */
+/** @internal */
 class TimerTriggerBuilder implements TriggerBuilder {
   constructor(private readonly timerName: string) {}
 
+  /** @returns A `RuleTrigger` of type `'timer'`. */
   build(): RuleTrigger {
     return {
       type: 'timer',
@@ -17,19 +16,20 @@ class TimerTriggerBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří trigger, který se spustí po expiraci timeru s daným jménem.
+ * Creates a trigger that fires when the named timer expires.
+ *
+ * @param name - Timer name to listen for.
+ * @returns A {@link TriggerBuilder} for use with {@link RuleBuilder.when}.
  *
  * @example
- * // Reakce na timeout platby
+ * // React to a payment timeout
  * onTimer('payment-timeout')
  *
- * // Periodická kontrola
+ * // Periodic cleanup
  * onTimer('daily-cleanup')
  *
- * // Timer vázaný na entitu
+ * // Entity-scoped timer
  * onTimer('order:123:reminder')
- *
- * @param name - Jméno timeru, na jehož expiraci se čeká
  */
 export function onTimer(name: string): TriggerBuilder {
   requireNonEmptyString(name, 'onTimer() name');

@@ -4,8 +4,18 @@ import { normalizeValue } from '../helpers/ref.js';
 import { DslValidationError } from '../helpers/errors.js';
 
 /**
- * Source expression s podporou operátorů.
- * Umožňuje fluent API: event('amount').gte(100)
+ * Fluent condition expression with chainable comparison operators.
+ *
+ * Created via the {@link event}, {@link fact}, or {@link context} helper
+ * functions. Call one operator method and then pass the expression to
+ * {@link RuleBuilder.if} or {@link RuleBuilder.and}.
+ *
+ * @example
+ * ```typescript
+ * event('amount').gte(100)
+ * fact('customer:vip').eq(true)
+ * context('threshold').lte(ref('event.value'))
+ * ```
  */
 export class SourceExpr implements ConditionBuilder {
   private source: ConditionSource;
@@ -16,91 +26,156 @@ export class SourceExpr implements ConditionBuilder {
     this.source = source;
   }
 
-  /** Rovná se */
+  /**
+   * Equal — matches when the source value strictly equals `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   eq<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'eq';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Nerovná se */
+  /**
+   * Not equal — matches when the source value does not equal `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   neq<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'neq';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Větší než */
+  /**
+   * Greater than — matches when the source value is greater than `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   gt<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'gt';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Větší nebo rovno */
+  /**
+   * Greater than or equal — matches when the source value is &ge; `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   gte<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'gte';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Menší než */
+  /**
+   * Less than — matches when the source value is less than `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   lt<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'lt';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Menší nebo rovno */
+  /**
+   * Less than or equal — matches when the source value is &le; `value`.
+   *
+   * @param value - Literal or {@link ref} to compare against.
+   * @returns `this` for chaining.
+   */
   lte<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'lte';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Je v seznamu */
+  /**
+   * Membership — matches when the source value is contained in `values`.
+   *
+   * @param values - Array literal or {@link ref} resolving to an array.
+   * @returns `this` for chaining.
+   */
   in<T>(values: ValueOrRef<T[]>): SourceExpr {
     this.operator = 'in';
     this.value = normalizeValue(values);
     return this;
   }
 
-  /** Není v seznamu */
+  /**
+   * Exclusion — matches when the source value is NOT in `values`.
+   *
+   * @param values - Array literal or {@link ref} resolving to an array.
+   * @returns `this` for chaining.
+   */
   notIn<T>(values: ValueOrRef<T[]>): SourceExpr {
     this.operator = 'not_in';
     this.value = normalizeValue(values);
     return this;
   }
 
-  /** Obsahuje */
+  /**
+   * Contains — matches when the source (array/string) contains `value`.
+   *
+   * @param value - Literal or {@link ref} to search for.
+   * @returns `this` for chaining.
+   */
   contains<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'contains';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Neobsahuje */
+  /**
+   * Not contains — matches when the source does NOT contain `value`.
+   *
+   * @param value - Literal or {@link ref} to search for.
+   * @returns `this` for chaining.
+   */
   notContains<T>(value: ValueOrRef<T>): SourceExpr {
     this.operator = 'not_contains';
     this.value = normalizeValue(value);
     return this;
   }
 
-  /** Odpovídá regex patternu */
+  /**
+   * Regex match — matches when the source string matches `pattern`.
+   *
+   * @param pattern - A regex string or `RegExp` (only the `source` is used).
+   * @returns `this` for chaining.
+   */
   matches(pattern: string | RegExp): SourceExpr {
     this.operator = 'matches';
     this.value = pattern instanceof RegExp ? pattern.source : pattern;
     return this;
   }
 
-  /** Hodnota existuje (není undefined/null) */
+  /**
+   * Existence check — matches when the source value is defined
+   * (not `undefined` / `null`).
+   *
+   * @returns `this` for chaining.
+   */
   exists(): SourceExpr {
     this.operator = 'exists';
     this.value = true;
     return this;
   }
 
-  /** Hodnota neexistuje (je undefined/null) */
+  /**
+   * Non-existence check — matches when the source value is `undefined`
+   * or `null`.
+   *
+   * @returns `this` for chaining.
+   */
   notExists(): SourceExpr {
     this.operator = 'not_exists';
     this.value = true;
@@ -108,9 +183,10 @@ export class SourceExpr implements ConditionBuilder {
   }
 
   /**
-   * Sestaví RuleCondition objekt.
+   * Builds the final {@link RuleCondition} object.
    *
-   * @throws {DslValidationError} Pokud nebyl nastaven operátor
+   * @returns The assembled condition ready for the rule engine.
+   * @throws {DslValidationError} If no operator has been set.
    */
   build(): RuleCondition {
     if (!this.operator) {

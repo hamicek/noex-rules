@@ -3,15 +3,14 @@ import type { ActionBuilder } from '../types.js';
 import { normalizeRefData } from '../helpers/ref.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 
-/**
- * Builder pro emit_event akci.
- */
+/** @internal */
 class EmitBuilder implements ActionBuilder {
   constructor(
     private readonly topic: string,
     private readonly data: Record<string, unknown>
   ) {}
 
+  /** @returns A `RuleAction` of type `'emit_event'`. */
   build(): RuleAction {
     return {
       type: 'emit_event',
@@ -22,16 +21,19 @@ class EmitBuilder implements ActionBuilder {
 }
 
 /**
- * Vytvoří akci pro emitování eventu.
+ * Creates an action that emits a new event when the rule fires.
+ *
+ * @param topic - Topic for the emitted event.
+ * @param data  - Event payload (values may be {@link ref} for dynamic resolution).
+ * @returns An {@link ActionBuilder} for use with {@link RuleBuilder.then}.
  *
  * @example
+ * ```typescript
  * emit('notification.send', {
  *   orderId: ref('event.orderId'),
  *   message: 'Order received!'
  * })
- *
- * @param topic - Topic pro emitovaný event
- * @param data - Data eventu (může obsahovat ref() pro dynamické hodnoty)
+ * ```
  */
 export function emit(
   topic: string,

@@ -5,21 +5,24 @@ import { requireNonEmptyString, requireDuration } from '../../helpers/validators
 import { DslValidationError } from '../../helpers/errors.js';
 
 /**
- * Fluent builder pro count temporální vzor.
+ * Fluent builder for a **count** temporal pattern.
  *
- * Count sleduje počet výskytů eventu v časovém okně a triggeruje
- * pravidlo, když počet splní zadanou podmínku vůči thresholdu.
+ * Tracks the number of matching event occurrences within a time window
+ * and triggers the rule when the count satisfies the threshold comparison.
  *
  * @example
+ * ```typescript
  * count()
  *   .event('auth.login_failed')
  *   .threshold(3)
  *   .window('5m')
  *   .groupBy('userId')
  *   .build();
+ * ```
  *
  * @example
- * // S filtrem, comparison a sliding window
+ * ```typescript
+ * // With filter, comparison, and sliding window
  * count()
  *   .event('api.error', { statusCode: 500 })
  *   .threshold(10)
@@ -27,6 +30,7 @@ import { DslValidationError } from '../../helpers/errors.js';
  *   .window('1m')
  *   .sliding()
  *   .build();
+ * ```
  */
 export class CountBuilder implements TriggerBuilder {
   private eventMatcher: EventMatcher | undefined;
@@ -37,10 +41,11 @@ export class CountBuilder implements TriggerBuilder {
   private slidingMode: boolean | undefined;
 
   /**
-   * Nastaví event, jehož výskyty se počítají.
+   * Sets the event whose occurrences are counted.
    *
-   * @param topic  - Topic pattern pro matching eventů
-   * @param filter - Volitelný filtr na data eventu
+   * @param topic  - Event topic pattern.
+   * @param filter - Optional data filter for the event.
+   * @returns `this` for chaining.
    */
   event(topic: string, filter?: Record<string, unknown>): this {
     requireNonEmptyString(topic, 'count().event() topic');
@@ -50,9 +55,11 @@ export class CountBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví prahovou hodnotu počtu.
+   * Sets the count threshold.
    *
-   * @param value - Minimální/maximální/přesný počet (dle comparison)
+   * @param value - Non-negative number (interpreted per the `comparison`).
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `value` is not a non-negative finite number.
    */
   threshold(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
@@ -63,9 +70,11 @@ export class CountBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví typ porovnání s thresholdem.
+   * Sets the comparison operator applied against the threshold.
    *
-   * @param op - Operátor: 'gte' (výchozí), 'lte' nebo 'eq'
+   * @param op - `'gte'` (default), `'lte'`, or `'eq'`.
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `op` is not a valid comparison.
    */
   comparison(op: 'gte' | 'lte' | 'eq'): this {
     if (op !== 'gte' && op !== 'lte' && op !== 'eq') {
@@ -76,9 +85,10 @@ export class CountBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví časové okno pro počítání.
+   * Sets the time window for counting.
    *
-   * @param value - Duration string ("5m", "1h") nebo číslo v milisekundách
+   * @param value - Duration string (e.g. `"5m"`, `"1h"`) or milliseconds.
+   * @returns `this` for chaining.
    */
   window(value: string | number): this {
     requireDuration(value, 'count().window()');
@@ -87,9 +97,10 @@ export class CountBuilder implements TriggerBuilder {
   }
 
   /**
-   * Seskupí instance podle pole v datech eventu.
+   * Groups pattern instances by a field in the event data.
    *
-   * @param field - Cesta k poli v datech eventu (např. "userId")
+   * @param field - Dot-notated path (e.g. `"userId"`).
+   * @returns `this` for chaining.
    */
   groupBy(field: string): this {
     requireNonEmptyString(field, 'count().groupBy()');
@@ -98,15 +109,22 @@ export class CountBuilder implements TriggerBuilder {
   }
 
   /**
-   * Zapne klouzavé okno (sliding window). Výchozí je tumbling window.
+   * Enables a sliding window. The default is a tumbling window.
    *
-   * @param value - true pro sliding, false pro tumbling (výchozí: true)
+   * @param value - `true` for sliding (default), `false` for tumbling.
+   * @returns `this` for chaining.
    */
   sliding(value = true): this {
     this.slidingMode = value;
     return this;
   }
 
+  /**
+   * Builds the temporal trigger.
+   *
+   * @returns A `RuleTrigger` of type `'temporal'` with a `CountPattern`.
+   * @throws {DslValidationError} If event, threshold, or window are missing.
+   */
   build(): RuleTrigger {
     if (!this.eventMatcher) {
       throw new DslValidationError('count() requires .event() to set the counted event');
@@ -134,9 +152,12 @@ export class CountBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří builder pro count temporální vzor.
+ * Creates a new {@link CountBuilder} for defining a count temporal pattern.
+ *
+ * @returns A fresh builder instance.
  *
  * @example
+ * ```typescript
  * Rule.create('brute-force')
  *   .when(count()
  *     .event('auth.login_failed')
@@ -147,6 +168,7 @@ export class CountBuilder implements TriggerBuilder {
  *   )
  *   .then(emit('security.alert', { type: 'brute_force' }))
  *   .build();
+ * ```
  */
 export function count(): CountBuilder {
   return new CountBuilder();

@@ -1,16 +1,16 @@
 /**
- * YAML loader pro pravidla rule engine.
+ * YAML loader for rule engine definitions.
  *
- * Podporuje tři formáty YAML vstupu:
- * - Jeden objekt pravidla
- * - Pole pravidel (YAML sequence na top-level)
- * - Objekt s klíčem `rules` obsahující pole pravidel
+ * Accepts three YAML input formats:
+ * - A single rule object.
+ * - A top-level YAML sequence (array) of rule objects.
+ * - An object with a `rules` key containing an array of rule objects.
  *
  * @example
  * ```typescript
  * import { loadRulesFromYAML, loadRulesFromFile } from 'noex-rules/dsl';
  *
- * // Z YAML řetězce
+ * // From a YAML string
  * const rules = loadRulesFromYAML(`
  *   id: my-rule
  *   trigger:
@@ -23,9 +23,11 @@
  *         orderId: \${event.orderId}
  * `);
  *
- * // Ze souboru
+ * // From a file
  * const fileRules = await loadRulesFromFile('./rules/orders.yaml');
  * ```
+ *
+ * @module
  */
 
 import { readFile } from 'node:fs/promises';
@@ -50,15 +52,17 @@ export class YamlLoadError extends DslError {
 // ---------------------------------------------------------------------------
 
 /**
- * Parsuje YAML řetězec a vrací pole validovaných pravidel.
+ * Parses a YAML string and returns an array of validated rule definitions.
  *
- * Podporuje:
- * - Jeden YAML objekt → `[RuleInput]`
- * - YAML pole → `RuleInput[]`
- * - Objekt s klíčem `rules` → `RuleInput[]`
+ * Accepted top-level shapes:
+ * - Single YAML object → `[RuleInput]`
+ * - YAML array → `RuleInput[]`
+ * - Object with `rules` key → `RuleInput[]`
  *
- * @throws {YamlLoadError} Při YAML syntaktické chybě nebo prázdném vstupu
- * @throws {YamlValidationError} Při validační chybě struktury pravidla
+ * @param yamlContent - Raw YAML string.
+ * @returns Array of validated `RuleInput` objects.
+ * @throws {YamlLoadError} On YAML syntax errors or empty content.
+ * @throws {YamlValidationError} On rule structure validation errors.
  */
 export function loadRulesFromYAML(yamlContent: string): RuleInput[] {
   let parsed: unknown;
@@ -104,10 +108,12 @@ export function loadRulesFromYAML(yamlContent: string): RuleInput[] {
 }
 
 /**
- * Načte pravidla z YAML souboru.
+ * Reads a YAML file from disk and returns validated rule definitions.
  *
- * @throws {YamlLoadError} Při chybě čtení souboru, YAML syntaxi nebo prázdném souboru
- * @throws {YamlValidationError} Při validační chybě struktury pravidla
+ * @param filePath - Path to the YAML file.
+ * @returns Array of validated `RuleInput` objects.
+ * @throws {YamlLoadError} On file read errors, YAML syntax errors, or empty files.
+ * @throws {YamlValidationError} On rule structure validation errors.
  */
 export async function loadRulesFromFile(filePath: string): Promise<RuleInput[]> {
   let content: string;

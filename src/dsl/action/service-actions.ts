@@ -4,9 +4,7 @@ import { normalizeRefArgs } from '../helpers/ref.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 import { DslValidationError } from '../helpers/errors.js';
 
-/**
- * Fluent builder pro call_service akci.
- */
+/** @internal Fluent builder returned by `callService(service)`. */
 class CallServiceFluentBuilder implements ActionBuilder {
   private readonly serviceName: string;
   private methodName: string = '';
@@ -17,9 +15,10 @@ class CallServiceFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Nastaví metodu, která se má zavolat.
+   * Sets the method to invoke on the service.
    *
-   * @param name - Název metody
+   * @param name - Method name.
+   * @returns `this` for chaining.
    */
   method(name: string): CallServiceFluentBuilder {
     requireNonEmptyString(name, 'callService().method() name');
@@ -28,15 +27,22 @@ class CallServiceFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Nastaví argumenty pro volání metody.
+   * Sets the arguments for the method call.
    *
-   * @param args - Argumenty (podporuje ref())
+   * @param args - Method arguments (values may be {@link ref}).
+   * @returns `this` for chaining.
    */
   args(...args: unknown[]): CallServiceFluentBuilder {
     this.methodArgs = args;
     return this;
   }
 
+  /**
+   * Builds the service call action.
+   *
+   * @returns A `RuleAction` of type `'call_service'`.
+   * @throws {DslValidationError} If the method name has not been set.
+   */
   build(): RuleAction {
     if (!this.methodName) {
       throw new DslValidationError(
@@ -53,9 +59,7 @@ class CallServiceFluentBuilder implements ActionBuilder {
   }
 }
 
-/**
- * Builder pro call_service akci s přímým zadáním.
- */
+/** @internal */
 class CallServiceBuilder implements ActionBuilder {
   constructor(
     private readonly serviceName: string,
@@ -74,23 +78,29 @@ class CallServiceBuilder implements ActionBuilder {
 }
 
 /**
- * Vytvoří akci pro volání externí služby.
+ * Creates an action that invokes a method on an external service.
  *
- * Podporuje dva způsoby použití:
+ * Supports two usage styles:
  *
- * 1. S fluent API:
+ * **1. Fluent API:**
  * @example
+ * ```typescript
  * callService('paymentService')
  *   .method('processPayment')
  *   .args(ref('event.orderId'), 100)
+ * ```
  *
- * 2. S přímým zadáním:
+ * **2. Direct call:**
  * @example
+ * ```typescript
  * callService('paymentService', 'processPayment', [ref('event.orderId'), 100])
+ * ```
  *
- * @param service - Název služby
- * @param method - Volitelně název metody (pro přímé zadání)
- * @param args - Volitelně argumenty metody (pro přímé zadání)
+ * @param service - Service name.
+ * @param method  - Method name (required in direct form).
+ * @param args    - Method arguments (direct form only).
+ * @returns A `CallServiceFluentBuilder` (fluent) or an {@link ActionBuilder}
+ *          (direct).
  */
 export function callService(service: string): CallServiceFluentBuilder;
 export function callService(

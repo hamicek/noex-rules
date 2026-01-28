@@ -1,12 +1,14 @@
 /**
- * Validace a transformace YAML objektu na RuleInput.
+ * YAML schema validation and transformation into `RuleInput`.
  *
- * Poskytuje typově bezpečnou validaci celé struktury pravidla
- * s cestovými chybovými hláškami pro snadné ladění.
+ * Provides type-safe validation of the entire rule structure with
+ * path-aware error messages for easy debugging.
  *
- * Podporuje dvě syntaxe pro reference:
- * - Explicitní objekt: `{ ref: "event.orderId" }`
- * - Interpolační zkratka: `${event.orderId}`
+ * Two reference syntaxes are supported:
+ * - Explicit object: `{ ref: "event.orderId" }`
+ * - Interpolation shorthand: `${event.orderId}`
+ *
+ * @module
  */
 
 import type { RuleInput, RuleTrigger } from '../../types/rule.js';
@@ -132,8 +134,8 @@ function requireDuration(value: unknown, path: string): string | number {
 const REF_INTERPOLATION = /^\$\{(.+)\}$/;
 
 /**
- * Rekurzivně normalizuje hodnoty — detekuje referenční syntaxi
- * (`${path}` nebo `{ ref: path }`) a převádí na `{ ref: path }`.
+ * Recursively normalizes values — detects reference syntax
+ * (`${path}` or `{ ref: path }`) and converts to `{ ref: path }`.
  */
 export function normalizeValue(value: unknown): unknown {
   if (typeof value === 'string') {
@@ -529,16 +531,21 @@ function validateAction(obj: unknown, path: string): RuleAction {
 // ---------------------------------------------------------------------------
 
 /**
- * Validuje surový objekt (typicky z YAML parseru) a vrací typově bezpečný `RuleInput`.
+ * Validates a raw object (typically from a YAML parser) and returns a
+ * type-safe `RuleInput`.
  *
- * Aplikuje výchozí hodnoty:
- * - `name` → id (pokud chybí)
- * - `priority` → 0
- * - `enabled` → true
- * - `tags` → []
- * - `conditions` → []
+ * Applies defaults:
+ * - `name` → id (when absent)
+ * - `priority` → `0`
+ * - `enabled` → `true`
+ * - `tags` → `[]`
+ * - `conditions` → `[]`
  *
- * @throws {YamlValidationError} Při jakékoliv validační chybě (obsahuje cestu k poli)
+ * @param obj  - The raw parsed object.
+ * @param path - Dot-notated path prefix for error messages (default `"rule"`).
+ * @returns A validated `RuleInput` object.
+ * @throws {YamlValidationError} On any validation error (message includes the
+ *         field path).
  */
 export function validateRule(obj: unknown, path: string = 'rule'): RuleInput {
   const o = requireObject(obj, path);

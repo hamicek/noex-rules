@@ -5,21 +5,24 @@ import { requireNonEmptyString, requireDuration } from '../../helpers/validators
 import { DslValidationError } from '../../helpers/errors.js';
 
 /**
- * Fluent builder pro sekvenční temporální vzor.
+ * Fluent builder for a **sequence** temporal pattern.
  *
- * Sekvence definuje řadu událostí, které musí přijít v daném pořadí
- * v rámci časového okna.
+ * A sequence defines an ordered series of events that must arrive
+ * within a specified time window to trigger the rule.
  *
  * @example
+ * ```typescript
  * sequence()
  *   .event('order.created')
  *   .event('payment.received')
  *   .within('5m')
  *   .groupBy('orderId')
  *   .build();
+ * ```
  *
  * @example
- * // S filtry na data eventu
+ * ```typescript
+ * // With data filters and strict ordering
  * sequence()
  *   .event('auth.login_failed', { method: 'password' })
  *   .event('auth.login_failed', { method: 'password' })
@@ -28,6 +31,7 @@ import { DslValidationError } from '../../helpers/errors.js';
  *   .groupBy('userId')
  *   .strict()
  *   .build();
+ * ```
  */
 export class SequenceBuilder implements TriggerBuilder {
   private readonly matchers: EventMatcher[] = [];
@@ -36,11 +40,12 @@ export class SequenceBuilder implements TriggerBuilder {
   private strictMode = false;
 
   /**
-   * Přidá očekávaný event do sekvence.
+   * Appends an expected event to the sequence.
    *
-   * @param topic  - Topic pattern pro matching eventů
-   * @param filter - Volitelný filtr na data eventu
-   * @param as     - Volitelný alias pro referenci v akcích
+   * @param topic  - Event topic pattern.
+   * @param filter - Optional data filter for the event.
+   * @param as     - Optional alias used to reference this event in actions.
+   * @returns `this` for chaining.
    */
   event(topic: string, filter?: Record<string, unknown>, as?: string): this {
     requireNonEmptyString(topic, 'sequence().event() topic');
@@ -52,9 +57,10 @@ export class SequenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví časové okno, ve kterém musí celá sekvence proběhnout.
+   * Sets the time window within which the entire sequence must complete.
    *
-   * @param value - Duration string ("5m", "1h") nebo číslo v milisekundách
+   * @param value - Duration string (e.g. `"5m"`, `"1h"`) or milliseconds.
+   * @returns `this` for chaining.
    */
   within(value: string | number): this {
     requireDuration(value, 'sequence().within()');
@@ -63,9 +69,11 @@ export class SequenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Seskupí instance podle pole v datech eventu.
+   * Groups pattern instances by a field in the event data so that each
+   * unique value is tracked independently.
    *
-   * @param field - Cesta k poli v datech eventu (např. "orderId", "data.userId")
+   * @param field - Dot-notated path (e.g. `"orderId"`, `"data.userId"`).
+   * @returns `this` for chaining.
    */
   groupBy(field: string): this {
     requireNonEmptyString(field, 'sequence().groupBy()');
@@ -74,13 +82,23 @@ export class SequenceBuilder implements TriggerBuilder {
   }
 
   /**
-   * Zapne striktní režim - žádné jiné eventy nesmí přijít mezi očekávanými.
+   * Enables strict mode — no unrelated events may occur between the
+   * expected events in the sequence.
+   *
+   * @param value - `true` to enable (default), `false` to disable.
+   * @returns `this` for chaining.
    */
   strict(value = true): this {
     this.strictMode = value;
     return this;
   }
 
+  /**
+   * Builds the temporal trigger.
+   *
+   * @returns A `RuleTrigger` of type `'temporal'` with a `SequencePattern`.
+   * @throws {DslValidationError} If no events or no time window have been set.
+   */
   build(): RuleTrigger {
     if (this.matchers.length === 0) {
       throw new DslValidationError('sequence() requires at least one .event()');
@@ -103,9 +121,12 @@ export class SequenceBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří builder pro sekvenční temporální vzor.
+ * Creates a new {@link SequenceBuilder} for defining a sequence temporal pattern.
+ *
+ * @returns A fresh builder instance.
  *
  * @example
+ * ```typescript
  * Rule.create('payment-flow')
  *   .when(sequence()
  *     .event('order.created')
@@ -115,6 +136,7 @@ export class SequenceBuilder implements TriggerBuilder {
  *   )
  *   .then(emit('order.completed'))
  *   .build();
+ * ```
  */
 export function sequence(): SequenceBuilder {
   return new SequenceBuilder();

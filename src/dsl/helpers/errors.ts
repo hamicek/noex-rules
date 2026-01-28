@@ -1,25 +1,27 @@
 /**
- * Hierarchie chybových tříd pro DSL modul.
+ * Error class hierarchy for the DSL module.
  *
- * Všechny chyby z DSL dědí z {@link DslError}, což umožňuje
- * jednoduché odchycení všech DSL chyb najednou:
+ * Every error thrown by the DSL inherits from {@link DslError}, allowing
+ * consumers to catch all DSL-related errors in a single handler:
  *
  * ```typescript
  * try {
  *   rule.build();
  * } catch (err) {
  *   if (err instanceof DslError) {
- *     // Jakákoliv chyba z DSL builderu, YAML loaderu nebo template parseru
+ *     // Any error from the DSL builder, YAML loader, or template parser
  *   }
  * }
  * ```
+ *
+ * @module
  */
 
 /**
- * Základní chybová třída pro všechny DSL operace.
+ * Base error class for all DSL operations.
  *
- * Slouží jako společný předek pro všechny specifické DSL chyby
- * ({@link DslValidationError}, ParseError, YamlLoadError, YamlValidationError).
+ * Acts as the common ancestor for all specific DSL errors:
+ * {@link DslValidationError}, `ParseError`, `YamlLoadError`, `YamlValidationError`.
  */
 export class DslError extends Error {
   constructor(message: string) {
@@ -29,21 +31,21 @@ export class DslError extends Error {
 }
 
 /**
- * Chyba validace vstupu v DSL builderech.
+ * Thrown when a DSL builder receives invalid input.
  *
- * Vyvoláváno při neplatném vstupu do builder metod (neplatný string,
- * chybějící povinný parametr, neplatná hodnota) nebo při neúplném stavu
- * builderu v okamžiku volání `build()`.
+ * This covers empty strings passed to required parameters, missing
+ * builder state at `build()` time, out-of-range numbers, and similar
+ * validation failures.
  *
  * @example
  * ```typescript
- * import { DslValidationError, Rule, onEvent, emit } from 'noex-rules/dsl';
+ * import { DslValidationError, Rule } from 'noex-rules/dsl';
  *
  * try {
  *   Rule.create('').build();
  * } catch (err) {
  *   if (err instanceof DslValidationError) {
- *     console.error('Neplatný vstup:', err.message);
+ *     console.error('Invalid input:', err.message);
  *   }
  * }
  * ```

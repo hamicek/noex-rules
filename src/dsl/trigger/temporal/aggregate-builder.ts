@@ -8,13 +8,14 @@ type AggregateFn = 'sum' | 'avg' | 'min' | 'max' | 'count';
 const VALID_FUNCTIONS: readonly AggregateFn[] = ['sum', 'avg', 'min', 'max', 'count'];
 
 /**
- * Fluent builder pro aggregate temporální vzor.
+ * Fluent builder for an **aggregate** temporal pattern.
  *
- * Aggregate sleduje hodnoty pole v eventech, aplikuje agregační funkci
- * (sum, avg, min, max, count) a triggeruje pravidlo, když výsledek
- * splní podmínku vůči thresholdu.
+ * Tracks numeric field values across matching events, applies an
+ * aggregate function (`sum`, `avg`, `min`, `max`, `count`), and triggers
+ * the rule when the result satisfies the threshold comparison.
  *
  * @example
+ * ```typescript
  * aggregate()
  *   .event('order.paid')
  *   .field('amount')
@@ -22,9 +23,11 @@ const VALID_FUNCTIONS: readonly AggregateFn[] = ['sum', 'avg', 'min', 'max', 'co
  *   .threshold(10000)
  *   .window('1h')
  *   .build();
+ * ```
  *
  * @example
- * // Průměrná doba odpovědi přesáhne limit
+ * ```typescript
+ * // Average response time exceeding a limit
  * aggregate()
  *   .event('api.response')
  *   .field('responseTime')
@@ -34,6 +37,7 @@ const VALID_FUNCTIONS: readonly AggregateFn[] = ['sum', 'avg', 'min', 'max', 'co
  *   .window('5m')
  *   .groupBy('endpoint')
  *   .build();
+ * ```
  */
 export class AggregateBuilder implements TriggerBuilder {
   private eventMatcher: EventMatcher | undefined;
@@ -45,10 +49,11 @@ export class AggregateBuilder implements TriggerBuilder {
   private groupByField: string | undefined;
 
   /**
-   * Nastaví event, jehož hodnoty se agregují.
+   * Sets the event whose field values are aggregated.
    *
-   * @param topic  - Topic pattern pro matching eventů
-   * @param filter - Volitelný filtr na data eventu
+   * @param topic  - Event topic pattern.
+   * @param filter - Optional data filter for the event.
+   * @returns `this` for chaining.
    */
   event(topic: string, filter?: Record<string, unknown>): this {
     requireNonEmptyString(topic, 'aggregate().event() topic');
@@ -58,9 +63,11 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví pole, jehož hodnoty se agregují.
+   * Sets the field whose values are aggregated.
    *
-   * @param path - Cesta k poli v datech eventu (např. "amount", "metrics.responseTime")
+   * @param path - Dot-notated path in event data (e.g. `"amount"`,
+   *               `"metrics.responseTime"`).
+   * @returns `this` for chaining.
    */
   field(path: string): this {
     requireNonEmptyString(path, 'aggregate().field()');
@@ -69,9 +76,11 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví agregační funkci.
+   * Sets the aggregate function to apply over the collected values.
    *
-   * @param fn - Agregační funkce: 'sum', 'avg', 'min', 'max' nebo 'count'
+   * @param fn - One of `'sum'`, `'avg'`, `'min'`, `'max'`, or `'count'`.
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `fn` is not a valid aggregate function.
    */
   function(fn: AggregateFn): this {
     if (!VALID_FUNCTIONS.includes(fn)) {
@@ -84,9 +93,11 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví prahovou hodnotu.
+   * Sets the threshold value to compare the aggregated result against.
    *
-   * @param value - Prahová hodnota pro porovnání s agregovaným výsledkem
+   * @param value - A finite number.
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `value` is not a finite number.
    */
   threshold(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -97,9 +108,11 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví typ porovnání s thresholdem.
+   * Sets the comparison operator applied against the threshold.
    *
-   * @param op - Operátor: 'gte' (výchozí), 'lte' nebo 'eq'
+   * @param op - `'gte'` (default), `'lte'`, or `'eq'`.
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `op` is not a valid comparison.
    */
   comparison(op: 'gte' | 'lte' | 'eq'): this {
     if (op !== 'gte' && op !== 'lte' && op !== 'eq') {
@@ -110,9 +123,10 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Nastaví časové okno pro agregaci.
+   * Sets the time window for aggregation.
    *
-   * @param value - Duration string ("5m", "1h") nebo číslo v milisekundách
+   * @param value - Duration string (e.g. `"5m"`, `"1h"`) or milliseconds.
+   * @returns `this` for chaining.
    */
   window(value: string | number): this {
     requireDuration(value, 'aggregate().window()');
@@ -121,9 +135,10 @@ export class AggregateBuilder implements TriggerBuilder {
   }
 
   /**
-   * Seskupí instance podle pole v datech eventu.
+   * Groups pattern instances by a field in the event data.
    *
-   * @param field - Cesta k poli v datech eventu (např. "region")
+   * @param field - Dot-notated path (e.g. `"region"`).
+   * @returns `this` for chaining.
    */
   groupBy(field: string): this {
     requireNonEmptyString(field, 'aggregate().groupBy()');
@@ -131,6 +146,13 @@ export class AggregateBuilder implements TriggerBuilder {
     return this;
   }
 
+  /**
+   * Builds the temporal trigger.
+   *
+   * @returns A `RuleTrigger` of type `'temporal'` with an `AggregatePattern`.
+   * @throws {DslValidationError} If event, field, function, threshold, or window
+   *         are missing.
+   */
   build(): RuleTrigger {
     if (!this.eventMatcher) {
       throw new DslValidationError('aggregate() requires .event() to set the source event');
@@ -165,9 +187,13 @@ export class AggregateBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří builder pro aggregate temporální vzor.
+ * Creates a new {@link AggregateBuilder} for defining an aggregate
+ * temporal pattern.
+ *
+ * @returns A fresh builder instance.
  *
  * @example
+ * ```typescript
  * Rule.create('revenue-spike')
  *   .when(aggregate()
  *     .event('order.paid')
@@ -179,6 +205,7 @@ export class AggregateBuilder implements TriggerBuilder {
  *   )
  *   .then(emit('alert.revenue_spike'))
  *   .build();
+ * ```
  */
 export function aggregate(): AggregateBuilder {
   return new AggregateBuilder();

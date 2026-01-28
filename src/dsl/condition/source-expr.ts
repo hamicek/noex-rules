@@ -2,14 +2,15 @@ import { SourceExpr } from './operators.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
- * Vytvoří source expression pro pole z triggering eventu.
+ * Creates a {@link SourceExpr} targeting a field from the triggering event.
+ *
+ * @param field - Dot-notated path to the event data field.
+ * @returns A {@link SourceExpr} ready for operator chaining.
  *
  * @example
  * event('amount').gte(100)
  * event('status').eq('completed')
  * event('items').contains('SKU-123')
- *
- * @param field - Cesta k poli v datech eventu (podporuje tečkovou notaci)
  */
 export function event(field: string): SourceExpr {
   requireNonEmptyString(field, 'event() field');
@@ -17,13 +18,14 @@ export function event(field: string): SourceExpr {
 }
 
 /**
- * Vytvoří source expression pro hodnotu faktu.
+ * Creates a {@link SourceExpr} targeting a value from the fact store.
+ *
+ * @param pattern - Fact key pattern (supports `${}` interpolation at runtime).
+ * @returns A {@link SourceExpr} ready for operator chaining.
  *
  * @example
  * fact('customer:123:vip').eq(true)
  * fact('order:${event.orderId}:total').gte(1000)
- *
- * @param pattern - Klíč faktu (podporuje interpolaci)
  */
 export function fact(pattern: string): SourceExpr {
   requireNonEmptyString(pattern, 'fact() pattern');
@@ -31,13 +33,14 @@ export function fact(pattern: string): SourceExpr {
 }
 
 /**
- * Vytvoří source expression pro kontextovou proměnnou.
+ * Creates a {@link SourceExpr} targeting a context variable.
+ *
+ * @param key - Name of the context variable.
+ * @returns A {@link SourceExpr} ready for operator chaining.
  *
  * @example
  * context('currentUser').exists()
  * context('threshold').lte(ref('event.amount'))
- *
- * @param key - Název kontextové proměnné
  */
 export function context(key: string): SourceExpr {
   requireNonEmptyString(key, 'context() key');

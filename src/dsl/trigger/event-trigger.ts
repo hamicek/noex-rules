@@ -2,12 +2,11 @@ import type { RuleTrigger } from '../../types/rule.js';
 import type { TriggerBuilder } from '../types.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 
-/**
- * Builder pro event trigger.
- */
+/** @internal */
 class EventTriggerBuilder implements TriggerBuilder {
   constructor(private readonly topic: string) {}
 
+  /** @returns A `RuleTrigger` of type `'event'`. */
   build(): RuleTrigger {
     return {
       type: 'event',
@@ -17,13 +16,14 @@ class EventTriggerBuilder implements TriggerBuilder {
 }
 
 /**
- * Vytvoří trigger, který se spustí při přijetí eventu na daném topicu.
+ * Creates a trigger that fires when an event matching `topic` is received.
+ *
+ * @param topic - Event topic pattern (supports wildcards, e.g. `"payment.*"`).
+ * @returns A {@link TriggerBuilder} for use with {@link RuleBuilder.when}.
  *
  * @example
  * onEvent('order.created')
  * onEvent('payment.*')
- *
- * @param topic - Topic pattern pro matching eventů
  */
 export function onEvent(topic: string): TriggerBuilder {
   requireNonEmptyString(topic, 'onEvent() topic');
