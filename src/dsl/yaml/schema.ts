@@ -150,16 +150,21 @@ export function normalizeValue(value: unknown): unknown {
 
   if (typeof value === 'object' && value !== null) {
     const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj);
-    const refVal = get(obj, 'ref');
     // Explicitní reference: { ref: "event.field" }
-    if (keys.length === 1 && typeof refVal === 'string') {
-      return { ref: refVal };
+    const refVal = obj['ref'];
+    if (typeof refVal === 'string') {
+      let keyCount = 0;
+      for (const _ in obj) { keyCount++; if (keyCount > 1) break; }
+      if (keyCount === 1) {
+        return { ref: refVal };
+      }
     }
     // Rekurzivní normalizace vnořených objektů
     const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      result[k] = normalizeValue(v);
+    for (const k in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, k)) {
+        result[k] = normalizeValue(obj[k]);
+      }
     }
     return result;
   }
@@ -344,11 +349,13 @@ function validateTrigger(obj: unknown, path: string): RuleTrigger {
 
 const CONDITION_SOURCE_TYPES: ReadonlySet<string> = new Set(['event', 'fact', 'context']);
 
-const CONDITION_OPERATORS: ReadonlySet<string> = new Set([
+const CONDITION_OPERATORS_LIST = [
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte',
   'in', 'not_in', 'contains', 'not_contains',
   'matches', 'exists', 'not_exists',
-]);
+] as const;
+const CONDITION_OPERATORS: ReadonlySet<string> = new Set(CONDITION_OPERATORS_LIST);
+const CONDITION_OPERATORS_MSG = CONDITION_OPERATORS_LIST.join(', ');
 
 const UNARY_OPERATORS: ReadonlySet<string> = new Set(['exists', 'not_exists']);
 
@@ -383,7 +390,7 @@ function validateCondition(obj: unknown, path: string): RuleCondition {
 
   if (!CONDITION_OPERATORS.has(operator)) {
     throw new YamlValidationError(
-      `invalid operator "${operator}". Expected: ${[...CONDITION_OPERATORS].join(', ')}`,
+      `invalid operator "${operator}". Expected: ${CONDITION_OPERATORS_MSG}`,
       `${path}.operator`,
     );
   }
@@ -400,10 +407,12 @@ function validateCondition(obj: unknown, path: string): RuleCondition {
 // Action
 // ---------------------------------------------------------------------------
 
-const ACTION_TYPES: ReadonlySet<string> = new Set([
+const ACTION_TYPES_LIST = [
   'set_fact', 'delete_fact', 'emit_event',
   'set_timer', 'cancel_timer', 'call_service', 'log',
-]);
+] as const;
+const ACTION_TYPES: ReadonlySet<string> = new Set(ACTION_TYPES_LIST);
+const ACTION_TYPES_MSG = ACTION_TYPES_LIST.join(', ');
 
 const LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
 
@@ -444,7 +453,7 @@ function validateAction(obj: unknown, path: string): RuleAction {
 
   if (!ACTION_TYPES.has(type)) {
     throw new YamlValidationError(
-      `invalid action type "${type}". Expected: ${[...ACTION_TYPES].join(', ')}`,
+      `invalid action type "${type}". Expected: ${ACTION_TYPES_MSG}`,
       `${path}.type`,
     );
   }

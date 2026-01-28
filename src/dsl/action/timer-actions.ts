@@ -1,7 +1,7 @@
 import type { RuleAction } from '../../types/action.js';
 import type { TimerConfig } from '../../types/timer.js';
-import type { ActionBuilder, Ref } from '../types.js';
-import { isRef } from '../helpers/ref.js';
+import type { ActionBuilder } from '../types.js';
+import { normalizeRefData } from '../helpers/ref.js';
 import { requireNonEmptyString, requireDuration } from '../helpers/validators.js';
 import { DslValidationError } from '../helpers/errors.js';
 
@@ -38,20 +38,12 @@ class SetTimerBuilder implements ActionBuilder {
   }
 
   build(): RuleAction {
-    const normalizedData: Record<string, unknown> = {};
-
-    if (this.config.onExpire.data) {
-      for (const [key, value] of Object.entries(this.config.onExpire.data)) {
-        normalizedData[key] = isRef(value) ? { ref: (value as Ref).ref } : value;
-      }
-    }
-
     const timerConfig: TimerConfig = {
       name: this.config.name,
       duration: this.config.duration,
       onExpire: {
         topic: this.config.onExpire.topic,
-        data: normalizedData,
+        data: this.config.onExpire.data ? normalizeRefData(this.config.onExpire.data) : {},
       },
     };
 
@@ -128,17 +120,12 @@ class TimerFluentBuilder implements ActionBuilder {
       );
     }
 
-    const normalizedData: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(this.expireData)) {
-      normalizedData[key] = isRef(value) ? { ref: (value as Ref).ref } : value;
-    }
-
     const timerConfig: TimerConfig = {
       name: this.timerName,
       duration: this.timerDuration,
       onExpire: {
         topic: this.expireTopic,
-        data: normalizedData,
+        data: normalizeRefData(this.expireData),
       },
     };
 

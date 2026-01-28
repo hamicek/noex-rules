@@ -37,3 +37,34 @@ export function normalizeValue<T>(value: T | Ref<T>): T | { ref: string } {
   }
   return value;
 }
+
+/**
+ * Normalizuje datový objekt — nahradí Ref instance prostými `{ ref }` objekty.
+ *
+ * Sdílená utilita pro action buildery (emit, setTimer, callService),
+ * eliminuje duplicitní Object.entries + isRef pattern.
+ */
+export function normalizeRefData(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      result[key] = isRef(value) ? { ref: (value as Ref).ref } : value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Normalizuje pole argumentů — nahradí Ref instance prostými `{ ref }` objekty.
+ *
+ * Sdílená utilita pro callService builder.
+ */
+export function normalizeRefArgs(args: unknown[]): unknown[] {
+  const result: unknown[] = new Array(args.length);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    result[i] = isRef(arg) ? { ref: (arg as Ref).ref } : arg;
+  }
+  return result;
+}

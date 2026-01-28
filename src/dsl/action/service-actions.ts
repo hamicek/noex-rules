@@ -1,6 +1,6 @@
 import type { RuleAction } from '../../types/action.js';
-import type { ActionBuilder, Ref } from '../types.js';
-import { isRef } from '../helpers/ref.js';
+import type { ActionBuilder } from '../types.js';
+import { normalizeRefArgs } from '../helpers/ref.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
 import { DslValidationError } from '../helpers/errors.js';
 
@@ -44,15 +44,11 @@ class CallServiceFluentBuilder implements ActionBuilder {
       );
     }
 
-    const normalizedArgs = this.methodArgs.map((arg) =>
-      isRef(arg) ? { ref: (arg as Ref).ref } : arg
-    );
-
     return {
       type: 'call_service',
       service: this.serviceName,
       method: this.methodName,
-      args: normalizedArgs,
+      args: normalizeRefArgs(this.methodArgs),
     };
   }
 }
@@ -68,15 +64,11 @@ class CallServiceBuilder implements ActionBuilder {
   ) {}
 
   build(): RuleAction {
-    const normalizedArgs = this.methodArgs.map((arg) =>
-      isRef(arg) ? { ref: (arg as Ref).ref } : arg
-    );
-
     return {
       type: 'call_service',
       service: this.serviceName,
       method: this.methodName,
-      args: normalizedArgs,
+      args: normalizeRefArgs(this.methodArgs),
     };
   }
 }

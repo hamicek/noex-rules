@@ -62,6 +62,7 @@ const OPERATOR_MAP: Readonly<Record<string, RuleCondition['operator']>> = {
 };
 
 const UNARY_OPERATORS: ReadonlySet<string> = new Set(['exists', 'not_exists']);
+const VALID_LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
 
 // ---------------------------------------------------------------------------
 // Tokenizer helpers
@@ -475,8 +476,7 @@ function parseLogAction(
   }
 
   const level = args.slice(0, spaceIndex);
-  const VALID_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
-  if (!VALID_LEVELS.has(level)) {
+  if (!VALID_LOG_LEVELS.has(level)) {
     throw new ParseError(
       `Invalid log level "${level}". Expected: debug, info, warn, error`,
       lineNum,
