@@ -4,12 +4,29 @@ import type { FactStore } from '../core/fact-store.js';
 import type { TimerManager } from '../core/timer-manager.js';
 import { generateId } from '../utils/id-generator.js';
 import { interpolate, resolve, resolveObject, type InterpolationContext } from '../utils/interpolation.js';
+import type {
+  ActionStartedCallback,
+  ActionCompletedCallback,
+  ActionFailedCallback
+} from '../debugging/types.js';
 
 export interface ExecutionContext extends InterpolationContext {
   correlationId?: string;
 }
 
 export type EventEmitter = (topic: string, event: Event) => void | Promise<void>;
+
+/** Options for action execution with optional tracing callbacks */
+export interface ExecutionOptions {
+  /** Callback invoked when an action starts execution */
+  onActionStarted?: ActionStartedCallback;
+
+  /** Callback invoked when an action completes successfully */
+  onActionCompleted?: ActionCompletedCallback;
+
+  /** Callback invoked when an action fails */
+  onActionFailed?: ActionFailedCallback;
+}
 
 /**
  * Spouštění akcí s podporou referencí a interpolace.
@@ -25,20 +42,87 @@ export class ActionExecutor {
   /**
    * Spustí všechny akce.
    */
-  async execute(actions: RuleAction[], context: ExecutionContext): Promise<ActionResult[]> {
+  async execute(
+    actions: RuleAction[],
+    context: ExecutionContext,
+    options?: ExecutionOptions
+  ): Promise<ActionResult[]> {
     const results: ActionResult[] = [];
 
-    for (const action of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i]!;
+      const startTime = performance.now();
+
+      options?.onActionStarted?.({
+        actionIndex: i,
+        actionType: action.type,
+        input: this.buildActionInput(action, context)
+      });
+
       try {
         const result = await this.executeAction(action, context);
+        const durationMs = performance.now() - startTime;
+
+        options?.onActionCompleted?.({
+          actionIndex: i,
+          actionType: action.type,
+          output: result,
+          durationMs
+        });
+
         results.push({ action, success: true, result });
       } catch (error) {
+        const durationMs = performance.now() - startTime;
         const message = error instanceof Error ? error.message : String(error);
+
+        options?.onActionFailed?.({
+          actionIndex: i,
+          actionType: action.type,
+          error: message,
+          durationMs
+        });
+
         results.push({ action, success: false, error: message });
       }
     }
 
     return results;
+  }
+
+  /**
+   * Builds a sanitized input representation for tracing.
+   */
+  private buildActionInput(action: RuleAction, ctx: ExecutionContext): Record<string, unknown> {
+    switch (action.type) {
+      case 'set_fact':
+        return { key: interpolate(action.key, ctx), value: resolve(action.value, ctx) };
+      case 'delete_fact':
+        return { key: interpolate(action.key, ctx) };
+      case 'emit_event':
+        return {
+          topic: interpolate(action.topic, ctx),
+          data: resolveObject(action.data as Record<string, unknown>, ctx)
+        };
+      case 'set_timer':
+        return {
+          name: interpolate(action.timer.name, ctx),
+          duration: action.timer.duration,
+          onExpire: {
+            topic: interpolate(action.timer.onExpire.topic, ctx),
+            data: resolveObject(action.timer.onExpire.data as Record<string, unknown>, ctx)
+          }
+        };
+      case 'cancel_timer':
+        return { name: interpolate(action.name, ctx) };
+      case 'call_service':
+        return {
+          service: action.service,
+          method: action.method,
+          args: action.args.map(arg => resolve(arg, ctx))
+        };
+      case 'log':
+        return { level: action.level, message: interpolate(action.message, ctx) };
+    }
   }
 
   private async executeAction(action: RuleAction, ctx: ExecutionContext): Promise<unknown> {

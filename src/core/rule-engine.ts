@@ -9,7 +9,7 @@ import { TimerManager, type TimerManagerConfig } from './timer-manager.js';
 import { RuleManager } from './rule-manager.js';
 import { RulePersistence, type RulePersistenceOptions } from '../persistence/rule-persistence.js';
 import { ConditionEvaluator, type EvaluationContext, type EvaluationOptions } from '../evaluation/condition-evaluator.js';
-import { ActionExecutor, type ExecutionContext } from '../evaluation/action-executor.js';
+import { ActionExecutor, type ExecutionContext, type ExecutionOptions } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
 
@@ -713,9 +713,50 @@ export class RuleEngine {
         }
       }
 
+      const execOptions: ExecutionOptions = {
+        onActionStarted: (info) => {
+          this.traceCollector.record('action_started', {
+            actionIndex: info.actionIndex,
+            actionType: info.actionType,
+            input: info.input
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            ...(triggeredEntry?.id && { causationId: triggeredEntry.id })
+          });
+        },
+        onActionCompleted: (info) => {
+          this.traceCollector.record('action_completed', {
+            actionIndex: info.actionIndex,
+            actionType: info.actionType,
+            output: info.output
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+            durationMs: info.durationMs
+          });
+        },
+        onActionFailed: (info) => {
+          this.traceCollector.record('action_failed', {
+            actionIndex: info.actionIndex,
+            actionType: info.actionType,
+            error: info.error
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+            durationMs: info.durationMs
+          });
+        }
+      };
+
       this.processingDepth++;
       try {
-        await this.actionExecutor.execute(rule.actions, execContext);
+        await this.actionExecutor.execute(rule.actions, execContext, execOptions);
       } finally {
         this.processingDepth--;
       }
@@ -734,16 +775,8 @@ export class RuleEngine {
         durationMs
       });
     } catch (error) {
-      this.traceCollector.record('action_failed', {
-        error: error instanceof Error ? error.message : String(error)
-      }, {
-        ruleId: rule.id,
-        ruleName: rule.name,
-        ...(correlationId && { correlationId }),
-        ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
-        durationMs: Date.now() - startTime
-      });
-
+      // Unexpected errors outside ActionExecutor (e.g., context preparation)
+      // Action-level failures are traced via onActionFailed callback
       console.error(
         `[${this.config.name}] Error executing rule "${rule.name}" (${rule.id}):`,
         error

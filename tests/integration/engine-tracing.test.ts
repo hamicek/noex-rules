@@ -532,4 +532,312 @@ describe('Engine Tracing Integration', () => {
       expect(conditionEntries[0].correlationId).toBe('correlation-abc');
     });
   });
+
+  describe('action execution tracing', () => {
+    beforeEach(async () => {
+      engine = await RuleEngine.start({
+        name: 'test-engine',
+        tracing: { enabled: true }
+      });
+    });
+
+    it('traces action_started for each action', async () => {
+      const rule: RuleInput = {
+        id: 'multi-action-rule',
+        name: 'Multi Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'multi.action' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'first', value: 1 },
+          { type: 'set_fact', key: 'second', value: 2 }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('multi.action', {});
+
+      const collector = engine.getTraceCollector();
+      const startedEntries = collector.getByType('action_started');
+
+      expect(startedEntries.length).toBe(2);
+      expect(startedEntries[0].ruleId).toBe('multi-action-rule');
+      expect(startedEntries[0].details.actionIndex).toBe(0);
+      expect(startedEntries[0].details.actionType).toBe('set_fact');
+      expect(startedEntries[1].details.actionIndex).toBe(1);
+    });
+
+    it('traces action_completed with output and duration', async () => {
+      const rule: RuleInput = {
+        id: 'completed-action-rule',
+        name: 'Completed Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'complete.action' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'test:key', value: 'test-value' }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('complete.action', {});
+
+      const collector = engine.getTraceCollector();
+      const completedEntries = collector.getByType('action_completed');
+
+      expect(completedEntries.length).toBe(1);
+      expect(completedEntries[0].ruleId).toBe('completed-action-rule');
+      expect(completedEntries[0].details.actionIndex).toBe(0);
+      expect(completedEntries[0].details.actionType).toBe('set_fact');
+      expect(completedEntries[0].details.output).toMatchObject({
+        key: 'test:key',
+        value: 'test-value'
+      });
+      expect(completedEntries[0].durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('traces action_failed with error message', async () => {
+      const rule: RuleInput = {
+        id: 'failing-action-rule',
+        name: 'Failing Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'fail.action' },
+        conditions: [],
+        actions: [
+          { type: 'call_service', service: 'nonexistent', method: 'test', args: [] }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('fail.action', {});
+
+      const collector = engine.getTraceCollector();
+      const failedEntries = collector.getByType('action_failed');
+
+      expect(failedEntries.length).toBe(1);
+      expect(failedEntries[0].ruleId).toBe('failing-action-rule');
+      expect(failedEntries[0].details.actionIndex).toBe(0);
+      expect(failedEntries[0].details.actionType).toBe('call_service');
+      expect(failedEntries[0].details.error).toBe('Service not found: nonexistent');
+      expect(failedEntries[0].durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('traces emit_event action with resolved input', async () => {
+      const rule: RuleInput = {
+        id: 'emit-action-rule',
+        name: 'Emit Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'trigger.emit' },
+        conditions: [],
+        actions: [
+          {
+            type: 'emit_event',
+            topic: 'output.${event.type}',
+            data: { value: { ref: 'event.value' } }
+          }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('trigger.emit', { type: 'test', value: 42 });
+
+      const collector = engine.getTraceCollector();
+      const startedEntries = collector.getByType('action_started');
+
+      expect(startedEntries.length).toBe(1);
+      expect(startedEntries[0].details.input).toEqual({
+        topic: 'output.test',
+        data: { value: 42 }
+      });
+    });
+
+    it('links action traces via causation to rule_triggered', async () => {
+      const rule: RuleInput = {
+        id: 'causation-action-rule',
+        name: 'Causation Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'causation.action' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'caused', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('causation.action', {});
+
+      const collector = engine.getTraceCollector();
+      const triggered = collector.getByType('rule_triggered')[0];
+      const actionStarted = collector.getByType('action_started')[0];
+      const actionCompleted = collector.getByType('action_completed')[0];
+
+      expect(actionStarted.causationId).toBe(triggered.id);
+      expect(actionCompleted.causationId).toBe(triggered.id);
+    });
+
+    it('preserves correlation ID in action traces', async () => {
+      const rule: RuleInput = {
+        id: 'correlated-action-rule',
+        name: 'Correlated Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'corr.action' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'corr_action_done', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emitCorrelated('corr.action', {}, 'action-correlation-xyz');
+
+      const collector = engine.getTraceCollector();
+      const startedEntries = collector.getByType('action_started');
+      const completedEntries = collector.getByType('action_completed');
+
+      expect(startedEntries[0].correlationId).toBe('action-correlation-xyz');
+      expect(completedEntries[0].correlationId).toBe('action-correlation-xyz');
+    });
+
+    it('traces multiple actions with mixed success and failure', async () => {
+      const rule: RuleInput = {
+        id: 'mixed-actions-rule',
+        name: 'Mixed Actions Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'mixed.actions' },
+        conditions: [],
+        actions: [
+          { type: 'set_fact', key: 'before', value: 1 },
+          { type: 'call_service', service: 'missing', method: 'fail', args: [] },
+          { type: 'set_fact', key: 'after', value: 2 }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('mixed.actions', {});
+
+      const collector = engine.getTraceCollector();
+      const startedEntries = collector.getByType('action_started');
+      const completedEntries = collector.getByType('action_completed');
+      const failedEntries = collector.getByType('action_failed');
+
+      expect(startedEntries.length).toBe(3);
+      expect(completedEntries.length).toBe(2);
+      expect(failedEntries.length).toBe(1);
+      expect(failedEntries[0].details.actionIndex).toBe(1);
+    });
+
+    it('does not trace actions when tracing is disabled', async () => {
+      await engine.stop();
+
+      engine = await RuleEngine.start({
+        name: 'test-engine-no-action-trace',
+        tracing: { enabled: false }
+      });
+
+      const rule: RuleInput = {
+        id: 'no-trace-action-rule',
+        name: 'No Trace Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'notrace.action' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'no_trace', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('notrace.action', {});
+
+      const collector = engine.getTraceCollector();
+      expect(collector.size).toBe(0);
+    });
+
+    it('traces set_timer action input correctly', async () => {
+      const rule: RuleInput = {
+        id: 'timer-action-rule',
+        name: 'Timer Action Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'timer.action' },
+        conditions: [],
+        actions: [
+          {
+            type: 'set_timer',
+            timer: {
+              name: 'traced-timer',
+              duration: '10m',
+              onExpire: { topic: 'timer.expired', data: { reason: 'timeout' } }
+            }
+          }
+        ]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('timer.action', {});
+
+      const collector = engine.getTraceCollector();
+      const startedEntries = collector.getByType('action_started');
+
+      expect(startedEntries.length).toBe(1);
+      expect(startedEntries[0].details.actionType).toBe('set_timer');
+      expect(startedEntries[0].details.input).toEqual({
+        name: 'traced-timer',
+        duration: '10m',
+        onExpire: { topic: 'timer.expired', data: { reason: 'timeout' } }
+      });
+    });
+
+    it('queries action traces by rule ID', async () => {
+      const rule1: RuleInput = {
+        id: 'action-rule-1',
+        name: 'Action Rule 1',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'action.query.1' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'rule1', value: 1 }]
+      };
+
+      const rule2: RuleInput = {
+        id: 'action-rule-2',
+        name: 'Action Rule 2',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'action.query.2' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'rule2', value: 2 }]
+      };
+
+      engine.registerRule(rule1);
+      engine.registerRule(rule2);
+
+      await engine.emit('action.query.1', {});
+      await engine.emit('action.query.2', {});
+
+      const collector = engine.getTraceCollector();
+      const rule1Entries = collector.getByRule('action-rule-1');
+      const rule2Entries = collector.getByRule('action-rule-2');
+
+      const rule1ActionStarted = rule1Entries.filter(e => e.type === 'action_started');
+      const rule2ActionStarted = rule2Entries.filter(e => e.type === 'action_started');
+
+      expect(rule1ActionStarted.length).toBe(1);
+      expect(rule2ActionStarted.length).toBe(1);
+      expect(rule1ActionStarted[0].ruleId).toBe('action-rule-1');
+      expect(rule2ActionStarted[0].ruleId).toBe('action-rule-2');
+    });
+  });
 });

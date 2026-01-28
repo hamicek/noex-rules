@@ -2,11 +2,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   ActionExecutor,
   type ExecutionContext,
-  type EventEmitter
+  type EventEmitter,
+  type ExecutionOptions
 } from '../../../src/evaluation/action-executor';
 import { FactStore } from '../../../src/core/fact-store';
 import { TimerManager } from '../../../src/core/timer-manager';
 import type { RuleAction } from '../../../src/types/action';
+import type {
+  ActionStartedInfo,
+  ActionCompletedInfo,
+  ActionFailedInfo
+} from '../../../src/debugging/types';
 
 describe('ActionExecutor', () => {
   let executor: ActionExecutor;
@@ -840,6 +846,334 @@ describe('ActionExecutor', () => {
       await executor.execute(actions, context);
 
       expect(factStore.get('from-trigger')?.value).toBe('trigger-value');
+    });
+  });
+
+  describe('execute() - tracing callbacks', () => {
+    it('calls onActionStarted before each action', async () => {
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'a', value: 1 },
+        { type: 'set_fact', key: 'b', value: 2 }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls).toHaveLength(2);
+      expect(startedCalls[0].actionIndex).toBe(0);
+      expect(startedCalls[0].actionType).toBe('set_fact');
+      expect(startedCalls[1].actionIndex).toBe(1);
+      expect(startedCalls[1].actionType).toBe('set_fact');
+    });
+
+    it('calls onActionCompleted for successful actions', async () => {
+      const completedCalls: ActionCompletedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionCompleted: (info) => completedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'test', value: 'value' }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(completedCalls).toHaveLength(1);
+      expect(completedCalls[0].actionIndex).toBe(0);
+      expect(completedCalls[0].actionType).toBe('set_fact');
+      expect(completedCalls[0].output).toMatchObject({ key: 'test', value: 'value' });
+      expect(completedCalls[0].durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('calls onActionFailed for failed actions', async () => {
+      const failedCalls: ActionFailedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionFailed: (info) => failedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'call_service', service: 'unknown', method: 'test', args: [] }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(failedCalls).toHaveLength(1);
+      expect(failedCalls[0].actionIndex).toBe(0);
+      expect(failedCalls[0].actionType).toBe('call_service');
+      expect(failedCalls[0].error).toBe('Service not found: unknown');
+      expect(failedCalls[0].durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('provides resolved input in onActionStarted', async () => {
+      context.trigger.data = { orderId: 'ord-123' };
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'order:${event.orderId}:status', value: { ref: 'event.orderId' } }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({
+        key: 'order:ord-123:status',
+        value: 'ord-123'
+      });
+    });
+
+    it('traces emit_event action with resolved data', async () => {
+      context.trigger.data = { userId: 'usr-999' };
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        {
+          type: 'emit_event',
+          topic: 'user.${event.userId}.created',
+          data: { userId: { ref: 'event.userId' }, status: 'active' }
+        }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({
+        topic: 'user.usr-999.created',
+        data: { userId: 'usr-999', status: 'active' }
+      });
+    });
+
+    it('traces set_timer action input', async () => {
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        {
+          type: 'set_timer',
+          timer: {
+            name: 'my-timer',
+            duration: '5m',
+            onExpire: { topic: 'timer.done', data: { reason: 'timeout' } }
+          }
+        }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({
+        name: 'my-timer',
+        duration: '5m',
+        onExpire: { topic: 'timer.done', data: { reason: 'timeout' } }
+      });
+    });
+
+    it('traces cancel_timer action input', async () => {
+      await timerManager.setTimer({
+        name: 'to-cancel',
+        duration: '1h',
+        onExpire: { topic: 'test', data: {} }
+      });
+
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'cancel_timer', name: 'to-cancel' }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({ name: 'to-cancel' });
+    });
+
+    it('traces call_service action input with resolved args', async () => {
+      context.trigger.data = { email: 'test@example.com' };
+      services.set('mailer', { send: vi.fn().mockReturnValue({ sent: true }) });
+
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        {
+          type: 'call_service',
+          service: 'mailer',
+          method: 'send',
+          args: [{ ref: 'event.email' }, 'Hello']
+        }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({
+        service: 'mailer',
+        method: 'send',
+        args: ['test@example.com', 'Hello']
+      });
+    });
+
+    it('traces log action input', async () => {
+      vi.spyOn(console, 'info').mockImplementation(() => {});
+      context.trigger.data = { name: 'Alice' };
+
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'log', level: 'info', message: 'Hello ${event.name}!' }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({
+        level: 'info',
+        message: 'Hello Alice!'
+      });
+    });
+
+    it('traces delete_fact action input', async () => {
+      factStore.set('to-delete', 'value');
+      context.trigger.data = { key: 'to-delete' };
+
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'delete_fact', key: '${event.key}' }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls[0].input).toEqual({ key: 'to-delete' });
+    });
+
+    it('calls callbacks in correct order for multiple actions', async () => {
+      const callOrder: string[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => callOrder.push(`started:${info.actionIndex}`),
+        onActionCompleted: (info) => callOrder.push(`completed:${info.actionIndex}`)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'a', value: 1 },
+        { type: 'set_fact', key: 'b', value: 2 }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(callOrder).toEqual([
+        'started:0',
+        'completed:0',
+        'started:1',
+        'completed:1'
+      ]);
+    });
+
+    it('calls onActionStarted even when action fails', async () => {
+      const startedCalls: ActionStartedInfo[] = [];
+      const failedCalls: ActionFailedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info),
+        onActionFailed: (info) => failedCalls.push(info)
+      };
+
+      services.set('failing', {
+        fail: () => { throw new Error('Intentional failure'); }
+      });
+
+      const actions: RuleAction[] = [
+        { type: 'call_service', service: 'failing', method: 'fail', args: [] }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(startedCalls).toHaveLength(1);
+      expect(failedCalls).toHaveLength(1);
+      expect(failedCalls[0].error).toBe('Intentional failure');
+    });
+
+    it('continues tracing after failed action', async () => {
+      const completedCalls: ActionCompletedInfo[] = [];
+      const failedCalls: ActionFailedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionCompleted: (info) => completedCalls.push(info),
+        onActionFailed: (info) => failedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'call_service', service: 'unknown', method: 'test', args: [] },
+        { type: 'set_fact', key: 'after-fail', value: true }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(failedCalls).toHaveLength(1);
+      expect(failedCalls[0].actionIndex).toBe(0);
+      expect(completedCalls).toHaveLength(1);
+      expect(completedCalls[0].actionIndex).toBe(1);
+    });
+
+    it('works without any callbacks', async () => {
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'no-trace', value: 'value' }
+      ];
+
+      const results = await executor.execute(actions, context);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+    });
+
+    it('works with partial callbacks', async () => {
+      const startedCalls: ActionStartedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionStarted: (info) => startedCalls.push(info)
+        // no onActionCompleted or onActionFailed
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'set_fact', key: 'partial', value: 1 }
+      ];
+
+      const results = await executor.execute(actions, context, options);
+
+      expect(startedCalls).toHaveLength(1);
+      expect(results[0].success).toBe(true);
+    });
+
+    it('measures duration accurately', async () => {
+      services.set('slow', {
+        delay: () => new Promise(resolve => setTimeout(resolve, 50))
+      });
+
+      const completedCalls: ActionCompletedInfo[] = [];
+      const options: ExecutionOptions = {
+        onActionCompleted: (info) => completedCalls.push(info)
+      };
+
+      const actions: RuleAction[] = [
+        { type: 'call_service', service: 'slow', method: 'delay', args: [] }
+      ];
+
+      await executor.execute(actions, context, options);
+
+      expect(completedCalls[0].durationMs).toBeGreaterThanOrEqual(40);
     });
   });
 });

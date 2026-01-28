@@ -102,3 +102,54 @@ export interface ConditionEvaluationResult {
 
 /** Callback type for condition evaluation tracing */
 export type ConditionEvaluationCallback = (result: ConditionEvaluationResult) => void;
+
+/** Information about an action execution start */
+export interface ActionStartedInfo {
+  /** Index of the action in the rule's actions array */
+  actionIndex: number;
+
+  /** Type of the action being executed */
+  actionType: string;
+
+  /** Input parameters for the action (sanitized for tracing) */
+  input: Record<string, unknown>;
+}
+
+/** Information about a successfully completed action */
+export interface ActionCompletedInfo {
+  /** Index of the action in the rule's actions array */
+  actionIndex: number;
+
+  /** Type of the action that was executed */
+  actionType: string;
+
+  /** Output/result of the action */
+  output: unknown;
+
+  /** Duration of execution in milliseconds */
+  durationMs: number;
+}
+
+/** Information about a failed action */
+export interface ActionFailedInfo {
+  /** Index of the action in the rule's actions array */
+  actionIndex: number;
+
+  /** Type of the action that failed */
+  actionType: string;
+
+  /** Error message describing the failure */
+  error: string;
+
+  /** Duration until failure in milliseconds */
+  durationMs: number;
+}
+
+/** Callback type for action started tracing */
+export type ActionStartedCallback = (info: ActionStartedInfo) => void;
+
+/** Callback type for action completed tracing */
+export type ActionCompletedCallback = (info: ActionCompletedInfo) => void;
+
+/** Callback type for action failed tracing */
+export type ActionFailedCallback = (info: ActionFailedInfo) => void;
