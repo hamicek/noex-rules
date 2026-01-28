@@ -1,0 +1,24 @@
+id: order-notification
+name: Send Order Notification
+description: Notifies on large orders
+priority: 100
+enabled: true
+tags:
+  - orders
+  - notifications
+trigger:
+  type: event
+  topic: order.created
+conditions:
+  - source:
+      type: event
+      field: amount
+    operator: gte
+    value: 100
+actions:
+  - type: emit_event
+    topic: notification.send
+    data:
+      orderId:
+        ref: event.orderId
+      message: Large order received!

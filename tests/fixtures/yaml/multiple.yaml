@@ -1,0 +1,27 @@
+rules:
+  - id: rule-welcome
+    name: Welcome Notification
+    trigger:
+      type: event
+      topic: user.registered
+    actions:
+      - type: emit_event
+        topic: notification.send
+        data:
+          type: welcome
+
+  - id: rule-premium
+    name: Premium Upgrade Log
+    trigger:
+      type: fact
+      pattern: "user:*:premium"
+    conditions:
+      - source:
+          type: fact
+          pattern: "user:*:premium"
+        operator: eq
+        value: true
+    actions:
+      - type: log
+        level: info
+        message: User upgraded to premium
