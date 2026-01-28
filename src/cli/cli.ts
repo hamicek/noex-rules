@@ -14,6 +14,14 @@ import { importCommand, type ImportCommandOptions } from './commands/import.js';
 import { exportCommand, type ExportCommandOptions } from './commands/export.js';
 import { testCommand, type TestCommandOptions } from './commands/test.js';
 import { statsCommand, type StatsCommandOptions } from './commands/stats.js';
+import {
+  ruleListCommand,
+  ruleGetCommand,
+  ruleEnableCommand,
+  ruleDisableCommand,
+  ruleDeleteCommand,
+  type RuleCommandOptions
+} from './commands/rule.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -171,42 +179,94 @@ function registerPlaceholderCommands(): void {
     process.exit(ExitCode.GeneralError);
   });
 
-  cli.command('rule list', 'List all rules').action(async (options: Record<string, unknown>) => {
-    processGlobalOptions(options);
-    printError(error(`Command 'rule list' not yet implemented.`));
-    process.exit(ExitCode.GeneralError);
-  });
+  cli
+    .command('rule list', 'List all rules')
+    .option('-u, --url <url>', 'Server URL')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const ruleOptions: RuleCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await ruleListCommand(ruleOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
 
   cli
     .command('rule get <id>', 'Get rule details')
+    .option('-u, --url <url>', 'Server URL')
     .action(async (id: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'rule get' not yet implemented. ID: ${id}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const ruleOptions: RuleCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await ruleGetCommand(id, ruleOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
 
   cli
     .command('rule enable <id>', 'Enable a rule')
+    .option('-u, --url <url>', 'Server URL')
     .action(async (id: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'rule enable' not yet implemented. ID: ${id}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const ruleOptions: RuleCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await ruleEnableCommand(id, ruleOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
 
   cli
     .command('rule disable <id>', 'Disable a rule')
+    .option('-u, --url <url>', 'Server URL')
     .action(async (id: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'rule disable' not yet implemented. ID: ${id}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const ruleOptions: RuleCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await ruleDisableCommand(id, ruleOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
 
   cli
     .command('rule delete <id>', 'Delete a rule')
+    .option('-u, --url <url>', 'Server URL')
     .action(async (id: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'rule delete' not yet implemented. ID: ${id}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const ruleOptions: RuleCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await ruleDeleteCommand(id, ruleOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
 
   cli
