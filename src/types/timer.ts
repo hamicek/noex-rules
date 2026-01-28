@@ -14,6 +14,26 @@ export interface Timer {
   correlationId?: string | undefined;   // Pro spojení s původním kontextem
 }
 
+/** Metadata persistovaná vedle DurableTimerService záznamu */
+export interface TimerMetadata {
+  /** Logické jméno timeru (klíč pro cancel/lookup) */
+  name: string;
+  /** ID záznamu v DurableTimerService */
+  durableTimerId: string;
+  /** ID Timer objektu v TimerManager */
+  timerId: string;
+  /** Akce při expiraci */
+  onExpire: { topic: string; data: Record<string, unknown> };
+  /** Korelační ID pro spojení s původním kontextem */
+  correlationId?: string;
+  /** Maximální počet opakování */
+  maxCount?: number;
+  /** Kolikrát již timer expiroval */
+  fireCount: number;
+  /** Interval opakování v ms (undefined = one-shot) */
+  repeatIntervalMs?: number;
+}
+
 /** Konfigurace timeru */
 export interface TimerConfig {
   name: string;                                // Pro pozdější cancel
