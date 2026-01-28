@@ -158,7 +158,7 @@ export class HistoryService {
         type: 'event',
         entry: event,
         depth: eventDepths.get(event.id) ?? 0,
-        parentId: event.causationId,
+        ...(event.causationId && { parentId: event.causationId }),
       });
     }
 
@@ -173,7 +173,7 @@ export class HistoryService {
         type: 'trace',
         entry: trace,
         depth,
-        parentId: trace.causationId,
+        ...(trace.causationId && { parentId: trace.causationId }),
       });
     }
 
@@ -279,9 +279,9 @@ export class HistoryService {
   private enrichWithContext(event: Event): EventWithContext {
     const result: EventWithContext = { ...event };
 
-    const traces = this.traceCollector.query({
-      correlationId: event.correlationId,
-    });
+    const traces = event.correlationId
+      ? this.traceCollector.query({ correlationId: event.correlationId })
+      : [];
 
     const relevantTraces = traces.filter(
       t => t.causationId === event.id || t.details['eventId'] === event.id
@@ -296,9 +296,9 @@ export class HistoryService {
       if (trace.type === 'rule_executed' || trace.type === 'rule_skipped') {
         triggeredRules.push({
           ruleId: trace.ruleId!,
-          ruleName: trace.ruleName,
           executed: trace.type === 'rule_executed',
-          durationMs: trace.durationMs,
+          ...(trace.ruleName && { ruleName: trace.ruleName }),
+          ...(trace.durationMs !== undefined && { durationMs: trace.durationMs }),
         });
       }
     }

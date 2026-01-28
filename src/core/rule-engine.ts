@@ -12,6 +12,7 @@ import { ConditionEvaluator, type EvaluationContext, type EvaluationOptions } fr
 import { ActionExecutor, type ExecutionContext, type ExecutionOptions } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
+import { Profiler } from '../debugging/profiler.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -57,6 +58,7 @@ export class RuleEngine {
   private running = false;
   private processingQueue: Promise<void> = Promise.resolve();
   private processingDepth = 0;
+  private profiler: Profiler | null = null;
 
   private constructor(
     factStore: FactStore,
@@ -386,12 +388,12 @@ export class RuleEngine {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Vrátí statistiky enginu.
+   * Vrátí statistiky enginu včetně volitelných tracing a profiling dat.
    */
   getStats(): EngineStats {
     const { totalEventsProcessed, totalRulesExecuted, totalProcessingTimeMs } = this.internals;
 
-    return {
+    const stats: EngineStats = {
       rulesCount: this.ruleManager.size,
       factsCount: this.factStore.size,
       timersCount: this.timerManager.size,
@@ -401,6 +403,27 @@ export class RuleEngine {
         ? totalProcessingTimeMs / totalRulesExecuted
         : 0
     };
+
+    stats.tracing = {
+      enabled: this.traceCollector.isEnabled(),
+      entriesCount: this.traceCollector.getStats().entriesCount,
+      maxEntries: this.traceCollector.getStats().maxEntries
+    };
+
+    if (this.profiler) {
+      const summary = this.profiler.getSummary();
+      stats.profiling = {
+        totalRulesProfiled: summary.totalRulesProfiled,
+        totalTriggers: summary.totalTriggers,
+        totalExecutions: summary.totalExecutions,
+        totalTimeMs: summary.totalTimeMs,
+        avgRuleTimeMs: summary.avgRuleTimeMs,
+        slowestRule: summary.slowestRule,
+        hottestRule: summary.hottestRule
+      };
+    }
+
+    return stats;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -452,6 +475,46 @@ export class RuleEngine {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //                              PROFILING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Povolí performance profiling.
+   * Profiler automaticky sleduje trace entries a agreguje statistiky.
+   */
+  enableProfiling(): Profiler {
+    if (!this.profiler) {
+      this.profiler = new Profiler(this.traceCollector);
+    }
+    return this.profiler;
+  }
+
+  /**
+   * Zakáže performance profiling a uvolní profiler.
+   */
+  disableProfiling(): void {
+    if (this.profiler) {
+      this.profiler.stop();
+      this.profiler = null;
+    }
+  }
+
+  /**
+   * Zjistí, zda je profiling povolen.
+   */
+  isProfilingEnabled(): boolean {
+    return this.profiler !== null;
+  }
+
+  /**
+   * Vrátí Profiler pro přímý přístup k profilovacím datům.
+   * Vrací null pokud není profiling povolen.
+   */
+  getProfiler(): Profiler | null {
+    return this.profiler;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //                            LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -466,6 +529,12 @@ export class RuleEngine {
 
     // Finální uložení pravidel před ukončením
     await this.ruleManager.persist();
+
+    // Zastavit profiler pokud běží
+    if (this.profiler) {
+      this.profiler.stop();
+      this.profiler = null;
+    }
 
     await this.timerManager.stop();
     this.subscribers.clear();

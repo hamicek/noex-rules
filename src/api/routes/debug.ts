@@ -232,9 +232,9 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
         : undefined;
 
       return traceCollector.query({
-        correlationId,
-        ruleId,
-        types: parsedTypes,
+        ...(correlationId && { correlationId }),
+        ...(ruleId && { ruleId }),
+        ...(parsedTypes && { types: parsedTypes }),
         limit: limit ?? 100
       });
     }
@@ -439,7 +439,7 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
         type: request.body.type,
         condition: request.body.condition,
         action: request.body.action,
-        enabled: request.body.enabled,
+        enabled: request.body.enabled ?? true,
       };
 
       const breakpoint = getDebugController().addBreakpoint(

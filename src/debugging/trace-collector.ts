@@ -205,6 +205,15 @@ export class TraceCollector {
     return this.entries.length;
   }
 
+  /** Get statistics about the trace collector */
+  getStats(): { entriesCount: number; maxEntries: number; subscribersCount: number } {
+    return {
+      entriesCount: this.entries.length,
+      maxEntries: this.maxEntries,
+      subscribersCount: this.subscribers.size
+    };
+  }
+
   /** Clear all stored entries and indexes */
   clear(): void {
     this.entries.length = 0;

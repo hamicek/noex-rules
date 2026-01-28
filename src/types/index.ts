@@ -14,6 +14,24 @@ export type EngineInput =
   | { type: 'event_received'; event: import('./event.js').Event }
   | { type: 'timer_expired'; timer: import('./timer.js').Timer };
 
+/** Statistiky tracingu */
+export interface TracingStats {
+  enabled: boolean;
+  entriesCount: number;
+  maxEntries: number;
+}
+
+/** Základní profilingové statistiky */
+export interface ProfilingStats {
+  totalRulesProfiled: number;
+  totalTriggers: number;
+  totalExecutions: number;
+  totalTimeMs: number;
+  avgRuleTimeMs: number;
+  slowestRule: { ruleId: string; ruleName: string; avgTimeMs: number } | null;
+  hottestRule: { ruleId: string; ruleName: string; triggerCount: number } | null;
+}
+
 /** Statistiky enginu */
 export interface EngineStats {
   rulesCount: number;
@@ -22,6 +40,8 @@ export interface EngineStats {
   eventsProcessed: number;
   rulesExecuted: number;
   avgProcessingTimeMs: number;
+  tracing?: TracingStats;
+  profiling?: ProfilingStats;
 }
 
 /** Konfigurace persistence */

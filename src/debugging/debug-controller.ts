@@ -142,7 +142,7 @@ export class DebugController {
 
   /** Check if running in development mode */
   private isDevelopment(): boolean {
-    return process.env.NODE_ENV !== 'production';
+    return process.env['NODE_ENV'] !== 'production';
   }
 
   /** Create a new debug session */
@@ -401,7 +401,7 @@ export class DebugController {
     }
 
     if (condition.topic) {
-      const topic = entry.details.topic as string | undefined;
+      const topic = entry.details['topic'] as string | undefined;
       if (!topic || !this.matchesTopicPattern(topic, condition.topic)) {
         return false;
       }
@@ -416,7 +416,7 @@ export class DebugController {
     }
 
     if (condition.factPattern) {
-      const factKey = entry.details.key as string | undefined;
+      const factKey = entry.details['key'] as string | undefined;
       if (!factKey || !this.matchesPattern(factKey, condition.factPattern)) {
         return false;
       }
@@ -436,7 +436,7 @@ export class DebugController {
     }
 
     if (condition.actionType) {
-      const actionType = entry.details.actionType as string | undefined;
+      const actionType = entry.details['actionType'] as string | undefined;
       if (!actionType || actionType !== condition.actionType) {
         return false;
       }
@@ -554,8 +554,8 @@ export class DebugController {
       timestamp: Date.now(),
       facts,
       recentTraces,
-      triggeredBy,
-      label,
+      ...(triggeredBy && { triggeredBy }),
+      ...(label && { label }),
     };
   }
 }

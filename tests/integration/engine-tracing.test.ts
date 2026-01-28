@@ -840,4 +840,98 @@ describe('Engine Tracing Integration', () => {
       expect(rule2ActionStarted[0].ruleId).toBe('action-rule-2');
     });
   });
+
+  describe('EngineStats with tracing and profiling', () => {
+    beforeEach(async () => {
+      engine = await RuleEngine.start({
+        name: 'stats-test-engine',
+        tracing: { enabled: true, maxEntries: 1000 }
+      });
+    });
+
+    it('includes tracing stats in getStats()', async () => {
+      const stats = engine.getStats();
+
+      expect(stats.tracing).toBeDefined();
+      expect(stats.tracing!.enabled).toBe(true);
+      expect(stats.tracing!.entriesCount).toBe(0);
+      expect(stats.tracing!.maxEntries).toBe(1000);
+    });
+
+    it('updates tracing stats after events', async () => {
+      const rule: RuleInput = {
+        id: 'stats-rule',
+        name: 'Stats Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'stats.event' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'triggered', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('stats.event', {});
+
+      const stats = engine.getStats();
+      expect(stats.tracing!.entriesCount).toBeGreaterThan(0);
+    });
+
+    it('includes profiling stats when profiling is enabled', async () => {
+      // Initially no profiling
+      let stats = engine.getStats();
+      expect(stats.profiling).toBeUndefined();
+
+      // Enable profiling
+      engine.enableProfiling();
+
+      const rule: RuleInput = {
+        id: 'profiled-rule',
+        name: 'Profiled Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'profiled.event' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'profiled', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('profiled.event', {});
+
+      stats = engine.getStats();
+      expect(stats.profiling).toBeDefined();
+      expect(stats.profiling!.totalRulesProfiled).toBeGreaterThan(0);
+      expect(stats.profiling!.totalTriggers).toBeGreaterThan(0);
+    });
+
+    it('profiling methods work correctly', async () => {
+      expect(engine.isProfilingEnabled()).toBe(false);
+
+      const profiler = engine.enableProfiling();
+      expect(engine.isProfilingEnabled()).toBe(true);
+      expect(engine.getProfiler()).toBe(profiler);
+
+      engine.disableProfiling();
+      expect(engine.isProfilingEnabled()).toBe(false);
+      expect(engine.getProfiler()).toBeNull();
+    });
+
+    it('profiler is stopped when engine stops', async () => {
+      engine.enableProfiling();
+      expect(engine.isProfilingEnabled()).toBe(true);
+
+      await engine.stop();
+
+      // After stop, profiler should be cleared
+      expect(engine.getProfiler()).toBeNull();
+    });
+
+    it('tracing stats reflect disabled state', async () => {
+      engine.disableTracing();
+
+      const stats = engine.getStats();
+      expect(stats.tracing!.enabled).toBe(false);
+    });
+  });
 });

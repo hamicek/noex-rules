@@ -226,7 +226,7 @@ export const profileQuerySchema = {
   }
 } as const;
 
-export const streamQuerySchema = {
+export const debugStreamQuerySchema = {
   type: 'object',
   properties: {
     types: { type: 'string', description: 'Comma-separated list of trace entry types to filter' },
@@ -529,7 +529,7 @@ export const debugSchemas = {
     tags: ['Debug', 'SSE'],
     summary: 'Stream trace entries via SSE',
     description: 'Real-time Server-Sent Events stream of trace entries with optional filtering',
-    querystring: streamQuerySchema
+    querystring: debugStreamQuerySchema
   },
   streamConnections: {
     tags: ['Debug', 'SSE'],

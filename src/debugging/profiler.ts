@@ -358,8 +358,8 @@ export class Profiler {
 
   private handleConditionEvaluated(entry: DebugTraceEntry): void {
     const ruleId = entry.ruleId!;
-    const conditionIndex = entry.details.conditionIndex as number;
-    const passed = entry.details.passed as boolean;
+    const conditionIndex = entry.details['conditionIndex'] as number;
+    const passed = entry.details['passed'] as boolean;
 
     let ruleConditions = this.conditionMetrics.get(ruleId);
     if (!ruleConditions) {
@@ -397,8 +397,8 @@ export class Profiler {
 
   private handleActionCompleted(entry: DebugTraceEntry): void {
     const ruleId = entry.ruleId!;
-    const actionIndex = entry.details.actionIndex as number;
-    const actionType = entry.details.actionType as string;
+    const actionIndex = entry.details['actionIndex'] as number;
+    const actionType = entry.details['actionType'] as string;
 
     const metrics = this.getOrCreateActionMetrics(ruleId, actionIndex, actionType);
     metrics.executionCount++;
@@ -418,8 +418,8 @@ export class Profiler {
 
   private handleActionFailed(entry: DebugTraceEntry): void {
     const ruleId = entry.ruleId!;
-    const actionIndex = entry.details.actionIndex as number;
-    const actionType = entry.details.actionType as string;
+    const actionIndex = entry.details['actionIndex'] as number;
+    const actionType = entry.details['actionType'] as string;
 
     const metrics = this.getOrCreateActionMetrics(ruleId, actionIndex, actionType);
     metrics.executionCount++;
