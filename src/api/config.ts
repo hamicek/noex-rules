@@ -20,11 +20,11 @@ export interface CorsConfig {
    * - `string` - konkrétní origin (např. 'https://example.com')
    * - `string[]` - seznam povolených origins
    * - `RegExp` - pattern pro matching origins
-   * - `(origin: string) => boolean` - funkce pro dynamické rozhodování
+   * - `(origin: string | undefined) => boolean` - funkce pro dynamické rozhodování
    *
    * Výchozí: true (povolí všechny origins)
    */
-  origin?: boolean | string | string[] | RegExp | ((origin: string) => boolean);
+  origin?: boolean | string | string[] | RegExp | ((origin: string | undefined) => boolean);
 
   /**
    * Povolené HTTP metody.
