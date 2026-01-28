@@ -485,6 +485,173 @@ engine.registerRule({
 });
 ```
 
+## REST API
+
+The library provides an optional REST API layer built on Fastify for HTTP access to the rule engine.
+
+### Quick Start
+
+```typescript
+import { RuleEngineServer } from '@hamicek/noex-rules/api';
+
+// Start server with default configuration
+const server = await RuleEngineServer.start();
+
+console.log(`Server running at ${server.address}`);
+console.log(`Swagger UI: ${server.address}/docs`);
+
+// Access the underlying engine
+const engine = server.getEngine();
+
+// Stop server
+await server.stop();
+```
+
+### Server Configuration
+
+```typescript
+const server = await RuleEngineServer.start({
+  server: {
+    port: 3000,              // Default: 3000
+    host: '0.0.0.0',         // Default: '0.0.0.0'
+    apiPrefix: '/api/v1',    // Default: '/api/v1'
+    cors: true,              // Default: true (enable CORS)
+    swagger: true,           // Default: true (enable Swagger UI)
+    logger: true             // Default: true
+  },
+  // Use existing engine instance
+  engine: existingEngine,
+  // Or configure new engine
+  engineConfig: {
+    name: 'my-engine',
+    maxConcurrency: 10
+  }
+});
+```
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| **Rules** |
+| GET | `/api/v1/rules` | List all rules |
+| GET | `/api/v1/rules/:id` | Get rule by ID |
+| POST | `/api/v1/rules` | Create a new rule |
+| PUT | `/api/v1/rules/:id` | Update a rule |
+| DELETE | `/api/v1/rules/:id` | Delete a rule |
+| POST | `/api/v1/rules/:id/enable` | Enable a rule |
+| POST | `/api/v1/rules/:id/disable` | Disable a rule |
+| **Facts** |
+| GET | `/api/v1/facts` | List all facts |
+| GET | `/api/v1/facts/:key` | Get fact by key |
+| PUT | `/api/v1/facts/:key` | Set fact value |
+| DELETE | `/api/v1/facts/:key` | Delete a fact |
+| POST | `/api/v1/facts/query` | Query facts by pattern |
+| **Events** |
+| POST | `/api/v1/events` | Emit an event |
+| POST | `/api/v1/events/correlated` | Emit event with correlation |
+| **Timers** |
+| GET | `/api/v1/timers` | List all timers |
+| GET | `/api/v1/timers/:name` | Get timer by name |
+| POST | `/api/v1/timers` | Create a timer |
+| DELETE | `/api/v1/timers/:name` | Cancel a timer |
+| **Webhooks** |
+| GET | `/api/v1/webhooks` | List registered webhooks |
+| POST | `/api/v1/webhooks` | Register a webhook |
+| DELETE | `/api/v1/webhooks/:id` | Remove a webhook |
+| **Stream** |
+| GET | `/api/v1/stream/events` | SSE event stream |
+| **System** |
+| GET | `/api/v1/health` | Health check |
+| GET | `/api/v1/stats` | Engine statistics |
+
+### Usage Examples
+
+```bash
+# Health check
+curl http://localhost:3000/api/v1/health
+
+# Create a rule
+curl -X POST http://localhost:3000/api/v1/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "order-notification",
+    "name": "Order Notification",
+    "priority": 100,
+    "enabled": true,
+    "tags": ["orders"],
+    "trigger": { "type": "event", "topic": "order.created" },
+    "conditions": [],
+    "actions": [{
+      "type": "emit_event",
+      "topic": "notification.send",
+      "data": { "message": "New order received" }
+    }]
+  }'
+
+# Set a fact
+curl -X PUT http://localhost:3000/api/v1/facts/customer:123:tier \
+  -H "Content-Type: application/json" \
+  -d '{ "value": "gold" }'
+
+# Emit an event
+curl -X POST http://localhost:3000/api/v1/events \
+  -H "Content-Type: application/json" \
+  -d '{ "topic": "order.created", "data": { "orderId": "ORD-123" } }'
+
+# Subscribe to SSE stream
+curl -N http://localhost:3000/api/v1/stream/events?topics=order.*
+
+# Register a webhook
+curl -X POST http://localhost:3000/api/v1/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/webhook",
+    "topics": ["order.*"],
+    "secret": "my-webhook-secret"
+  }'
+```
+
+### Real-time Notifications
+
+#### Server-Sent Events (SSE)
+
+Subscribe to real-time events via SSE:
+
+```typescript
+const eventSource = new EventSource(
+  'http://localhost:3000/api/v1/stream/events?topics=order.*'
+);
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Received:', data);
+};
+```
+
+#### Webhooks
+
+Register webhooks to receive HTTP callbacks:
+
+```typescript
+// Register webhook via API
+await fetch('http://localhost:3000/api/v1/webhooks', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    url: 'https://your-service.com/webhook',
+    topics: ['order.*', 'payment.*'],
+    secret: 'optional-hmac-secret'  // For payload verification
+  })
+});
+```
+
+Webhook payloads include HMAC signature in `X-Webhook-Signature` header when secret is configured.
+
+### OpenAPI Documentation
+
+Swagger UI is available at `http://localhost:3000/docs` when the server is running with `swagger: true` (default).
+
 ## Architecture
 
 ```
