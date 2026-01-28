@@ -25,7 +25,7 @@
 export { Rule, RuleBuilder } from './builder/index.js';
 
 // Triggers
-export { onEvent } from './trigger/index.js';
+export { onEvent, onFact, onTimer } from './trigger/index.js';
 
 // Conditions
 export { event, fact, context, SourceExpr } from './condition/index.js';

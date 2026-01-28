@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Rule, RuleBuilder } from '../../../../src/dsl/builder/rule-builder';
 import { onEvent } from '../../../../src/dsl/trigger/event-trigger';
+import { onFact } from '../../../../src/dsl/trigger/fact-trigger';
+import { onTimer } from '../../../../src/dsl/trigger/timer-trigger';
 import { event, fact } from '../../../../src/dsl/condition/source-expr';
 import { emit, setFact, deleteFact } from '../../../../src/dsl/action';
 import { ref } from '../../../../src/dsl/helpers/ref';
@@ -147,6 +149,30 @@ describe('RuleBuilder', () => {
       expect(rule.trigger).toEqual({
         type: 'event',
         topic: 'custom.event',
+      });
+    });
+
+    it('accepts onFact trigger builder', () => {
+      const rule = Rule.create('test')
+        .when(onFact('customer:*:creditScore'))
+        .then(emit('result'))
+        .build();
+
+      expect(rule.trigger).toEqual({
+        type: 'fact',
+        pattern: 'customer:*:creditScore',
+      });
+    });
+
+    it('accepts onTimer trigger builder', () => {
+      const rule = Rule.create('test')
+        .when(onTimer('payment-timeout'))
+        .then(emit('result'))
+        .build();
+
+      expect(rule.trigger).toEqual({
+        type: 'timer',
+        name: 'payment-timeout',
       });
     });
   });
