@@ -10,6 +10,8 @@ import { loadConfig } from './utils/config.js';
 import { setOutputOptions, printError, error } from './utils/output.js';
 import { getExitCode, formatError } from './utils/errors.js';
 import { validateCommand, type ValidateOptions } from './commands/validate.js';
+import { importCommand, type ImportCommandOptions } from './commands/import.js';
+import { exportCommand, type ExportCommandOptions } from './commands/export.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -71,28 +73,60 @@ function registerValidateCommand(): void {
     });
 }
 
-/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
-function registerPlaceholderCommands(): void {
-
+/** Registruje příkaz import */
+function registerImportCommand(): void {
   cli
     .command('import <file>', 'Import rules from file')
     .option('-d, --dry-run', 'Show what would be imported without making changes')
     .option('-m, --merge', 'Merge with existing rules instead of replacing')
+    .option('--no-validate', 'Skip validation')
+    .option('-s, --strict', 'Strict validation mode')
     .action(async (file: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'import' not yet implemented. File: ${file}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const importOptions: ImportCommandOptions = {
+        ...globalOptions,
+        dryRun: (options['dryRun'] as boolean | undefined) ?? false,
+        merge: (options['merge'] as boolean | undefined) ?? false,
+        validate: (options['validate'] as boolean | undefined) ?? true,
+        strict: (options['strict'] as boolean | undefined) ?? false
+      };
+      try {
+        await importCommand(file, importOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
+}
 
+/** Registruje příkaz export */
+function registerExportCommand(): void {
   cli
     .command('export [output]', 'Export rules to file')
     .option('-p, --pretty', 'Pretty print JSON output')
     .option('-t, --tags <tags>', 'Filter by tags (comma-separated)')
+    .option('-e, --enabled', 'Export only enabled rules')
     .action(async (output: string | undefined, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'export' not yet implemented. Output: ${output ?? 'stdout'}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const tags = options['tags'] as string | undefined;
+      const enabled = options['enabled'] as boolean | undefined;
+      const exportOptions: ExportCommandOptions = {
+        ...globalOptions,
+        pretty: (options['pretty'] as boolean | undefined) ?? false,
+        ...(tags !== undefined && { tags }),
+        ...(enabled !== undefined && { enabled })
+      };
+      try {
+        await exportCommand(output, exportOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
+}
+
+/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
+function registerPlaceholderCommands(): void {
 
   cli
     .command('test <file>', 'Test rules with scenarios')
@@ -177,6 +211,8 @@ export async function run(args: string[] = process.argv): Promise<void> {
   registerGlobalOptions();
   registerVersionCommand();
   registerValidateCommand();
+  registerImportCommand();
+  registerExportCommand();
   registerPlaceholderCommands();
 
   cli.help();
