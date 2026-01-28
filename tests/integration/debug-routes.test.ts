@@ -373,4 +373,222 @@ describe('Debug Routes', () => {
       expect(types).toContain('rule_skipped');
     });
   });
+
+  describe('GET /debug/profile', () => {
+    it('returns all rule profiles', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBeGreaterThan(0);
+
+      const profile = body.find((p: { ruleId: string }) => p.ruleId === 'test-rule');
+      expect(profile).toBeDefined();
+      expect(profile.ruleName).toBe('Test Rule');
+      expect(profile.triggerCount).toBeGreaterThan(0);
+    });
+
+    it('returns empty array when no rules profiled', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+    });
+  });
+
+  describe('GET /debug/profile/summary', () => {
+    it('returns profiling summary', async () => {
+      await engine.emit('test.event', { value: 10 });
+      await engine.emit('test.event', { value: 15 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/summary'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.totalRulesProfiled).toBeGreaterThan(0);
+      expect(body.totalTriggers).toBeGreaterThan(0);
+      expect(body.totalExecutions).toBeGreaterThan(0);
+      expect(body.profilingStartedAt).toBeDefined();
+    });
+
+    it('returns empty summary when no activity', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/summary'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.totalRulesProfiled).toBe(0);
+      expect(body.totalTriggers).toBe(0);
+      expect(body.slowestRule).toBeNull();
+      expect(body.hottestRule).toBeNull();
+    });
+  });
+
+  describe('GET /debug/profile/slowest', () => {
+    it('returns slowest rules', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/slowest'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+    });
+
+    it('respects limit parameter', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/slowest?limit=1'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.length).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('GET /debug/profile/hottest', () => {
+    it('returns hottest rules', async () => {
+      await engine.emit('test.event', { value: 10 });
+      await engine.emit('test.event', { value: 15 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/hottest'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      if (body.length > 0) {
+        expect(body[0].triggerCount).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('GET /debug/profile/:ruleId', () => {
+    it('returns profile for specific rule', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/test-rule'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.ruleId).toBe('test-rule');
+      expect(body.ruleName).toBe('Test Rule');
+      expect(body.triggerCount).toBeGreaterThan(0);
+      expect(body.executionCount).toBeGreaterThan(0);
+      expect(body.conditionProfiles).toBeDefined();
+      expect(body.actionProfiles).toBeDefined();
+    });
+
+    it('returns 404 for non-existent rule', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/non-existent-rule'
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('includes condition profiles', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/test-rule'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.conditionProfiles.length).toBeGreaterThan(0);
+      expect(body.conditionProfiles[0]).toHaveProperty('conditionIndex');
+      expect(body.conditionProfiles[0]).toHaveProperty('evaluationCount');
+      expect(body.conditionProfiles[0]).toHaveProperty('passRate');
+    });
+
+    it('includes action profiles', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/test-rule'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.actionProfiles.length).toBeGreaterThan(0);
+      expect(body.actionProfiles[0]).toHaveProperty('actionIndex');
+      expect(body.actionProfiles[0]).toHaveProperty('actionType');
+      expect(body.actionProfiles[0]).toHaveProperty('executionCount');
+      expect(body.actionProfiles[0]).toHaveProperty('successRate');
+    });
+  });
+
+  describe('POST /debug/profile/reset', () => {
+    it('resets profiling data', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      let response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile'
+      });
+      expect(response.json().length).toBeGreaterThan(0);
+
+      response = await fastify.inject({
+        method: 'POST',
+        url: '/debug/profile/reset'
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ reset: true });
+
+      response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile'
+      });
+      expect(response.json().length).toBe(0);
+    });
+  });
+
+  describe('profiling with skipped rules', () => {
+    it('tracks skipped rules in profile', async () => {
+      await engine.emit('test.event', { value: 3 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/profile/test-rule'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.triggerCount).toBe(1);
+      expect(body.skipCount).toBe(1);
+      expect(body.executionCount).toBe(0);
+      expect(body.passRate).toBe(0);
+    });
+  });
 });

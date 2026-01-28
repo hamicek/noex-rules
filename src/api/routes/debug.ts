@@ -8,6 +8,7 @@ import {
   type EventWithContext,
   type TimelineEntry
 } from '../../debugging/history-service.js';
+import { Profiler, type RuleProfile, type ProfilingSummary } from '../../debugging/profiler.js';
 import { NotFoundError } from '../middleware/error-handler.js';
 import { debugSchemas } from '../schemas/debug.js';
 
@@ -39,11 +40,27 @@ interface TraceQuerystring {
   limit?: number;
 }
 
+interface RuleIdParams {
+  ruleId: string;
+}
+
+interface ProfileQuerystring {
+  limit?: number;
+}
+
 export async function registerDebugRoutes(fastify: FastifyInstance): Promise<void> {
   const engine = fastify.engine;
+  let profiler: Profiler | null = null;
 
   const getHistoryService = (): HistoryService => {
     return new HistoryService(engine.getEventStore(), engine.getTraceCollector());
+  };
+
+  const getProfiler = (): Profiler => {
+    if (!profiler) {
+      profiler = new Profiler(engine.getTraceCollector());
+    }
+    return profiler;
   };
 
   // GET /debug/history - Query event history
@@ -163,6 +180,67 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     async (): Promise<{ enabled: boolean }> => {
       engine.disableTracing();
       return { enabled: false };
+    }
+  );
+
+  // GET /debug/profile - All rule profiles
+  fastify.get(
+    '/debug/profile',
+    { schema: debugSchemas.getAllProfiles },
+    async (): Promise<RuleProfile[]> => {
+      return getProfiler().getRuleProfiles();
+    }
+  );
+
+  // GET /debug/profile/summary - Profiling summary
+  fastify.get(
+    '/debug/profile/summary',
+    { schema: debugSchemas.getProfilingSummary },
+    async (): Promise<ProfilingSummary> => {
+      return getProfiler().getSummary();
+    }
+  );
+
+  // GET /debug/profile/slowest - Slowest rules
+  fastify.get<{ Querystring: ProfileQuerystring }>(
+    '/debug/profile/slowest',
+    { schema: debugSchemas.getSlowestRules },
+    async (request): Promise<RuleProfile[]> => {
+      const limit = request.query.limit ?? 10;
+      return getProfiler().getSlowestRules(limit);
+    }
+  );
+
+  // GET /debug/profile/hottest - Most triggered rules
+  fastify.get<{ Querystring: ProfileQuerystring }>(
+    '/debug/profile/hottest',
+    { schema: debugSchemas.getHottestRules },
+    async (request): Promise<RuleProfile[]> => {
+      const limit = request.query.limit ?? 10;
+      return getProfiler().getHottestRules(limit);
+    }
+  );
+
+  // GET /debug/profile/:ruleId - Specific rule profile
+  fastify.get<{ Params: RuleIdParams }>(
+    '/debug/profile/:ruleId',
+    { schema: debugSchemas.getRuleProfile },
+    async (request): Promise<RuleProfile> => {
+      const profile = getProfiler().getRuleProfile(request.params.ruleId);
+      if (!profile) {
+        throw new NotFoundError('Rule profile', request.params.ruleId);
+      }
+      return profile;
+    }
+  );
+
+  // POST /debug/profile/reset - Reset profiling data
+  fastify.post(
+    '/debug/profile/reset',
+    { schema: debugSchemas.resetProfile },
+    async (): Promise<{ reset: boolean }> => {
+      getProfiler().reset();
+      return { reset: true };
     }
   );
 }
