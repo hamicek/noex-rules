@@ -2,7 +2,12 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { RuleEngine } from '../core/rule-engine.js';
 import type { RuleEngineConfig } from '../types/index.js';
-import { resolveConfig, type ServerConfig, type ServerConfigInput } from './config.js';
+import {
+  resolveConfig,
+  resolveCorsConfig,
+  type ServerConfig,
+  type ServerConfigInput
+} from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes/index.js';
 import { registerSwagger } from './swagger.js';
@@ -69,8 +74,18 @@ export class RuleEngineServer {
 
     fastify.setErrorHandler(errorHandler);
 
-    if (config.cors) {
-      await fastify.register(cors);
+    const corsConfig = resolveCorsConfig(config.cors);
+    if (corsConfig !== false) {
+      await fastify.register(cors, {
+        origin: corsConfig.origin,
+        methods: corsConfig.methods,
+        allowedHeaders: corsConfig.allowedHeaders,
+        exposedHeaders: corsConfig.exposedHeaders,
+        credentials: corsConfig.credentials,
+        maxAge: corsConfig.maxAge,
+        preflightContinue: corsConfig.preflightContinue,
+        optionsSuccessStatus: corsConfig.optionsSuccessStatus
+      });
     }
 
     if (config.swagger) {

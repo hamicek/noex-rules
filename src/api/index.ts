@@ -1,5 +1,5 @@
 export { RuleEngineServer, type ServerOptions } from './server.js';
-export { type ServerConfig, type ServerConfigInput } from './config.js';
+export { type ServerConfig, type ServerConfigInput, type CorsConfig } from './config.js';
 export {
   NotFoundError,
   ValidationError,

@@ -133,6 +133,144 @@ describe('RuleEngineServer', () => {
       expect(response.headers.get('access-control-allow-origin')).toBeDefined();
     });
 
+    it('disables CORS when configured', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false, cors: false }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        headers: {
+          'Origin': 'http://example.com'
+        }
+      });
+
+      expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    });
+
+    it('respects custom CORS origin', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: { origin: 'https://allowed.com' }
+        }
+      });
+
+      const allowedResponse = await fetch(`${server.address}/api/v1/health`, {
+        headers: {
+          'Origin': 'https://allowed.com'
+        }
+      });
+
+      expect(allowedResponse.headers.get('access-control-allow-origin')).toBe('https://allowed.com');
+    });
+
+    it('handles preflight requests with custom methods', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: { methods: ['GET', 'POST'] }
+        }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://example.com',
+          'Access-Control-Request-Method': 'POST'
+        }
+      });
+
+      const allowMethods = response.headers.get('access-control-allow-methods');
+      expect(allowMethods).toContain('GET');
+      expect(allowMethods).toContain('POST');
+    });
+
+    it('sets credentials header when enabled', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: {
+            origin: 'https://myapp.com',
+            credentials: true
+          }
+        }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        headers: {
+          'Origin': 'https://myapp.com'
+        }
+      });
+
+      expect(response.headers.get('access-control-allow-credentials')).toBe('true');
+    });
+
+    it('sets max-age header from configuration', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: { maxAge: 7200 }
+        }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://example.com',
+          'Access-Control-Request-Method': 'GET'
+        }
+      });
+
+      expect(response.headers.get('access-control-max-age')).toBe('7200');
+    });
+
+    it('exposes custom headers', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: { exposedHeaders: ['X-Custom-Id', 'X-Request-Id'] }
+        }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        headers: {
+          'Origin': 'http://example.com'
+        }
+      });
+
+      const exposed = response.headers.get('access-control-expose-headers');
+      expect(exposed).toContain('X-Custom-Id');
+      expect(exposed).toContain('X-Request-Id');
+    });
+
+    it('allows custom request headers', async () => {
+      server = await RuleEngineServer.start({
+        server: {
+          port: 0,
+          logger: false,
+          cors: { allowedHeaders: ['X-Api-Key', 'Content-Type'] }
+        }
+      });
+
+      const response = await fetch(`${server.address}/api/v1/health`, {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://example.com',
+          'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'X-Api-Key'
+        }
+      });
+
+      const allowHeaders = response.headers.get('access-control-allow-headers');
+      expect(allowHeaders).toContain('X-Api-Key');
+      expect(allowHeaders).toContain('Content-Type');
+    });
+
     it('passes engine config to created engine', async () => {
       server = await RuleEngineServer.start({
         server: { port: 0, logger: false },

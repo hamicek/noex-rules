@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveConfig } from '../../../src/api/config';
+import { resolveConfig, resolveCorsConfig, type CorsConfig } from '../../../src/api/config';
 
 describe('Server Config', () => {
   describe('resolveConfig', () => {
@@ -60,6 +60,154 @@ describe('Server Config', () => {
       const config = resolveConfig({ host: '127.0.0.1' });
 
       expect(config.host).toBe('127.0.0.1');
+    });
+
+    it('accepts detailed CORS configuration', () => {
+      const corsConfig: CorsConfig = {
+        origin: 'https://example.com',
+        credentials: true,
+        maxAge: 3600
+      };
+
+      const config = resolveConfig({ cors: corsConfig });
+
+      expect(config.cors).toEqual(corsConfig);
+    });
+  });
+
+  describe('resolveCorsConfig', () => {
+    it('returns false when CORS is disabled', () => {
+      const result = resolveCorsConfig(false);
+      expect(result).toBe(false);
+    });
+
+    it('returns default config when CORS is true', () => {
+      const result = resolveCorsConfig(true);
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe(true);
+        expect(result.methods).toEqual(['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE']);
+        expect(result.allowedHeaders).toEqual(['Content-Type', 'Authorization', 'X-Requested-With']);
+        expect(result.exposedHeaders).toEqual(['X-Request-Id']);
+        expect(result.credentials).toBe(false);
+        expect(result.maxAge).toBe(86400);
+        expect(result.preflightContinue).toBe(false);
+        expect(result.optionsSuccessStatus).toBe(204);
+      }
+    });
+
+    it('returns default config when CORS is undefined', () => {
+      const result = resolveCorsConfig(undefined);
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe(true);
+        expect(result.credentials).toBe(false);
+      }
+    });
+
+    it('merges partial config with defaults', () => {
+      const result = resolveCorsConfig({
+        origin: 'https://myapp.com',
+        credentials: true
+      });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe('https://myapp.com');
+        expect(result.credentials).toBe(true);
+        expect(result.methods).toEqual(['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE']);
+        expect(result.maxAge).toBe(86400);
+      }
+    });
+
+    it('accepts string origin', () => {
+      const result = resolveCorsConfig({ origin: 'https://example.com' });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe('https://example.com');
+      }
+    });
+
+    it('accepts array of origins', () => {
+      const origins = ['https://app1.com', 'https://app2.com'];
+      const result = resolveCorsConfig({ origin: origins });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toEqual(origins);
+      }
+    });
+
+    it('accepts RegExp origin', () => {
+      const pattern = /\.example\.com$/;
+      const result = resolveCorsConfig({ origin: pattern });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe(pattern);
+      }
+    });
+
+    it('accepts function origin', () => {
+      const originFn = (origin: string) => origin.endsWith('.example.com');
+      const result = resolveCorsConfig({ origin: originFn });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.origin).toBe(originFn);
+      }
+    });
+
+    it('allows custom methods', () => {
+      const result = resolveCorsConfig({ methods: ['GET', 'POST'] });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.methods).toEqual(['GET', 'POST']);
+      }
+    });
+
+    it('allows custom headers', () => {
+      const result = resolveCorsConfig({
+        allowedHeaders: ['X-Custom-Header', 'Content-Type'],
+        exposedHeaders: ['X-Response-Id']
+      });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.allowedHeaders).toEqual(['X-Custom-Header', 'Content-Type']);
+        expect(result.exposedHeaders).toEqual(['X-Response-Id']);
+      }
+    });
+
+    it('allows custom maxAge', () => {
+      const result = resolveCorsConfig({ maxAge: 7200 });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.maxAge).toBe(7200);
+      }
+    });
+
+    it('allows preflight continue', () => {
+      const result = resolveCorsConfig({ preflightContinue: true });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.preflightContinue).toBe(true);
+      }
+    });
+
+    it('allows custom options success status', () => {
+      const result = resolveCorsConfig({ optionsSuccessStatus: 200 });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.optionsSuccessStatus).toBe(200);
+      }
     });
   });
 });
