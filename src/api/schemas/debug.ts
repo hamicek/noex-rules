@@ -236,6 +236,112 @@ export const streamQuerySchema = {
   }
 } as const;
 
+// Session and Breakpoint schemas
+
+export const breakpointConditionSchema = {
+  type: 'object',
+  properties: {
+    ruleId: { type: 'string', description: 'Rule ID to match' },
+    topic: { type: 'string', description: 'Event topic pattern to match' },
+    factPattern: { type: 'string', description: 'Fact key pattern to match' },
+    actionType: { type: 'string', description: 'Action type to match' }
+  }
+} as const;
+
+export const breakpointSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    type: { type: 'string', enum: ['rule', 'event', 'fact', 'action'] },
+    condition: breakpointConditionSchema,
+    action: { type: 'string', enum: ['pause', 'log', 'snapshot'] },
+    enabled: { type: 'boolean' },
+    hitCount: { type: 'number' },
+    createdAt: { type: 'number' }
+  },
+  required: ['id', 'type', 'condition', 'action', 'enabled', 'hitCount', 'createdAt']
+} as const;
+
+export const snapshotSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    timestamp: { type: 'number' },
+    facts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          key: { type: 'string' },
+          value: {}
+        },
+        required: ['key', 'value']
+      }
+    },
+    recentTraces: { type: 'array', items: traceEntrySchema },
+    triggeredBy: { type: 'string' },
+    label: { type: 'string' }
+  },
+  required: ['id', 'timestamp', 'facts', 'recentTraces']
+} as const;
+
+export const sessionSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    paused: { type: 'boolean' },
+    breakpoints: { type: 'array', items: breakpointSchema },
+    snapshots: { type: 'array', items: snapshotSchema },
+    createdAt: { type: 'number' },
+    totalHits: { type: 'number' }
+  },
+  required: ['id', 'paused', 'breakpoints', 'snapshots', 'createdAt', 'totalHits']
+} as const;
+
+export const sessionIdParamsSchema = {
+  type: 'object',
+  properties: {
+    sessionId: { type: 'string' }
+  },
+  required: ['sessionId']
+} as const;
+
+export const breakpointIdParamsSchema = {
+  type: 'object',
+  properties: {
+    sessionId: { type: 'string' },
+    breakpointId: { type: 'string' }
+  },
+  required: ['sessionId', 'breakpointId']
+} as const;
+
+export const snapshotIdParamsSchema = {
+  type: 'object',
+  properties: {
+    sessionId: { type: 'string' },
+    snapshotId: { type: 'string' }
+  },
+  required: ['sessionId', 'snapshotId']
+} as const;
+
+export const createBreakpointBodySchema = {
+  type: 'object',
+  properties: {
+    type: { type: 'string', enum: ['rule', 'event', 'fact', 'action'] },
+    condition: breakpointConditionSchema,
+    action: { type: 'string', enum: ['pause', 'log', 'snapshot'] },
+    enabled: { type: 'boolean', default: true }
+  },
+  required: ['type', 'condition', 'action']
+} as const;
+
+export const takeSnapshotBodySchema = {
+  type: 'object',
+  properties: {
+    label: { type: 'string', description: 'Optional label for the snapshot' }
+  }
+} as const;
+
 export const debugSchemas = {
   queryHistory: {
     tags: ['Debug'],
@@ -465,6 +571,176 @@ export const debugSchemas = {
           totalEntriesFiltered: { type: 'number' }
         },
         required: ['activeConnections', 'totalEntriesSent', 'totalEntriesFiltered']
+      }
+    }
+  },
+
+  // Session endpoints
+  createSession: {
+    tags: ['Debug', 'Sessions'],
+    summary: 'Create debug session',
+    description: 'Creates a new debug session for managing breakpoints and snapshots',
+    response: {
+      200: sessionSchema
+    }
+  },
+  getSessions: {
+    tags: ['Debug', 'Sessions'],
+    summary: 'Get all sessions',
+    description: 'Returns all active debug sessions',
+    response: {
+      200: {
+        type: 'array',
+        items: sessionSchema
+      }
+    }
+  },
+  getSession: {
+    tags: ['Debug', 'Sessions'],
+    summary: 'Get session',
+    description: 'Returns a specific debug session',
+    params: sessionIdParamsSchema,
+    response: {
+      200: sessionSchema
+    }
+  },
+  endSession: {
+    tags: ['Debug', 'Sessions'],
+    summary: 'End session',
+    description: 'Ends a debug session and cleans up resources',
+    params: sessionIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          deleted: { type: 'boolean' }
+        },
+        required: ['deleted']
+      }
+    }
+  },
+
+  // Breakpoint endpoints
+  addBreakpoint: {
+    tags: ['Debug', 'Breakpoints'],
+    summary: 'Add breakpoint',
+    description: 'Adds a breakpoint to a debug session',
+    params: sessionIdParamsSchema,
+    body: createBreakpointBodySchema,
+    response: {
+      200: breakpointSchema
+    }
+  },
+  removeBreakpoint: {
+    tags: ['Debug', 'Breakpoints'],
+    summary: 'Remove breakpoint',
+    description: 'Removes a breakpoint from a debug session',
+    params: breakpointIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          deleted: { type: 'boolean' }
+        },
+        required: ['deleted']
+      }
+    }
+  },
+  enableBreakpoint: {
+    tags: ['Debug', 'Breakpoints'],
+    summary: 'Enable breakpoint',
+    description: 'Enables a disabled breakpoint',
+    params: breakpointIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          enabled: { type: 'boolean' }
+        },
+        required: ['enabled']
+      }
+    }
+  },
+  disableBreakpoint: {
+    tags: ['Debug', 'Breakpoints'],
+    summary: 'Disable breakpoint',
+    description: 'Disables an enabled breakpoint',
+    params: breakpointIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          disabled: { type: 'boolean' }
+        },
+        required: ['disabled']
+      }
+    }
+  },
+
+  // Control endpoints
+  resumeSession: {
+    tags: ['Debug', 'Control'],
+    summary: 'Resume execution',
+    description: 'Resumes execution after a pause breakpoint (development mode only)',
+    params: sessionIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          resumed: { type: 'boolean' }
+        },
+        required: ['resumed']
+      }
+    }
+  },
+  stepSession: {
+    tags: ['Debug', 'Control'],
+    summary: 'Step execution',
+    description: 'Steps to next breakpoint (development mode only)',
+    params: sessionIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          stepped: { type: 'boolean' }
+        },
+        required: ['stepped']
+      }
+    }
+  },
+
+  // Snapshot endpoints
+  takeSnapshot: {
+    tags: ['Debug', 'Snapshots'],
+    summary: 'Take snapshot',
+    description: 'Takes a point-in-time snapshot of engine state',
+    params: sessionIdParamsSchema,
+    body: takeSnapshotBodySchema,
+    response: {
+      200: snapshotSchema
+    }
+  },
+  getSnapshot: {
+    tags: ['Debug', 'Snapshots'],
+    summary: 'Get snapshot',
+    description: 'Returns a specific snapshot',
+    params: snapshotIdParamsSchema,
+    response: {
+      200: snapshotSchema
+    }
+  },
+  clearSnapshots: {
+    tags: ['Debug', 'Snapshots'],
+    summary: 'Clear snapshots',
+    description: 'Clears all snapshots from a session',
+    params: sessionIdParamsSchema,
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          cleared: { type: 'boolean' }
+        },
+        required: ['cleared']
       }
     }
   }

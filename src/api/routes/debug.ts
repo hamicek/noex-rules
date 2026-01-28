@@ -14,6 +14,13 @@ import {
   type DebugSSEFilter,
   type DebugSSEManagerStats
 } from '../notifications/debug-sse-manager.js';
+import {
+  DebugController,
+  type DebugSession,
+  type Breakpoint,
+  type Snapshot,
+  type BreakpointInput
+} from '../../debugging/debug-controller.js';
 import { NotFoundError } from '../middleware/error-handler.js';
 import { debugSchemas } from '../schemas/debug.js';
 import { generateId } from '../../utils/id-generator.js';
@@ -61,10 +68,41 @@ interface StreamQuerystring {
   minDurationMs?: number;
 }
 
+interface SessionIdParams {
+  sessionId: string;
+}
+
+interface BreakpointIdParams {
+  sessionId: string;
+  breakpointId: string;
+}
+
+interface SnapshotIdParams {
+  sessionId: string;
+  snapshotId: string;
+}
+
+interface CreateBreakpointBody {
+  type: 'rule' | 'event' | 'fact' | 'action';
+  condition: {
+    ruleId?: string;
+    topic?: string;
+    factPattern?: string;
+    actionType?: string;
+  };
+  action: 'pause' | 'log' | 'snapshot';
+  enabled?: boolean;
+}
+
+interface TakeSnapshotBody {
+  label?: string;
+}
+
 export async function registerDebugRoutes(fastify: FastifyInstance): Promise<void> {
   const engine = fastify.engine;
   let profiler: Profiler | null = null;
   let debugSSEManager: DebugSSEManager | null = null;
+  let debugController: DebugController | null = null;
 
   const getHistoryService = (): HistoryService => {
     return new HistoryService(engine.getEventStore(), engine.getTraceCollector());
@@ -85,6 +123,16 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     return debugSSEManager;
   };
 
+  const getDebugController = (): DebugController => {
+    if (!debugController) {
+      debugController = new DebugController(
+        engine.getTraceCollector(),
+        engine.getFactStore()
+      );
+    }
+    return debugController;
+  };
+
   // Cleanup on server close
   fastify.addHook('onClose', async () => {
     if (debugSSEManager) {
@@ -94,6 +142,10 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     if (profiler) {
       profiler.stop();
       profiler = null;
+    }
+    if (debugController) {
+      debugController.stop();
+      debugController = null;
     }
   });
 
@@ -323,6 +375,216 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     { schema: debugSchemas.streamStats },
     async (): Promise<DebugSSEManagerStats> => {
       return getDebugSSEManager().getStats();
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                          DEBUG SESSIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // POST /debug/sessions - Create debug session
+  fastify.post(
+    '/debug/sessions',
+    { schema: debugSchemas.createSession },
+    async (): Promise<DebugSession> => {
+      return getDebugController().createSession();
+    }
+  );
+
+  // GET /debug/sessions - Get all sessions
+  fastify.get(
+    '/debug/sessions',
+    { schema: debugSchemas.getSessions },
+    async (): Promise<DebugSession[]> => {
+      return getDebugController().getSessions();
+    }
+  );
+
+  // GET /debug/sessions/:sessionId - Get session
+  fastify.get<{ Params: SessionIdParams }>(
+    '/debug/sessions/:sessionId',
+    { schema: debugSchemas.getSession },
+    async (request): Promise<DebugSession> => {
+      const session = getDebugController().getSession(request.params.sessionId);
+      if (!session) {
+        throw new NotFoundError('Session', request.params.sessionId);
+      }
+      return session;
+    }
+  );
+
+  // DELETE /debug/sessions/:sessionId - End session
+  fastify.delete<{ Params: SessionIdParams }>(
+    '/debug/sessions/:sessionId',
+    { schema: debugSchemas.endSession },
+    async (request): Promise<{ deleted: boolean }> => {
+      const deleted = getDebugController().endSession(request.params.sessionId);
+      if (!deleted) {
+        throw new NotFoundError('Session', request.params.sessionId);
+      }
+      return { deleted: true };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                          BREAKPOINTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // POST /debug/sessions/:sessionId/breakpoints - Add breakpoint
+  fastify.post<{ Params: SessionIdParams; Body: CreateBreakpointBody }>(
+    '/debug/sessions/:sessionId/breakpoints',
+    { schema: debugSchemas.addBreakpoint },
+    async (request): Promise<Breakpoint> => {
+      const input: BreakpointInput = {
+        type: request.body.type,
+        condition: request.body.condition,
+        action: request.body.action,
+        enabled: request.body.enabled,
+      };
+
+      const breakpoint = getDebugController().addBreakpoint(
+        request.params.sessionId,
+        input
+      );
+
+      if (!breakpoint) {
+        throw new NotFoundError('Session', request.params.sessionId);
+      }
+
+      return breakpoint;
+    }
+  );
+
+  // DELETE /debug/sessions/:sessionId/breakpoints/:breakpointId - Remove breakpoint
+  fastify.delete<{ Params: BreakpointIdParams }>(
+    '/debug/sessions/:sessionId/breakpoints/:breakpointId',
+    { schema: debugSchemas.removeBreakpoint },
+    async (request): Promise<{ deleted: boolean }> => {
+      const deleted = getDebugController().removeBreakpoint(
+        request.params.sessionId,
+        request.params.breakpointId
+      );
+
+      if (!deleted) {
+        throw new NotFoundError('Breakpoint', request.params.breakpointId);
+      }
+
+      return { deleted: true };
+    }
+  );
+
+  // POST /debug/sessions/:sessionId/breakpoints/:breakpointId/enable - Enable breakpoint
+  fastify.post<{ Params: BreakpointIdParams }>(
+    '/debug/sessions/:sessionId/breakpoints/:breakpointId/enable',
+    { schema: debugSchemas.enableBreakpoint },
+    async (request): Promise<{ enabled: boolean }> => {
+      const enabled = getDebugController().enableBreakpoint(
+        request.params.sessionId,
+        request.params.breakpointId
+      );
+
+      if (!enabled) {
+        throw new NotFoundError('Breakpoint', request.params.breakpointId);
+      }
+
+      return { enabled: true };
+    }
+  );
+
+  // POST /debug/sessions/:sessionId/breakpoints/:breakpointId/disable - Disable breakpoint
+  fastify.post<{ Params: BreakpointIdParams }>(
+    '/debug/sessions/:sessionId/breakpoints/:breakpointId/disable',
+    { schema: debugSchemas.disableBreakpoint },
+    async (request): Promise<{ disabled: boolean }> => {
+      const disabled = getDebugController().disableBreakpoint(
+        request.params.sessionId,
+        request.params.breakpointId
+      );
+
+      if (!disabled) {
+        throw new NotFoundError('Breakpoint', request.params.breakpointId);
+      }
+
+      return { disabled: true };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                          EXECUTION CONTROL
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // POST /debug/sessions/:sessionId/resume - Resume execution
+  fastify.post<{ Params: SessionIdParams }>(
+    '/debug/sessions/:sessionId/resume',
+    { schema: debugSchemas.resumeSession },
+    async (request): Promise<{ resumed: boolean }> => {
+      const resumed = getDebugController().resume(request.params.sessionId);
+      return { resumed };
+    }
+  );
+
+  // POST /debug/sessions/:sessionId/step - Step execution
+  fastify.post<{ Params: SessionIdParams }>(
+    '/debug/sessions/:sessionId/step',
+    { schema: debugSchemas.stepSession },
+    async (request): Promise<{ stepped: boolean }> => {
+      const stepped = getDebugController().step(request.params.sessionId);
+      return { stepped };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                          SNAPSHOTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // POST /debug/sessions/:sessionId/snapshot - Take snapshot
+  fastify.post<{ Params: SessionIdParams; Body: TakeSnapshotBody }>(
+    '/debug/sessions/:sessionId/snapshot',
+    { schema: debugSchemas.takeSnapshot },
+    async (request): Promise<Snapshot> => {
+      const snapshot = getDebugController().takeSnapshot(
+        request.params.sessionId,
+        request.body.label
+      );
+
+      if (!snapshot) {
+        throw new NotFoundError('Session', request.params.sessionId);
+      }
+
+      return snapshot;
+    }
+  );
+
+  // GET /debug/sessions/:sessionId/snapshots/:snapshotId - Get snapshot
+  fastify.get<{ Params: SnapshotIdParams }>(
+    '/debug/sessions/:sessionId/snapshots/:snapshotId',
+    { schema: debugSchemas.getSnapshot },
+    async (request): Promise<Snapshot> => {
+      const snapshot = getDebugController().getSnapshot(
+        request.params.sessionId,
+        request.params.snapshotId
+      );
+
+      if (!snapshot) {
+        throw new NotFoundError('Snapshot', request.params.snapshotId);
+      }
+
+      return snapshot;
+    }
+  );
+
+  // DELETE /debug/sessions/:sessionId/snapshots - Clear snapshots
+  fastify.delete<{ Params: SessionIdParams }>(
+    '/debug/sessions/:sessionId/snapshots',
+    { schema: debugSchemas.clearSnapshots },
+    async (request): Promise<{ cleared: boolean }> => {
+      const cleared = getDebugController().clearSnapshots(request.params.sessionId);
+
+      if (!cleared) {
+        throw new NotFoundError('Session', request.params.sessionId);
+      }
+
+      return { cleared: true };
     }
   );
 }

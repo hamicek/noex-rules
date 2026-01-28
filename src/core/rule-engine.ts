@@ -443,6 +443,14 @@ export class RuleEngine {
     return this.eventStore;
   }
 
+  /**
+   * Vrátí FactStore pro přímý přístup k faktům.
+   * Primárně určeno pro debugging a snapshots.
+   */
+  getFactStore(): FactStore {
+    return this.factStore;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //                            LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
