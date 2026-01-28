@@ -36,6 +36,15 @@ export interface PersistenceConfig {
   schemaVersion?: number;
 }
 
+/** Konfigurace tracingu */
+export interface TracingConfig {
+  /** Povolit tracing při startu enginu (default: false) */
+  enabled?: boolean;
+
+  /** Maximální počet trace entries v ring bufferu (default: 10000) */
+  maxEntries?: number;
+}
+
 /** Konfigurace Rule Engine */
 export interface RuleEngineConfig {
   name?: string;
@@ -43,4 +52,5 @@ export interface RuleEngineConfig {
   debounceMs?: number;            // Debounce pro změny faktů
   persistence?: PersistenceConfig;
   services?: Record<string, unknown>;  // Externí služby pro call_service
+  tracing?: TracingConfig;        // Konfigurace debugging tracingu
 }

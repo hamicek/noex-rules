@@ -11,6 +11,7 @@ import { RulePersistence, type RulePersistenceOptions } from '../persistence/rul
 import { ConditionEvaluator, type EvaluationContext } from '../evaluation/condition-evaluator.js';
 import { ActionExecutor, type ExecutionContext } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
+import { TraceCollector } from '../debugging/trace-collector.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -40,7 +41,8 @@ export class RuleEngine {
   private readonly ruleManager: RuleManager;
   private readonly conditionEvaluator: ConditionEvaluator;
   private readonly actionExecutor: ActionExecutor;
-  private readonly config: Required<Omit<RuleEngineConfig, 'persistence'>>;
+  private readonly traceCollector: TraceCollector;
+  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing'>>;
   private readonly services: Map<string, unknown>;
 
   private readonly subscribers: Map<string, Set<EventHandler>> = new Map();
@@ -61,12 +63,14 @@ export class RuleEngine {
     eventStore: EventStore,
     timerManager: TimerManager,
     ruleManager: RuleManager,
+    traceCollector: TraceCollector,
     config: RuleEngineConfig
   ) {
     this.factStore = factStore;
     this.eventStore = eventStore;
     this.timerManager = timerManager;
     this.ruleManager = ruleManager;
+    this.traceCollector = traceCollector;
     this.conditionEvaluator = new ConditionEvaluator();
 
     this.config = {
@@ -99,6 +103,10 @@ export class RuleEngine {
     const eventStore = await EventStore.start(eventStoreConfig);
     const timerManager = await TimerManager.start({});
     const ruleManager = await RuleManager.start();
+    const traceCollector = await TraceCollector.start({
+      enabled: config.tracing?.enabled ?? false,
+      maxEntries: config.tracing?.maxEntries ?? 10_000
+    });
 
     // Nastavení persistence, pokud je nakonfigurována
     if (config.persistence) {
@@ -114,7 +122,7 @@ export class RuleEngine {
       await ruleManager.restore();
     }
 
-    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, config);
+    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, config);
     engine.running = true;
 
     return engine;
@@ -179,7 +187,16 @@ export class RuleEngine {
    */
   async setFact(key: string, value: unknown): Promise<Fact> {
     this.ensureRunning();
+    const previousValue = this.factStore.get(key)?.value;
     const fact = this.factStore.set(key, value, 'api');
+
+    this.traceCollector.record('fact_changed', {
+      key: fact.key,
+      previousValue,
+      newValue: fact.value,
+      source: fact.source
+    });
+
     await this.processTrigger({ type: 'fact', data: fact });
     return fact;
   }
@@ -287,7 +304,20 @@ export class RuleEngine {
     };
   }): Promise<Timer> {
     this.ensureRunning();
-    return this.timerManager.setTimer(config);
+    const timer = await this.timerManager.setTimer(config);
+
+    this.traceCollector.record('timer_set', {
+      timerId: timer.id,
+      timerName: timer.name,
+      duration: config.duration,
+      expiresAt: timer.expiresAt,
+      onExpire: timer.onExpire,
+      repeat: config.repeat
+    }, {
+      ...(timer.correlationId && { correlationId: timer.correlationId })
+    });
+
+    return timer;
   }
 
   /**
@@ -295,7 +325,19 @@ export class RuleEngine {
    */
   async cancelTimer(name: string): Promise<boolean> {
     this.ensureRunning();
-    return this.timerManager.cancelTimer(name);
+    const timer = this.timerManager.getTimer(name);
+    const cancelled = await this.timerManager.cancelTimer(name);
+
+    if (cancelled && timer) {
+      this.traceCollector.record('timer_cancelled', {
+        timerId: timer.id,
+        timerName: timer.name
+      }, {
+        ...(timer.correlationId && { correlationId: timer.correlationId })
+      });
+    }
+
+    return cancelled;
   }
 
   /**
@@ -362,6 +404,38 @@ export class RuleEngine {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //                              TRACING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Povolí debugging tracing.
+   */
+  enableTracing(): void {
+    this.traceCollector.enable();
+  }
+
+  /**
+   * Zakáže debugging tracing.
+   */
+  disableTracing(): void {
+    this.traceCollector.disable();
+  }
+
+  /**
+   * Zjistí, zda je tracing povolen.
+   */
+  isTracingEnabled(): boolean {
+    return this.traceCollector.isEnabled();
+  }
+
+  /**
+   * Vrátí TraceCollector pro přímý přístup k trace entries.
+   */
+  getTraceCollector(): TraceCollector {
+    return this.traceCollector;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //                            LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -397,6 +471,15 @@ export class RuleEngine {
     this.timerManager.onExpire(async (timer: Timer) => {
       if (!this.running) return;
 
+      this.traceCollector.record('timer_expired', {
+        timerId: timer.id,
+        timerName: timer.name,
+        expiresAt: timer.expiresAt,
+        onExpire: timer.onExpire
+      }, {
+        ...(timer.correlationId && { correlationId: timer.correlationId })
+      });
+
       // Zpracovat pravidla s timer triggerem
       await this.processTrigger({ type: 'timer', data: timer });
 
@@ -418,6 +501,16 @@ export class RuleEngine {
   private async handleInternalEvent(topic: string, event: Event): Promise<void> {
     this.eventStore.store(event);
     this.internals.totalEventsProcessed++;
+
+    this.traceCollector.record('event_emitted', {
+      eventId: event.id,
+      topic: event.topic,
+      data: event.data,
+      source: event.source
+    }, {
+      ...(event.correlationId && { correlationId: event.correlationId }),
+      ...(event.causationId && { causationId: event.causationId })
+    });
 
     // Notifikovat subscribery
     await this.notifySubscribers(topic, event);
@@ -544,6 +637,17 @@ export class RuleEngine {
     trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
   ): Promise<void> {
     const startTime = Date.now();
+    const correlationId = this.extractCorrelationId(trigger);
+
+    // Trace rule triggered
+    const triggeredEntry = this.traceCollector.record('rule_triggered', {
+      triggerType: trigger.type,
+      triggerData: this.buildTriggerData(trigger)
+    }, {
+      ruleId: rule.id,
+      ruleName: rule.name,
+      ...(correlationId && { correlationId })
+    });
 
     try {
       const triggerData = this.buildTriggerData(trigger);
@@ -558,7 +662,18 @@ export class RuleEngine {
       };
 
       const conditionsMet = this.conditionEvaluator.evaluateAll(rule.conditions, evalContext);
-      if (!conditionsMet) return;
+      if (!conditionsMet) {
+        this.traceCollector.record('rule_skipped', {
+          reason: 'conditions_not_met'
+        }, {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          ...(correlationId && { correlationId }),
+          ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+          durationMs: Date.now() - startTime
+        });
+        return;
+      }
 
       const execContext: ExecutionContext = {
         trigger: evalContext.trigger,
@@ -586,14 +701,47 @@ export class RuleEngine {
         this.processingDepth--;
       }
 
+      const durationMs = Date.now() - startTime;
       this.internals.totalRulesExecuted++;
-      this.internals.totalProcessingTimeMs += Date.now() - startTime;
+      this.internals.totalProcessingTimeMs += durationMs;
+
+      this.traceCollector.record('rule_executed', {
+        actionsCount: rule.actions.length
+      }, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        ...(correlationId && { correlationId }),
+        ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+        durationMs
+      });
     } catch (error) {
+      this.traceCollector.record('action_failed', {
+        error: error instanceof Error ? error.message : String(error)
+      }, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        ...(correlationId && { correlationId }),
+        ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+        durationMs: Date.now() - startTime
+      });
+
       console.error(
         `[${this.config.name}] Error executing rule "${rule.name}" (${rule.id}):`,
         error
       );
     }
+  }
+
+  private extractCorrelationId(
+    trigger: { type: 'fact' | 'event' | 'timer'; data: Fact | Event | Timer }
+  ): string | undefined {
+    if (trigger.type === 'event') {
+      return (trigger.data as Event).correlationId;
+    }
+    if (trigger.type === 'timer') {
+      return (trigger.data as Timer).correlationId;
+    }
+    return undefined;
   }
 
   private buildTriggerData(

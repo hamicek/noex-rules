@@ -150,7 +150,7 @@ export class TraceCollector {
       candidates = this.getByCorrelation(filter.correlationId);
     } else if (filter.ruleId) {
       candidates = this.getByRule(filter.ruleId);
-    } else if (filter.types && filter.types.length === 1) {
+    } else if (filter.types && filter.types.length === 1 && filter.types[0]) {
       candidates = this.getByType(filter.types[0]);
     } else {
       candidates = [...this.entries];
