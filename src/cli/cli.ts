@@ -12,6 +12,7 @@ import { getExitCode, formatError } from './utils/errors.js';
 import { validateCommand, type ValidateOptions } from './commands/validate.js';
 import { importCommand, type ImportCommandOptions } from './commands/import.js';
 import { exportCommand, type ExportCommandOptions } from './commands/export.js';
+import { testCommand, type TestCommandOptions } from './commands/test.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -125,20 +126,34 @@ function registerExportCommand(): void {
     });
 }
 
-/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
-function registerPlaceholderCommands(): void {
-
+/** Registruje příkaz test */
+function registerTestCommand(): void {
   cli
     .command('test <file>', 'Test rules with scenarios')
-    .option('-d, --dry-run', 'Run tests without side effects')
+    .option('-d, --dry-run', 'Run tests without side effects', { default: true })
     .option('-v, --verbose', 'Show detailed test output')
     .option('-r, --rules <path>', 'Path to rules file')
+    .option('-t, --timeout <ms>', 'Test timeout in milliseconds')
     .action(async (file: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'test' not yet implemented. File: ${file}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const testOptions: TestCommandOptions = {
+        ...globalOptions,
+        dryRun: (options['dryRun'] as boolean | undefined) ?? true,
+        verbose: (options['verbose'] as boolean | undefined) ?? false,
+        rules: options['rules'] as string | undefined,
+        timeout: options['timeout'] ? Number(options['timeout']) : undefined
+      };
+      try {
+        await testCommand(file, testOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
+}
 
+/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
+function registerPlaceholderCommands(): void {
   cli
     .command('server start', 'Start the REST API server')
     .option('-p, --port <port>', 'Server port', { default: 3000 })
@@ -213,6 +228,7 @@ export async function run(args: string[] = process.argv): Promise<void> {
   registerValidateCommand();
   registerImportCommand();
   registerExportCommand();
+  registerTestCommand();
   registerPlaceholderCommands();
 
   cli.help();

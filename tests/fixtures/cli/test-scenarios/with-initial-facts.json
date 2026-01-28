@@ -1,0 +1,69 @@
+{
+  "name": "Test with Initial Facts",
+  "description": "Test scenario using initial facts",
+  "rules": [
+    {
+      "id": "vip-discount",
+      "name": "VIP Discount Rule",
+      "trigger": {
+        "type": "event",
+        "topic": "checkout.started"
+      },
+      "conditions": [
+        {
+          "source": { "type": "fact", "pattern": "customer:vip" },
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "set_fact",
+          "key": "discount:applied",
+          "value": 20
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "VIP customer gets discount",
+      "initialFacts": {
+        "customer:vip": true
+      },
+      "actions": [
+        {
+          "type": "emit",
+          "topic": "checkout.started",
+          "data": { "cartId": "cart-1" }
+        }
+      ],
+      "assertions": [
+        {
+          "type": "fact_equals",
+          "key": "discount:applied",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "name": "Non-VIP customer does not get discount",
+      "initialFacts": {
+        "customer:vip": false
+      },
+      "actions": [
+        {
+          "type": "emit",
+          "topic": "checkout.started",
+          "data": { "cartId": "cart-2" }
+        }
+      ],
+      "assertions": [
+        {
+          "type": "fact_not_exists",
+          "key": "discount:applied"
+        }
+      ]
+    }
+  ]
+}

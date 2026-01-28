@@ -1,0 +1,63 @@
+{
+  "name": "Simple Test Scenario",
+  "description": "Basic test for event-triggered rules",
+  "rules": [
+    {
+      "id": "high-value-order",
+      "name": "High Value Order Detection",
+      "trigger": {
+        "type": "event",
+        "topic": "order.created"
+      },
+      "conditions": [
+        {
+          "source": { "type": "event", "field": "amount" },
+          "operator": "gte",
+          "value": 100
+        }
+      ],
+      "actions": [
+        {
+          "type": "set_fact",
+          "key": "order:high-value",
+          "value": true
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "Should detect high value order",
+      "actions": [
+        {
+          "type": "emit",
+          "topic": "order.created",
+          "data": { "orderId": "123", "amount": 150 }
+        }
+      ],
+      "assertions": [
+        {
+          "type": "fact_equals",
+          "key": "order:high-value",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "Should not detect low value order",
+      "actions": [
+        {
+          "type": "emit",
+          "topic": "order.created",
+          "data": { "orderId": "456", "amount": 50 }
+        }
+      ],
+      "assertions": [
+        {
+          "type": "fact_not_exists",
+          "key": "order:high-value"
+        }
+      ]
+    }
+  ]
+}
