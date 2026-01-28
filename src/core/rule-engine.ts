@@ -8,7 +8,7 @@ import { EventStore, type EventStoreConfig } from './event-store.js';
 import { TimerManager, type TimerManagerConfig } from './timer-manager.js';
 import { RuleManager } from './rule-manager.js';
 import { RulePersistence, type RulePersistenceOptions } from '../persistence/rule-persistence.js';
-import { ConditionEvaluator, type EvaluationContext } from '../evaluation/condition-evaluator.js';
+import { ConditionEvaluator, type EvaluationContext, type EvaluationOptions } from '../evaluation/condition-evaluator.js';
 import { ActionExecutor, type ExecutionContext } from '../evaluation/action-executor.js';
 import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
@@ -661,7 +661,26 @@ export class RuleEngine {
         variables: new Map()
       };
 
-      const conditionsMet = this.conditionEvaluator.evaluateAll(rule.conditions, evalContext);
+      const evalOptions: EvaluationOptions = {
+        onConditionEvaluated: (result) => {
+          this.traceCollector.record('condition_evaluated', {
+            conditionIndex: result.conditionIndex,
+            source: result.source,
+            operator: result.operator,
+            actualValue: result.actualValue,
+            expectedValue: result.expectedValue,
+            passed: result.result
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+            durationMs: result.durationMs
+          });
+        }
+      };
+
+      const conditionsMet = this.conditionEvaluator.evaluateAll(rule.conditions, evalContext, evalOptions);
       if (!conditionsMet) {
         this.traceCollector.record('rule_skipped', {
           reason: 'conditions_not_met'

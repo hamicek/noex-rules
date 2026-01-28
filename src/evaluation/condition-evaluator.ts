@@ -5,6 +5,7 @@ import { evaluateCondition } from '../utils/operators.js';
 import { getNestedValue, matchesFactPattern } from '../utils/pattern-matcher.js';
 import type { FactStore } from '../core/fact-store.js';
 import { interpolate, type InterpolationContext } from '../utils/interpolation.js';
+import type { ConditionEvaluationCallback, ConditionEvaluationResult } from '../debugging/types.js';
 
 export interface EvaluationContext {
   trigger: {
@@ -15,6 +16,12 @@ export interface EvaluationContext {
   variables: Map<string, unknown>;
 }
 
+/** Options for condition evaluation with optional tracing */
+export interface EvaluationOptions {
+  /** Callback invoked after each condition evaluation */
+  onConditionEvaluated?: ConditionEvaluationCallback;
+}
+
 /**
  * Vyhodnocuje podmínky pravidel.
  */
@@ -22,9 +29,14 @@ export class ConditionEvaluator {
   /**
    * Vyhodnotí všechny podmínky (AND logika).
    */
-  evaluateAll(conditions: RuleCondition[], context: EvaluationContext): boolean {
-    for (const condition of conditions) {
-      if (!this.evaluate(condition, context)) {
+  evaluateAll(
+    conditions: RuleCondition[],
+    context: EvaluationContext,
+    options?: EvaluationOptions
+  ): boolean {
+    for (let i = 0; i < conditions.length; i++) {
+      const condition = conditions[i]!;
+      if (!this.evaluate(condition, context, i, options)) {
         return false;
       }
     }
@@ -34,11 +46,49 @@ export class ConditionEvaluator {
   /**
    * Vyhodnotí jednu podmínku.
    */
-  evaluate(condition: RuleCondition, context: EvaluationContext): boolean {
-    const value = this.getSourceValue(condition.source, context);
-    const compareValue = this.resolveCompareValue(condition.value, context);
+  evaluate(
+    condition: RuleCondition,
+    context: EvaluationContext,
+    conditionIndex = 0,
+    options?: EvaluationOptions
+  ): boolean {
+    const startTime = performance.now();
 
-    return evaluateCondition(condition, value, compareValue);
+    const actualValue = this.getSourceValue(condition.source, context);
+    const expectedValue = this.resolveCompareValue(condition.value, context);
+    const result = evaluateCondition(condition, actualValue, expectedValue);
+
+    if (options?.onConditionEvaluated) {
+      const durationMs = performance.now() - startTime;
+
+      const traceResult: ConditionEvaluationResult = {
+        conditionIndex,
+        source: this.buildSourceInfo(condition.source),
+        operator: condition.operator,
+        actualValue,
+        expectedValue,
+        result,
+        durationMs
+      };
+
+      options.onConditionEvaluated(traceResult);
+    }
+
+    return result;
+  }
+
+  /**
+   * Builds a serializable source info object for tracing.
+   */
+  private buildSourceInfo(source: RuleCondition['source']): ConditionEvaluationResult['source'] {
+    switch (source.type) {
+      case 'fact':
+        return { type: 'fact', pattern: source.pattern };
+      case 'event':
+        return { type: 'event', field: source.field };
+      case 'context':
+        return { type: 'context', key: source.key };
+    }
   }
 
   private getSourceValue(

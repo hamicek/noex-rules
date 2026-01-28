@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   ConditionEvaluator,
-  type EvaluationContext
+  type EvaluationContext,
+  type EvaluationOptions
 } from '../../../src/evaluation/condition-evaluator';
 import { FactStore } from '../../../src/core/fact-store';
 import type { RuleCondition } from '../../../src/types/condition';
+import type { ConditionEvaluationResult } from '../../../src/debugging/types';
 
 describe('ConditionEvaluator', () => {
   let evaluator: ConditionEvaluator;
@@ -460,6 +462,223 @@ describe('ConditionEvaluator', () => {
       };
 
       expect(evaluator.evaluate(condition, context)).toBe(true);
+    });
+  });
+
+  describe('condition evaluation tracing', () => {
+    it('invokes callback with correct result for single condition', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      factStore.set('user:status', 'active');
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'user:status' },
+        operator: 'eq',
+        value: 'active'
+      };
+
+      const result = evaluator.evaluate(condition, context, 0, options);
+
+      expect(result).toBe(true);
+      expect(callback).toHaveBeenCalledOnce();
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.conditionIndex).toBe(0);
+      expect(traceResult.source).toEqual({ type: 'fact', pattern: 'user:status' });
+      expect(traceResult.operator).toBe('eq');
+      expect(traceResult.actualValue).toBe('active');
+      expect(traceResult.expectedValue).toBe('active');
+      expect(traceResult.result).toBe(true);
+      expect(traceResult.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('invokes callback with correct result for failing condition', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      factStore.set('user:status', 'inactive');
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'user:status' },
+        operator: 'eq',
+        value: 'active'
+      };
+
+      const result = evaluator.evaluate(condition, context, 0, options);
+
+      expect(result).toBe(false);
+      expect(callback).toHaveBeenCalledOnce();
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.actualValue).toBe('inactive');
+      expect(traceResult.expectedValue).toBe('active');
+      expect(traceResult.result).toBe(false);
+    });
+
+    it('invokes callback for each condition in evaluateAll', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      factStore.set('user:type', 'premium');
+      context.trigger.data = { amount: 500 };
+
+      const conditions: RuleCondition[] = [
+        {
+          source: { type: 'fact', pattern: 'user:type' },
+          operator: 'eq',
+          value: 'premium'
+        },
+        {
+          source: { type: 'event', field: 'amount' },
+          operator: 'gte',
+          value: 100
+        }
+      ];
+
+      const result = evaluator.evaluateAll(conditions, context, options);
+
+      expect(result).toBe(true);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      // First condition
+      expect(callback.mock.calls[0]![0].conditionIndex).toBe(0);
+      expect(callback.mock.calls[0]![0].source).toEqual({ type: 'fact', pattern: 'user:type' });
+      expect(callback.mock.calls[0]![0].result).toBe(true);
+
+      // Second condition
+      expect(callback.mock.calls[1]![0].conditionIndex).toBe(1);
+      expect(callback.mock.calls[1]![0].source).toEqual({ type: 'event', field: 'amount' });
+      expect(callback.mock.calls[1]![0].result).toBe(true);
+    });
+
+    it('invokes callback only until short-circuit on failure', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      const conditions: RuleCondition[] = [
+        {
+          source: { type: 'fact', pattern: 'missing' },
+          operator: 'exists',
+          value: null
+        },
+        {
+          source: { type: 'event', field: 'field' },
+          operator: 'eq',
+          value: 'never-checked'
+        }
+      ];
+
+      const result = evaluator.evaluateAll(conditions, context, options);
+
+      expect(result).toBe(false);
+      expect(callback).toHaveBeenCalledOnce();
+      expect(callback.mock.calls[0]![0].conditionIndex).toBe(0);
+      expect(callback.mock.calls[0]![0].result).toBe(false);
+    });
+
+    it('correctly traces event source type', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      context.trigger.data = { orderId: 'ORD-123' };
+      const condition: RuleCondition = {
+        source: { type: 'event', field: 'orderId' },
+        operator: 'matches',
+        value: '^ORD-\\d+$'
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.source).toEqual({ type: 'event', field: 'orderId' });
+      expect(traceResult.actualValue).toBe('ORD-123');
+    });
+
+    it('correctly traces context source type', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      context.variables.set('threshold', 100);
+      const condition: RuleCondition = {
+        source: { type: 'context', key: 'threshold' },
+        operator: 'lte',
+        value: 200
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.source).toEqual({ type: 'context', key: 'threshold' });
+      expect(traceResult.actualValue).toBe(100);
+    });
+
+    it('traces resolved reference values', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      factStore.set('config:min-amount', 100);
+      context.trigger.data = { amount: 150 };
+      const condition: RuleCondition = {
+        source: { type: 'event', field: 'amount' },
+        operator: 'gt',
+        value: { ref: 'fact.config:min-amount' }
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.actualValue).toBe(150);
+      expect(traceResult.expectedValue).toBe(100); // Resolved from reference
+      expect(traceResult.result).toBe(true);
+    });
+
+    it('does not invoke callback when options not provided', () => {
+      factStore.set('user:status', 'active');
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'user:status' },
+        operator: 'eq',
+        value: 'active'
+      };
+
+      // This should work without any errors, just not invoke any callback
+      const result = evaluator.evaluate(condition, context);
+      expect(result).toBe(true);
+    });
+
+    it('does not invoke callback when callback is undefined', () => {
+      const options: EvaluationOptions = {};
+
+      factStore.set('user:status', 'active');
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'user:status' },
+        operator: 'eq',
+        value: 'active'
+      };
+
+      // This should work without any errors
+      const result = evaluator.evaluate(condition, context, 0, options);
+      expect(result).toBe(true);
+    });
+
+    it('measures duration for slow conditions', async () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      // Create a fact store with many facts to make lookup slower
+      for (let i = 0; i < 1000; i++) {
+        factStore.set(`user:${i}:status`, 'active');
+      }
+
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'user:*:status' },
+        operator: 'eq',
+        value: 'active'
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.durationMs).toBeGreaterThanOrEqual(0);
+      expect(typeof traceResult.durationMs).toBe('number');
     });
   });
 });

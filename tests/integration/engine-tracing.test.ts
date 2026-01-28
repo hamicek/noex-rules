@@ -321,4 +321,215 @@ describe('Engine Tracing Integration', () => {
       expect(rule2Entries.every(e => e.ruleId === 'rule-2')).toBe(true);
     });
   });
+
+  describe('condition evaluation tracing', () => {
+    beforeEach(async () => {
+      engine = await RuleEngine.start({
+        name: 'test-engine',
+        tracing: { enabled: true }
+      });
+    });
+
+    it('traces condition evaluations for passing rule', async () => {
+      await engine.setFact('user:tier', 'premium');
+
+      const rule: RuleInput = {
+        id: 'tier-check-rule',
+        name: 'Tier Check Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'order.created' },
+        conditions: [
+          { source: { type: 'fact', pattern: 'user:tier' }, operator: 'eq', value: 'premium' },
+          { source: { type: 'event', field: 'amount' }, operator: 'gte', value: 100 }
+        ],
+        actions: [{ type: 'set_fact', key: 'discount', value: 10 }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('order.created', { amount: 500 });
+
+      const collector = engine.getTraceCollector();
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      expect(conditionEntries.length).toBe(2);
+
+      // First condition - fact source
+      const firstCond = conditionEntries[0];
+      expect(firstCond.ruleId).toBe('tier-check-rule');
+      expect(firstCond.details.conditionIndex).toBe(0);
+      expect(firstCond.details.source).toEqual({ type: 'fact', pattern: 'user:tier' });
+      expect(firstCond.details.operator).toBe('eq');
+      expect(firstCond.details.actualValue).toBe('premium');
+      expect(firstCond.details.expectedValue).toBe('premium');
+      expect(firstCond.details.passed).toBe(true);
+      expect(firstCond.durationMs).toBeGreaterThanOrEqual(0);
+
+      // Second condition - event source
+      const secondCond = conditionEntries[1];
+      expect(secondCond.ruleId).toBe('tier-check-rule');
+      expect(secondCond.details.conditionIndex).toBe(1);
+      expect(secondCond.details.source).toEqual({ type: 'event', field: 'amount' });
+      expect(secondCond.details.operator).toBe('gte');
+      expect(secondCond.details.actualValue).toBe(500);
+      expect(secondCond.details.expectedValue).toBe(100);
+      expect(secondCond.details.passed).toBe(true);
+    });
+
+    it('traces condition evaluations for failing rule', async () => {
+      const rule: RuleInput = {
+        id: 'failing-rule',
+        name: 'Failing Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'test.event' },
+        conditions: [
+          { source: { type: 'event', field: 'status' }, operator: 'eq', value: 'approved' }
+        ],
+        actions: [{ type: 'set_fact', key: 'approved', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('test.event', { status: 'pending' });
+
+      const collector = engine.getTraceCollector();
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      expect(conditionEntries.length).toBe(1);
+      expect(conditionEntries[0].details.passed).toBe(false);
+      expect(conditionEntries[0].details.actualValue).toBe('pending');
+      expect(conditionEntries[0].details.expectedValue).toBe('approved');
+    });
+
+    it('short-circuits on first failing condition', async () => {
+      const rule: RuleInput = {
+        id: 'multi-condition-rule',
+        name: 'Multi Condition Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'check.event' },
+        conditions: [
+          { source: { type: 'event', field: 'a' }, operator: 'eq', value: 'x' },
+          { source: { type: 'event', field: 'b' }, operator: 'eq', value: 'y' },
+          { source: { type: 'event', field: 'c' }, operator: 'eq', value: 'z' }
+        ],
+        actions: [{ type: 'set_fact', key: 'all_matched', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('check.event', { a: 'wrong', b: 'y', c: 'z' });
+
+      const collector = engine.getTraceCollector();
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      // Only first condition should be evaluated
+      expect(conditionEntries.length).toBe(1);
+      expect(conditionEntries[0].details.conditionIndex).toBe(0);
+      expect(conditionEntries[0].details.passed).toBe(false);
+    });
+
+    it('links condition traces with rule traces via causation', async () => {
+      const rule: RuleInput = {
+        id: 'linked-cond-rule',
+        name: 'Linked Condition Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'link.event' },
+        conditions: [
+          { source: { type: 'event', field: 'value' }, operator: 'gt', value: 0 }
+        ],
+        actions: [{ type: 'set_fact', key: 'positive', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('link.event', { value: 10 });
+
+      const collector = engine.getTraceCollector();
+      const triggered = collector.getByType('rule_triggered')[0];
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      expect(conditionEntries.length).toBe(1);
+      expect(conditionEntries[0].causationId).toBe(triggered.id);
+    });
+
+    it('traces conditions with event source type', async () => {
+      const rule: RuleInput = {
+        id: 'event-source-rule',
+        name: 'Event Source Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'context.event' },
+        conditions: [
+          { source: { type: 'event', field: 'type' }, operator: 'eq', value: 'test' }
+        ],
+        actions: [{ type: 'set_fact', key: 'context_tested', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('context.event', { type: 'test' });
+
+      const collector = engine.getTraceCollector();
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      expect(conditionEntries.length).toBe(1);
+      expect(conditionEntries[0].details.source.type).toBe('event');
+    });
+
+    it('does not trace conditions when tracing is disabled', async () => {
+      await engine.stop();
+
+      engine = await RuleEngine.start({
+        name: 'test-engine-no-trace',
+        tracing: { enabled: false }
+      });
+
+      const rule: RuleInput = {
+        id: 'no-trace-rule',
+        name: 'No Trace Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'notrace.event' },
+        conditions: [
+          { source: { type: 'event', field: 'x' }, operator: 'eq', value: 1 }
+        ],
+        actions: [{ type: 'set_fact', key: 'done', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emit('notrace.event', { x: 1 });
+
+      const collector = engine.getTraceCollector();
+      expect(collector.size).toBe(0);
+    });
+
+    it('preserves correlation ID in condition traces', async () => {
+      const rule: RuleInput = {
+        id: 'correlated-cond-rule',
+        name: 'Correlated Condition Rule',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'corr.event' },
+        conditions: [
+          { source: { type: 'event', field: 'proceed' }, operator: 'eq', value: true }
+        ],
+        actions: [{ type: 'set_fact', key: 'corr_done', value: true }]
+      };
+
+      engine.registerRule(rule);
+      await engine.emitCorrelated('corr.event', { proceed: true }, 'correlation-abc');
+
+      const collector = engine.getTraceCollector();
+      const conditionEntries = collector.getByType('condition_evaluated');
+
+      expect(conditionEntries.length).toBe(1);
+      expect(conditionEntries[0].correlationId).toBe('correlation-abc');
+    });
+  });
 });

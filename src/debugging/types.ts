@@ -70,3 +70,35 @@ export interface TraceFilter {
 
 /** Callback type for trace entry subscriptions */
 export type TraceSubscriber = (entry: DebugTraceEntry) => void;
+
+/** Detailed information about a single condition evaluation */
+export interface ConditionEvaluationResult {
+  /** Index of the condition in the rule's conditions array */
+  conditionIndex: number;
+
+  /** The source being evaluated */
+  source: {
+    type: 'fact' | 'event' | 'context';
+    pattern?: string;
+    field?: string;
+    key?: string;
+  };
+
+  /** The operator used for comparison */
+  operator: string;
+
+  /** The actual value retrieved from the source */
+  actualValue: unknown;
+
+  /** The expected value (resolved from literal or reference) */
+  expectedValue: unknown;
+
+  /** Whether the condition passed */
+  result: boolean;
+
+  /** Duration of evaluation in milliseconds */
+  durationMs: number;
+}
+
+/** Callback type for condition evaluation tracing */
+export type ConditionEvaluationCallback = (result: ConditionEvaluationResult) => void;
