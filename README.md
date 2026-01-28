@@ -75,6 +75,313 @@ engine.subscribe('notification.*', (event, topic) => {
 await engine.stop();
 ```
 
+## DSL (Domain Specific Language)
+
+The DSL module provides a type-safe, IDE-friendly alternative to raw rule objects. Three complementary approaches are available — use whichever fits the situation best.
+
+### Fluent Builder API
+
+The primary approach. Full TypeScript autocomplete, compile-time type checking, and a chainable API.
+
+```typescript
+import {
+  Rule, onEvent, onFact, onTimer, event, fact, context,
+  emit, setFact, deleteFact, setTimer, cancelTimer, callService, log, ref,
+  sequence, absence, count, aggregate,
+} from '@hamicek/noex-rules/dsl';
+```
+
+**Basic rule** — the same Quick Start example rewritten with the DSL:
+
+```typescript
+const rule = Rule.create('order-notification')
+  .name('Send Order Notification')
+  .priority(100)
+  .tags('orders')
+  .when(onEvent('order.created'))
+  .if(event('amount').gte(100))
+  .then(emit('notification.send', {
+    orderId: ref('event.orderId'),
+    message: 'Large order received!'
+  }))
+  .build();
+
+engine.registerRule(rule);
+```
+
+#### Triggers
+
+```typescript
+onEvent('order.created')           // event topic (wildcards: 'payment.*')
+onFact('customer:*:totalSpent')    // fact change (wildcards supported)
+onTimer('payment-timeout')         // timer expiration
+```
+
+#### Conditions
+
+Source selectors — `event()`, `fact()`, `context()` — return a chainable expression with all comparison operators:
+
+```typescript
+event('amount').gte(100)                 // event field >= 100
+fact('customer:vip').eq(true)            // fact value == true
+context('threshold').lte(ref('event.v')) // context var <= dynamic ref
+
+// Available operators:
+//   eq, neq, gt, gte, lt, lte,
+//   in, notIn, contains, notContains,
+//   matches (regex), exists, notExists
+
+// Multiple conditions are joined with AND:
+Rule.create('multi-cond')
+  .when(onEvent('payment.received'))
+  .if(event('amount').gte(100))
+  .and(event('currency').eq('USD'))
+  .then(emit('payment.valid'))
+  .build();
+```
+
+#### Actions
+
+```typescript
+emit('topic', { key: ref('event.field') })      // emit event
+setFact('order:${event.id}:status', 'paid')      // set fact
+deleteFact('temp:${event.id}')                    // delete fact
+cancelTimer('timeout:${event.id}')                // cancel timer
+log('info', 'Processed order ${event.orderId}')   // log message
+log.warn('High latency: ${event.ms}ms')           // shorthand levels
+
+// Timer — options object:
+setTimer({
+  name: 'payment-timeout',
+  duration: '15m',
+  onExpire: { topic: 'order.timeout', data: { id: ref('event.orderId') } }
+})
+
+// Timer — fluent API:
+setTimer('payment-timeout')
+  .after('15m')
+  .emit('order.timeout', { id: ref('event.orderId') })
+  .repeat('5m', 3)
+
+// External service call:
+callService('emailService').method('send').args(ref('event.email'), 'Welcome!')
+callService('emailService', 'send', [ref('event.email'), 'Welcome!'])
+```
+
+#### Multiple actions
+
+Chain `.then()` / `.also()` for multiple actions in a single rule:
+
+```typescript
+Rule.create('user-onboarding')
+  .when(onEvent('user.registered'))
+  .then(emit('welcome.send', { userId: ref('event.userId') }))
+  .also(setFact('user:${event.userId}:registered', true))
+  .also(log.info('New user ${event.userId} registered'))
+  .build();
+```
+
+#### Temporal Patterns (CEP)
+
+**Sequence** — ordered events within a time window:
+
+```typescript
+Rule.create('payment-flow')
+  .when(sequence()
+    .event('order.created')
+    .event('payment.received')
+    .within('15m')
+    .groupBy('orderId')
+  )
+  .then(emit('order.completed'))
+  .build();
+```
+
+**Absence** — expected event did not arrive:
+
+```typescript
+Rule.create('payment-timeout')
+  .when(absence()
+    .after('order.created')
+    .expected('payment.received')
+    .within('15m')
+    .groupBy('orderId')
+  )
+  .then(emit('order.payment_timeout'))
+  .build();
+```
+
+**Count** — event frequency threshold:
+
+```typescript
+Rule.create('brute-force')
+  .when(count()
+    .event('auth.login_failed')
+    .threshold(5)
+    .window('5m')
+    .groupBy('userId')
+    .sliding()
+  )
+  .then(emit('security.alert', { type: 'brute_force' }))
+  .build();
+```
+
+**Aggregate** — numeric field aggregation:
+
+```typescript
+Rule.create('revenue-spike')
+  .when(aggregate()
+    .event('order.paid')
+    .field('amount')
+    .function('sum')
+    .threshold(10000)
+    .window('1h')
+    .groupBy('region')
+  )
+  .then(emit('alert.revenue_spike'))
+  .build();
+```
+
+### Tagged Template Literals
+
+A compact syntax for simple rules. Supports `${}` interpolation for dynamic values.
+
+```typescript
+import { rule } from '@hamicek/noex-rules/dsl';
+
+const myRule = rule`
+  id: order-notification
+  name: Send Order Notification
+  priority: 100
+  tags: orders, notifications
+
+  WHEN event order.created
+  IF event.amount >= 100
+  THEN emit notification.send { orderId: event.orderId }
+`;
+
+engine.registerRule(myRule);
+```
+
+With interpolated values:
+
+```typescript
+const topic = 'order.created';
+const threshold = 100;
+
+const myRule = rule`
+  id: dynamic-rule
+  WHEN event ${topic}
+  IF event.amount >= ${threshold}
+  THEN emit result
+`;
+```
+
+### YAML Loader
+
+Load rule definitions from YAML strings or files. Requires the `yaml` peer dependency.
+
+```typescript
+import { loadRulesFromYAML, loadRulesFromFile } from '@hamicek/noex-rules/dsl';
+
+// From a YAML string
+const rules = loadRulesFromYAML(`
+  id: order-notification
+  trigger:
+    type: event
+    topic: order.created
+  conditions:
+    - source: { type: event, field: amount }
+      operator: gte
+      value: 100
+  actions:
+    - type: emit_event
+      topic: notification.send
+      data:
+        orderId: "\${event.orderId}"
+`);
+
+// From a file
+const fileRules = await loadRulesFromFile('./rules/orders.yaml');
+
+rules.forEach(r => engine.registerRule(r));
+```
+
+Accepted YAML top-level shapes: a single rule object, an array of rules, or an object with a `rules` key.
+
+### DSL Examples
+
+#### Payment Timeout Flow (DSL)
+
+```typescript
+import { Rule, onEvent, emit, setFact, setTimer, cancelTimer, ref, fact } from '@hamicek/noex-rules/dsl';
+
+// Start payment timeout when order is created
+engine.registerRule(
+  Rule.create('start-payment-timeout')
+    .priority(100)
+    .tags('order', 'payment')
+    .when(onEvent('order.created'))
+    .then(setTimer({
+      name: 'payment-timeout:${event.orderId}',
+      duration: '15m',
+      onExpire: {
+        topic: 'order.payment_timeout',
+        data: { orderId: ref('event.orderId') }
+      }
+    }))
+    .build()
+);
+
+// Cancel timeout when payment received
+engine.registerRule(
+  Rule.create('payment-received')
+    .priority(100)
+    .tags('order', 'payment')
+    .when(onEvent('payment.confirmed'))
+    .then(cancelTimer('payment-timeout:${event.orderId}'))
+    .also(setFact('order:${event.orderId}:status', 'paid'))
+    .build()
+);
+
+// Cancel order on timeout
+engine.registerRule(
+  Rule.create('cancel-unpaid-order')
+    .priority(100)
+    .tags('order', 'payment')
+    .when(onEvent('order.payment_timeout'))
+    .if(fact('order:${event.orderId}:status').neq('paid'))
+    .then(setFact('order:${event.orderId}:status', 'cancelled'))
+    .also(emit('order.cancelled', {
+      orderId: ref('event.orderId'),
+      reason: 'payment_timeout'
+    }))
+    .build()
+);
+```
+
+#### Fraud Detection (DSL)
+
+```typescript
+import { Rule, sequence, emit } from '@hamicek/noex-rules/dsl';
+
+engine.registerRule(
+  Rule.create('brute-force-detection')
+    .name('Detect Brute Force Login')
+    .priority(200)
+    .tags('security', 'auth')
+    .when(sequence()
+      .event('auth.login_failed')
+      .event('auth.login_failed')
+      .event('auth.login_failed')
+      .within('5m')
+      .groupBy('data.userId')
+    )
+    .then(emit('security.alert', { type: 'brute_force' }))
+    .build()
+);
+```
+
 ## API Reference
 
 ### RuleEngine
