@@ -5,9 +5,8 @@
 import { cac } from 'cac';
 import { version } from './version.js';
 import type { GlobalOptions, OutputFormat } from './types.js';
-import { ExitCode } from './types.js';
 import { loadConfig } from './utils/config.js';
-import { setOutputOptions, printError, error } from './utils/output.js';
+import { setOutputOptions, printError } from './utils/output.js';
 import { getExitCode, formatError } from './utils/errors.js';
 import { validateCommand, type ValidateOptions } from './commands/validate.js';
 import { importCommand, type ImportCommandOptions } from './commands/import.js';
@@ -28,6 +27,7 @@ import {
   ruleDeleteCommand,
   type RuleCommandOptions
 } from './commands/rule.js';
+import { initCommand, type InitCommandOptions } from './commands/init.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -327,13 +327,30 @@ function registerStatsCommand(): void {
     });
 }
 
-/** Registruje init příkaz (placeholder) */
+/** Registruje init příkaz */
 function registerInitCommand(): void {
-  cli.command('init', 'Initialize configuration file').action(async (options: Record<string, unknown>) => {
-    processGlobalOptions(options);
-    printError(error(`Command 'init' not yet implemented.`));
-    process.exit(ExitCode.GeneralError);
-  });
+  cli
+    .command('init', 'Initialize configuration file')
+    .option('--force', 'Overwrite existing configuration file')
+    .option('--server-url <url>', 'Server URL')
+    .option('--storage-adapter <adapter>', 'Storage adapter (memory, sqlite, file)')
+    .option('--storage-path <path>', 'Storage file path')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const initOptions: InitCommandOptions = {
+        ...globalOptions,
+        force: (options['force'] as boolean | undefined) ?? false,
+        serverUrl: options['serverUrl'] as string | undefined,
+        storageAdapter: options['storageAdapter'] as 'memory' | 'sqlite' | 'file' | undefined,
+        storagePath: options['storagePath'] as string | undefined
+      };
+      try {
+        await initCommand(initOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
 }
 
 /** Inicializuje a spustí CLI */
