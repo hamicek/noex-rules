@@ -3,6 +3,8 @@ import type { Event } from '../types/event.js';
 import type { Timer } from '../types/timer.js';
 import type { Rule, RuleInput } from '../types/rule.js';
 import type { RuleEngineConfig, EngineStats } from '../types/index.js';
+import { RuleInputValidator, RuleValidationError } from '../validation/index.js';
+import type { ValidationResult } from '../validation/index.js';
 import { FactStore, type FactStoreConfig } from './fact-store.js';
 import { EventStore, type EventStoreConfig } from './event-store.js';
 import { TimerManager, type TimerManagerConfig } from './timer-manager.js';
@@ -45,6 +47,7 @@ export class RuleEngine {
   private readonly traceCollector: TraceCollector;
   private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence'>>;
   private readonly services: Map<string, unknown>;
+  private readonly validator: RuleInputValidator;
 
   private readonly subscribers: Map<string, Set<EventHandler>> = new Map();
   private readonly wildcardSubscribers: Map<string, Set<EventHandler>> = new Map();
@@ -83,6 +86,7 @@ export class RuleEngine {
     };
 
     this.services = new Map(Object.entries(this.config.services));
+    this.validator = new RuleInputValidator();
 
     this.actionExecutor = new ActionExecutor(
       this.factStore,
@@ -142,10 +146,31 @@ export class RuleEngine {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Registruje nové pravidlo.
+   * Validuje pravidlo bez registrace (dry-run).
    */
-  registerRule(input: RuleInput): Rule {
+  validateRule(input: unknown): ValidationResult {
+    return this.validator.validate(input);
+  }
+
+  /**
+   * Registruje nové pravidlo.
+   *
+   * Vstup je před registrací validován. Pokud validace selže, throwne
+   * {@link RuleValidationError} se seznamem nalezených chyb.
+   *
+   * @param options.skipValidation - Přeskočí validaci pro důvěryhodné zdroje
+   *   (např. DSL builder produkuje typově bezpečný výstup).
+   */
+  registerRule(input: RuleInput, options?: { skipValidation?: boolean }): Rule {
     this.ensureRunning();
+
+    if (!options?.skipValidation) {
+      const result = this.validator.validate(input);
+      if (!result.valid) {
+        throw new RuleValidationError('Rule validation failed', result.errors);
+      }
+    }
+
     return this.ruleManager.register(input);
   }
 

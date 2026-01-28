@@ -127,9 +127,8 @@ describe('Rules API', () => {
         trigger: { type: 'event', topic: 'order.*' },
         conditions: [
           {
-            type: 'fact',
-            path: 'order.status',
-            operator: '==',
+            source: { type: 'fact', pattern: 'order.status' },
+            operator: 'eq',
             value: 'pending'
           }
         ],
@@ -231,6 +230,7 @@ describe('Rules API', () => {
         id: 'update-me',
         name: 'Original Name',
         priority: 5,
+        enabled: true,
         trigger: { type: 'event', topic: 'test' },
         conditions: [],
         actions: [],
@@ -258,6 +258,7 @@ describe('Rules API', () => {
         name: 'Original',
         description: 'Keep this',
         priority: 10,
+        enabled: true,
         tags: ['original'],
         trigger: { type: 'event', topic: 'test' },
         conditions: [],

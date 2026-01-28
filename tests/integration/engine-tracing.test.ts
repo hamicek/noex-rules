@@ -160,7 +160,7 @@ describe('Engine Tracing Integration', () => {
         enabled: true,
         tags: [],
         trigger: { type: 'event', topic: 'order.created' },
-        conditions: [{ source: 'trigger', path: 'amount', operator: 'gt', value: 100 }],
+        conditions: [{ source: { type: 'event', field: 'amount' }, operator: 'gt', value: 100 }],
         actions: [{ type: 'set_fact', key: 'high_value', value: true }]
       };
 
