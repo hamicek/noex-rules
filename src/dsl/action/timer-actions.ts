@@ -116,7 +116,9 @@ class TimerFluentBuilder implements ActionBuilder {
   repeat(interval: string | number, maxCount?: number): TimerFluentBuilder {
     requireDuration(interval, 'setTimer().repeat() interval');
     this.repeatInterval = interval;
-    this.repeatMaxCount = maxCount;
+    if (maxCount !== undefined) {
+      this.repeatMaxCount = maxCount;
+    }
     return this;
   }
 
