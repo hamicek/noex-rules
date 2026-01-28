@@ -56,6 +56,15 @@ export interface PersistenceConfig {
   schemaVersion?: number;
 }
 
+/** Konfigurace persistence timerů přes DurableTimerService */
+export interface TimerPersistenceConfig {
+  /** Storage adapter pro ukládání timer metadat */
+  adapter: StorageAdapter;
+
+  /** Interval kontroly expirovaných timerů v ms (výchozí dle DurableTimerService) */
+  checkIntervalMs?: number;
+}
+
 /** Konfigurace tracingu */
 export interface TracingConfig {
   /** Povolit tracing při startu enginu (default: false) */
@@ -73,4 +82,5 @@ export interface RuleEngineConfig {
   persistence?: PersistenceConfig;
   services?: Record<string, unknown>;  // Externí služby pro call_service
   tracing?: TracingConfig;        // Konfigurace debugging tracingu
+  timerPersistence?: TimerPersistenceConfig;  // Persistence timerů přes DurableTimerService
 }
