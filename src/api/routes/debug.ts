@@ -9,8 +9,14 @@ import {
   type TimelineEntry
 } from '../../debugging/history-service.js';
 import { Profiler, type RuleProfile, type ProfilingSummary } from '../../debugging/profiler.js';
+import {
+  DebugSSEManager,
+  type DebugSSEFilter,
+  type DebugSSEManagerStats
+} from '../notifications/debug-sse-manager.js';
 import { NotFoundError } from '../middleware/error-handler.js';
 import { debugSchemas } from '../schemas/debug.js';
+import { generateId } from '../../utils/id-generator.js';
 
 interface HistoryQuerystring {
   topic?: string;
@@ -48,9 +54,17 @@ interface ProfileQuerystring {
   limit?: number;
 }
 
+interface StreamQuerystring {
+  types?: string;
+  ruleIds?: string;
+  correlationIds?: string;
+  minDurationMs?: number;
+}
+
 export async function registerDebugRoutes(fastify: FastifyInstance): Promise<void> {
   const engine = fastify.engine;
   let profiler: Profiler | null = null;
+  let debugSSEManager: DebugSSEManager | null = null;
 
   const getHistoryService = (): HistoryService => {
     return new HistoryService(engine.getEventStore(), engine.getTraceCollector());
@@ -62,6 +76,26 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     }
     return profiler;
   };
+
+  const getDebugSSEManager = (): DebugSSEManager => {
+    if (!debugSSEManager) {
+      debugSSEManager = new DebugSSEManager();
+      debugSSEManager.start(engine.getTraceCollector());
+    }
+    return debugSSEManager;
+  };
+
+  // Cleanup on server close
+  fastify.addHook('onClose', async () => {
+    if (debugSSEManager) {
+      debugSSEManager.stop();
+      debugSSEManager = null;
+    }
+    if (profiler) {
+      profiler.stop();
+      profiler = null;
+    }
+  });
 
   // GET /debug/history - Query event history
   fastify.get<{ Querystring: HistoryQuerystring }>(
@@ -241,6 +275,54 @@ export async function registerDebugRoutes(fastify: FastifyInstance): Promise<voi
     async (): Promise<{ reset: boolean }> => {
       getProfiler().reset();
       return { reset: true };
+    }
+  );
+
+  // GET /debug/stream - SSE stream of trace entries
+  fastify.get<{ Querystring: StreamQuerystring }>(
+    '/debug/stream',
+    { schema: debugSchemas.stream },
+    async (request, reply): Promise<void> => {
+      const { types, ruleIds, correlationIds, minDurationMs } = request.query;
+
+      const filter: DebugSSEFilter = {};
+
+      if (types) {
+        filter.types = types.split(',').map(t => t.trim()) as TraceEntryType[];
+      }
+      if (ruleIds) {
+        filter.ruleIds = ruleIds.split(',').map(id => id.trim());
+      }
+      if (correlationIds) {
+        filter.correlationIds = correlationIds.split(',').map(id => id.trim());
+      }
+      if (minDurationMs !== undefined) {
+        filter.minDurationMs = minDurationMs;
+      }
+
+      const connectionId = generateId();
+      getDebugSSEManager().addConnection(connectionId, reply, filter);
+
+      // Prevent Fastify from closing the connection
+      return reply.hijack();
+    }
+  );
+
+  // GET /debug/stream/connections - Get active SSE connections
+  fastify.get(
+    '/debug/stream/connections',
+    { schema: debugSchemas.streamConnections },
+    async (): Promise<Array<{ id: string; filter: DebugSSEFilter; connectedAt: number }>> => {
+      return getDebugSSEManager().getConnections();
+    }
+  );
+
+  // GET /debug/stream/stats - Get SSE stream statistics
+  fastify.get(
+    '/debug/stream/stats',
+    { schema: debugSchemas.streamStats },
+    async (): Promise<DebugSSEManagerStats> => {
+      return getDebugSSEManager().getStats();
     }
   );
 }

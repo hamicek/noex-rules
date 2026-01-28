@@ -226,6 +226,16 @@ export const profileQuerySchema = {
   }
 } as const;
 
+export const streamQuerySchema = {
+  type: 'object',
+  properties: {
+    types: { type: 'string', description: 'Comma-separated list of trace entry types to filter' },
+    ruleIds: { type: 'string', description: 'Comma-separated list of rule IDs to filter' },
+    correlationIds: { type: 'string', description: 'Comma-separated list of correlation IDs to filter' },
+    minDurationMs: { type: 'number', minimum: 0, description: 'Minimum duration in ms to include entry' }
+  }
+} as const;
+
 export const debugSchemas = {
   queryHistory: {
     tags: ['Debug'],
@@ -406,6 +416,55 @@ export const debugSchemas = {
           reset: { type: 'boolean' }
         },
         required: ['reset']
+      }
+    }
+  },
+  stream: {
+    tags: ['Debug', 'SSE'],
+    summary: 'Stream trace entries via SSE',
+    description: 'Real-time Server-Sent Events stream of trace entries with optional filtering',
+    querystring: streamQuerySchema
+  },
+  streamConnections: {
+    tags: ['Debug', 'SSE'],
+    summary: 'Get active stream connections',
+    description: 'Returns list of active SSE debug stream connections',
+    response: {
+      200: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            filter: {
+              type: 'object',
+              properties: {
+                types: { type: 'array', items: { type: 'string' } },
+                ruleIds: { type: 'array', items: { type: 'string' } },
+                correlationIds: { type: 'array', items: { type: 'string' } },
+                minDurationMs: { type: 'number' }
+              }
+            },
+            connectedAt: { type: 'number' }
+          },
+          required: ['id', 'filter', 'connectedAt']
+        }
+      }
+    }
+  },
+  streamStats: {
+    tags: ['Debug', 'SSE'],
+    summary: 'Get stream statistics',
+    description: 'Returns statistics about SSE debug stream',
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          activeConnections: { type: 'number' },
+          totalEntriesSent: { type: 'number' },
+          totalEntriesFiltered: { type: 'number' }
+        },
+        required: ['activeConnections', 'totalEntriesSent', 'totalEntriesFiltered']
       }
     }
   }

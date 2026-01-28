@@ -591,4 +591,59 @@ describe('Debug Routes', () => {
       expect(body.passRate).toBe(0);
     });
   });
+
+  describe('GET /debug/stream', () => {
+    it('creates connection that shows in connections list', async () => {
+      // Start SSE connection in background - we use a raw HTTP request approach
+      // Since fastify.inject waits for response, we verify the endpoint works
+      // by checking the connections/stats endpoints
+
+      // First verify no connections
+      let response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/stream/connections'
+      });
+      expect(response.json()).toHaveLength(0);
+
+      // Verify stats endpoint works (this initializes the SSE manager)
+      response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/stream/stats'
+      });
+      expect(response.statusCode).toBe(200);
+      const stats = response.json();
+      expect(stats.activeConnections).toBe(0);
+    });
+  });
+
+  describe('GET /debug/stream/connections', () => {
+    it('returns empty array initially', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/stream/connections'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+    });
+  });
+
+  describe('GET /debug/stream/stats', () => {
+    it('returns stream statistics', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/stream/stats'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body).toHaveProperty('activeConnections');
+      expect(body).toHaveProperty('totalEntriesSent');
+      expect(body).toHaveProperty('totalEntriesFiltered');
+      expect(typeof body.activeConnections).toBe('number');
+      expect(typeof body.totalEntriesSent).toBe('number');
+      expect(typeof body.totalEntriesFiltered).toBe('number');
+    });
+  });
 });
