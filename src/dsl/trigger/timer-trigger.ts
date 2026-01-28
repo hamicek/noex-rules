@@ -1,5 +1,6 @@
 import type { RuleTrigger } from '../../types/rule.js';
 import type { TriggerBuilder } from '../types.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Builder pro timer trigger.
@@ -31,5 +32,6 @@ class TimerTriggerBuilder implements TriggerBuilder {
  * @param name - Jméno timeru, na jehož expiraci se čeká
  */
 export function onTimer(name: string): TriggerBuilder {
+  requireNonEmptyString(name, 'onTimer() name');
   return new TimerTriggerBuilder(name);
 }

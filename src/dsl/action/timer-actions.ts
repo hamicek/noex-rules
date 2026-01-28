@@ -2,6 +2,7 @@ import type { RuleAction } from '../../types/action.js';
 import type { TimerConfig } from '../../types/timer.js';
 import type { ActionBuilder, Ref } from '../types.js';
 import { isRef } from '../helpers/ref.js';
+import { requireNonEmptyString, requireDuration } from '../helpers/validators.js';
 
 /**
  * Konfigurace pro setTimer s podporou ref().
@@ -26,6 +27,12 @@ class SetTimerBuilder implements ActionBuilder {
   private readonly config: SetTimerOptions;
 
   constructor(config: SetTimerOptions) {
+    requireNonEmptyString(config.name, 'setTimer() config.name');
+    requireDuration(config.duration, 'setTimer() config.duration');
+    requireNonEmptyString(config.onExpire.topic, 'setTimer() config.onExpire.topic');
+    if (config.repeat) {
+      requireDuration(config.repeat.interval, 'setTimer() config.repeat.interval');
+    }
     this.config = config;
   }
 
@@ -82,6 +89,7 @@ class TimerFluentBuilder implements ActionBuilder {
    * @param duration - Doba trvání ("15m", "24h", "7d" nebo ms)
    */
   after(duration: string | number): TimerFluentBuilder {
+    requireDuration(duration, 'setTimer().after() duration');
     this.timerDuration = duration;
     return this;
   }
@@ -93,6 +101,7 @@ class TimerFluentBuilder implements ActionBuilder {
    * @param data - Data eventu (podporuje ref())
    */
   emit(topic: string, data: Record<string, unknown> = {}): TimerFluentBuilder {
+    requireNonEmptyString(topic, 'setTimer().emit() topic');
     this.expireTopic = topic;
     this.expireData = data;
     return this;
@@ -105,6 +114,7 @@ class TimerFluentBuilder implements ActionBuilder {
    * @param maxCount - Maximální počet opakování (volitelné)
    */
   repeat(interval: string | number, maxCount?: number): TimerFluentBuilder {
+    requireDuration(interval, 'setTimer().repeat() interval');
     this.repeatInterval = interval;
     this.repeatMaxCount = maxCount;
     return this;
@@ -186,6 +196,7 @@ class CancelTimerBuilder implements ActionBuilder {
  */
 export function setTimer(nameOrConfig: string | SetTimerOptions): ActionBuilder | TimerFluentBuilder {
   if (typeof nameOrConfig === 'string') {
+    requireNonEmptyString(nameOrConfig, 'setTimer() name');
     return new TimerFluentBuilder(nameOrConfig);
   }
   return new SetTimerBuilder(nameOrConfig);
@@ -201,5 +212,6 @@ export function setTimer(nameOrConfig: string | SetTimerOptions): ActionBuilder 
  * @param name - Název timeru k zrušení (podporuje interpolaci)
  */
 export function cancelTimer(name: string): ActionBuilder {
+  requireNonEmptyString(name, 'cancelTimer() name');
   return new CancelTimerBuilder(name);
 }

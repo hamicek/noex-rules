@@ -1,4 +1,5 @@
 import type { Ref } from '../types.js';
+import { requireNonEmptyString } from './validators.js';
 
 /**
  * Vytvoří referenci na hodnotu z kontextu.
@@ -11,6 +12,7 @@ import type { Ref } from '../types.js';
  * @param path - Cesta k hodnotě (event.field, fact.key, var.name)
  */
 export function ref<T = unknown>(path: string): Ref<T> {
+  requireNonEmptyString(path, 'ref() path');
   return { ref: path };
 }
 

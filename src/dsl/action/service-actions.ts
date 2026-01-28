@@ -1,6 +1,7 @@
 import type { RuleAction } from '../../types/action.js';
 import type { ActionBuilder, Ref } from '../types.js';
 import { isRef } from '../helpers/ref.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Fluent builder pro call_service akci.
@@ -20,6 +21,7 @@ class CallServiceFluentBuilder implements ActionBuilder {
    * @param name - Název metody
    */
   method(name: string): CallServiceFluentBuilder {
+    requireNonEmptyString(name, 'callService().method() name');
     this.methodName = name;
     return this;
   }
@@ -108,7 +110,9 @@ export function callService(
   method?: string,
   args?: unknown[]
 ): ActionBuilder | CallServiceFluentBuilder {
+  requireNonEmptyString(service, 'callService() service');
   if (method !== undefined) {
+    requireNonEmptyString(method, 'callService() method');
     return new CallServiceBuilder(service, method, args ?? []);
   }
   return new CallServiceFluentBuilder(service);

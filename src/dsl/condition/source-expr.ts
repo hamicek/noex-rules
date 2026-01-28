@@ -1,4 +1,5 @@
 import { SourceExpr } from './operators.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Vytvoří source expression pro pole z triggering eventu.
@@ -11,6 +12,7 @@ import { SourceExpr } from './operators.js';
  * @param field - Cesta k poli v datech eventu (podporuje tečkovou notaci)
  */
 export function event(field: string): SourceExpr {
+  requireNonEmptyString(field, 'event() field');
   return new SourceExpr({ type: 'event', field });
 }
 
@@ -24,6 +26,7 @@ export function event(field: string): SourceExpr {
  * @param pattern - Klíč faktu (podporuje interpolaci)
  */
 export function fact(pattern: string): SourceExpr {
+  requireNonEmptyString(pattern, 'fact() pattern');
   return new SourceExpr({ type: 'fact', pattern });
 }
 
@@ -37,5 +40,6 @@ export function fact(pattern: string): SourceExpr {
  * @param key - Název kontextové proměnné
  */
 export function context(key: string): SourceExpr {
+  requireNonEmptyString(key, 'context() key');
   return new SourceExpr({ type: 'context', key });
 }

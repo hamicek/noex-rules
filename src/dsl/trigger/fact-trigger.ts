@@ -1,5 +1,6 @@
 import type { RuleTrigger } from '../../types/rule.js';
 import type { TriggerBuilder } from '../types.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Builder pro fact trigger.
@@ -31,5 +32,6 @@ class FactTriggerBuilder implements TriggerBuilder {
  * @param pattern - Pattern pro matching faktů (podporuje * wildcard)
  */
 export function onFact(pattern: string): TriggerBuilder {
+  requireNonEmptyString(pattern, 'onFact() pattern');
   return new FactTriggerBuilder(pattern);
 }

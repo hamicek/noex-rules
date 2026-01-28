@@ -1,6 +1,7 @@
 import type { RuleAction } from '../../types/action.js';
 import type { ActionBuilder, Ref } from '../types.js';
 import { normalizeValue, isRef } from '../helpers/ref.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Builder pro emit_event akci.
@@ -42,5 +43,6 @@ export function emit(
   topic: string,
   data: Record<string, unknown> = {}
 ): ActionBuilder {
+  requireNonEmptyString(topic, 'emit() topic');
   return new EmitBuilder(topic, data);
 }

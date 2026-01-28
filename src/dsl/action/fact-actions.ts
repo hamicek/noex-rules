@@ -1,6 +1,7 @@
 import type { RuleAction } from '../../types/action.js';
 import type { ActionBuilder, ValueOrRef } from '../types.js';
 import { normalizeValue } from '../helpers/ref.js';
+import { requireNonEmptyString } from '../helpers/validators.js';
 
 /**
  * Builder pro set_fact akci.
@@ -45,6 +46,7 @@ class DeleteFactBuilder implements ActionBuilder {
  * @param value - Hodnota faktu (může být ref())
  */
 export function setFact<T>(key: string, value: ValueOrRef<T>): ActionBuilder {
+  requireNonEmptyString(key, 'setFact() key');
   return new SetFactBuilder(key, normalizeValue(value));
 }
 
@@ -57,5 +59,6 @@ export function setFact<T>(key: string, value: ValueOrRef<T>): ActionBuilder {
  * @param key - Klíč faktu k smazání (podporuje interpolaci)
  */
 export function deleteFact(key: string): ActionBuilder {
+  requireNonEmptyString(key, 'deleteFact() key');
   return new DeleteFactBuilder(key);
 }
