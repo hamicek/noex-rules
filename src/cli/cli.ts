@@ -15,6 +15,12 @@ import { exportCommand, type ExportCommandOptions } from './commands/export.js';
 import { testCommand, type TestCommandOptions } from './commands/test.js';
 import { statsCommand, type StatsCommandOptions } from './commands/stats.js';
 import {
+  serverStartCommand,
+  serverStatusCommand,
+  type ServerStartOptions,
+  type ServerStatusOptions
+} from './commands/server.js';
+import {
   ruleListCommand,
   ruleGetCommand,
   ruleEnableCommand,
@@ -161,23 +167,52 @@ function registerTestCommand(): void {
     });
 }
 
-/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
-function registerPlaceholderCommands(): void {
+/** Registruje server příkazy */
+function registerServerCommands(): void {
   cli
     .command('server start', 'Start the REST API server')
     .option('-p, --port <port>', 'Server port', { default: 3000 })
-    .option('-h, --host <host>', 'Server host', { default: '0.0.0.0' })
+    .option('-H, --host <host>', 'Server host', { default: '0.0.0.0' })
+    .option('--no-swagger', 'Disable Swagger documentation')
+    .option('--no-logger', 'Disable request logging')
     .action(async (options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'server start' not yet implemented.`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const serverStartOptions: ServerStartOptions = {
+        ...globalOptions,
+        port: Number(options['port']) || 3000,
+        host: (options['host'] as string) || '0.0.0.0',
+        noSwagger: options['swagger'] === false,
+        noLogger: options['logger'] === false
+      };
+      try {
+        await serverStartCommand(serverStartOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
 
-  cli.command('server status', 'Show server status').action(async (options: Record<string, unknown>) => {
-    processGlobalOptions(options);
-    printError(error(`Command 'server status' not yet implemented.`));
-    process.exit(ExitCode.GeneralError);
-  });
+  cli
+    .command('server status', 'Show server status')
+    .option('-u, --url <url>', 'Server URL')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const serverStatusOptions: ServerStatusOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await serverStatusCommand(serverStatusOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
+}
+
+/** Registruje rule příkazy */
+function registerRuleCommands(): void {
 
   cli
     .command('rule list', 'List all rules')
@@ -269,6 +304,10 @@ function registerPlaceholderCommands(): void {
       }
     });
 
+}
+
+/** Registruje stats příkaz */
+function registerStatsCommand(): void {
   cli
     .command('stats', 'Show engine statistics')
     .option('-u, --url <url>', 'Server URL')
@@ -286,7 +325,10 @@ function registerPlaceholderCommands(): void {
         process.exit(getExitCode(err));
       }
     });
+}
 
+/** Registruje init příkaz (placeholder) */
+function registerInitCommand(): void {
   cli.command('init', 'Initialize configuration file').action(async (options: Record<string, unknown>) => {
     processGlobalOptions(options);
     printError(error(`Command 'init' not yet implemented.`));
@@ -302,7 +344,10 @@ export async function run(args: string[] = process.argv): Promise<void> {
   registerImportCommand();
   registerExportCommand();
   registerTestCommand();
-  registerPlaceholderCommands();
+  registerServerCommands();
+  registerRuleCommands();
+  registerStatsCommand();
+  registerInitCommand();
 
   cli.help();
   cli.version(version);
