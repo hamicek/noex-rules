@@ -103,7 +103,14 @@ export class RuleEngine {
 
     const factStore = await FactStore.start(factStoreConfig);
     const eventStore = await EventStore.start(eventStoreConfig);
-    const timerManager = await TimerManager.start({});
+    const timerManager = await TimerManager.start(
+      config.timerPersistence
+        ? {
+            adapter: config.timerPersistence.adapter,
+            ...(config.timerPersistence.checkIntervalMs !== undefined && { checkIntervalMs: config.timerPersistence.checkIntervalMs }),
+          }
+        : {}
+    );
     const ruleManager = await RuleManager.start();
     const traceCollector = await TraceCollector.start({
       enabled: config.tracing?.enabled ?? false,
