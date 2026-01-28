@@ -101,22 +101,18 @@ export class HistoryService {
 
     if (query.correlationId) {
       events = this.eventStore.getByCorrelation(query.correlationId);
-    } else if (query.topic && query.from !== undefined && query.to !== undefined) {
-      events = this.eventStore.getInTimeRange(query.topic, query.from, query.to);
+
+      if (query.topic) {
+        events = events.filter(e => this.matchesTopic(e.topic, query.topic!));
+      }
+      if (query.from !== undefined) {
+        events = events.filter(e => e.timestamp >= query.from!);
+      }
+      if (query.to !== undefined) {
+        events = events.filter(e => e.timestamp <= query.to!);
+      }
     } else {
       events = this.getAllEventsFiltered(query);
-    }
-
-    if (query.topic && query.correlationId) {
-      events = events.filter(e => this.matchesTopic(e.topic, query.topic!));
-    }
-
-    if (query.from !== undefined && !query.topic) {
-      events = events.filter(e => e.timestamp >= query.from!);
-    }
-
-    if (query.to !== undefined && !query.topic) {
-      events = events.filter(e => e.timestamp <= query.to!);
     }
 
     events.sort((a, b) => a.timestamp - b.timestamp);
@@ -232,15 +228,30 @@ export class HistoryService {
   }
 
   private getAllEventsFiltered(query: HistoryQuery): Event[] {
-    const events: Event[] = [];
+    let events: Event[];
 
     if (query.topic) {
-      const topicEvents = this.eventStore.getInTimeRange(
-        query.topic,
-        query.from ?? 0,
-        query.to ?? Date.now()
-      );
-      events.push(...topicEvents);
+      if (query.topic.includes('*')) {
+        events = this.eventStore.getByTopicPattern(query.topic);
+      } else if (query.from !== undefined || query.to !== undefined) {
+        events = this.eventStore.getInTimeRange(
+          query.topic,
+          query.from ?? 0,
+          query.to ?? Date.now()
+        );
+      } else {
+        events = this.eventStore.getByTopic(query.topic);
+      }
+    } else {
+      events = this.eventStore.getAllEvents();
+    }
+
+    if (query.from !== undefined) {
+      events = events.filter(e => e.timestamp >= query.from!);
+    }
+
+    if (query.to !== undefined) {
+      events = events.filter(e => e.timestamp <= query.to!);
     }
 
     return events;

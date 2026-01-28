@@ -80,6 +80,66 @@ export class EventStore {
   }
 
   /**
+   * Vrátí všechny eventy seřazené podle timestamp (nejstarší první).
+   */
+  getAllEvents(): Event[] {
+    return [...this.events.values()].sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  /**
+   * Vrátí všechny eventy pro daný topic.
+   */
+  getByTopic(topic: string): Event[] {
+    const ids = this.byTopic.get(topic) ?? [];
+    return ids
+      .map(id => this.events.get(id))
+      .filter((e): e is Event => e !== undefined);
+  }
+
+  /**
+   * Vrátí eventy odpovídající topic patternu (*, **).
+   * @param pattern - Topic pattern s wildcard podporou (* = single segment, ** = any segments)
+   */
+  getByTopicPattern(pattern: string): Event[] {
+    if (!pattern.includes('*')) {
+      return this.getByTopic(pattern);
+    }
+
+    const regex = this.buildTopicRegex(pattern);
+    const results: Event[] = [];
+
+    for (const [topic, ids] of this.byTopic) {
+      if (regex.test(topic)) {
+        for (const id of ids) {
+          const event = this.events.get(id);
+          if (event) {
+            results.push(event);
+          }
+        }
+      }
+    }
+
+    return results.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  /**
+   * Builds a regex for topic pattern matching.
+   */
+  private buildTopicRegex(pattern: string): RegExp {
+    const GLOBSTAR = '\x00GLOBSTAR\x00';
+    const STAR = '\x00STAR\x00';
+
+    const regexPattern = pattern
+      .replace(/\*\*/g, GLOBSTAR)
+      .replace(/\*/g, STAR)
+      .replace(/\./g, '\\.')
+      .replace(new RegExp(GLOBSTAR, 'g'), '.*')
+      .replace(new RegExp(STAR, 'g'), '[^.]*');
+
+    return new RegExp(`^${regexPattern}$`);
+  }
+
+  /**
    * Čištění starých eventů.
    */
   prune(maxAgeMs: number): number {

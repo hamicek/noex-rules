@@ -393,6 +393,139 @@ describe('EventStore', () => {
     });
   });
 
+  describe('getAllEvents()', () => {
+    it('returns empty array for empty store', () => {
+      const results = store.getAllEvents();
+
+      expect(results).toEqual([]);
+    });
+
+    it('returns all events sorted by timestamp', () => {
+      store.store(createEvent({ id: 'evt-3', timestamp: 3000 }));
+      store.store(createEvent({ id: 'evt-1', timestamp: 1000 }));
+      store.store(createEvent({ id: 'evt-2', timestamp: 2000 }));
+
+      const results = store.getAllEvents();
+
+      expect(results).toHaveLength(3);
+      expect(results.map(e => e.id)).toEqual(['evt-1', 'evt-2', 'evt-3']);
+    });
+
+    it('returns events from different topics', () => {
+      store.store(createEvent({ id: 'evt-1', topic: 'order.created', timestamp: 1000 }));
+      store.store(createEvent({ id: 'evt-2', topic: 'payment.received', timestamp: 2000 }));
+      store.store(createEvent({ id: 'evt-3', topic: 'user.updated', timestamp: 3000 }));
+
+      const results = store.getAllEvents();
+
+      expect(results).toHaveLength(3);
+      expect(results.map(e => e.topic)).toEqual(['order.created', 'payment.received', 'user.updated']);
+    });
+  });
+
+  describe('getByTopic()', () => {
+    it('returns empty array for non-existing topic', () => {
+      store.store(createEvent({ topic: 'existing.topic' }));
+
+      const results = store.getByTopic('non.existing');
+
+      expect(results).toEqual([]);
+    });
+
+    it('returns events for exact topic match', () => {
+      store.store(createEvent({ id: 'evt-1', topic: 'order.created' }));
+      store.store(createEvent({ id: 'evt-2', topic: 'order.created' }));
+      store.store(createEvent({ id: 'evt-3', topic: 'order.updated' }));
+
+      const results = store.getByTopic('order.created');
+
+      expect(results).toHaveLength(2);
+      expect(results.every(e => e.topic === 'order.created')).toBe(true);
+    });
+
+    it('maintains insertion order', () => {
+      store.store(createEvent({ id: 'evt-1', topic: 'test.topic' }));
+      store.store(createEvent({ id: 'evt-2', topic: 'test.topic' }));
+      store.store(createEvent({ id: 'evt-3', topic: 'test.topic' }));
+
+      const results = store.getByTopic('test.topic');
+
+      expect(results.map(e => e.id)).toEqual(['evt-1', 'evt-2', 'evt-3']);
+    });
+  });
+
+  describe('getByTopicPattern()', () => {
+    beforeEach(() => {
+      store.store(createEvent({ id: 'evt-1', topic: 'order.created', timestamp: 1000 }));
+      store.store(createEvent({ id: 'evt-2', topic: 'order.updated', timestamp: 2000 }));
+      store.store(createEvent({ id: 'evt-3', topic: 'order.deleted', timestamp: 3000 }));
+      store.store(createEvent({ id: 'evt-4', topic: 'payment.received', timestamp: 4000 }));
+      store.store(createEvent({ id: 'evt-5', topic: 'user.order.created', timestamp: 5000 }));
+    });
+
+    it('returns exact match when no wildcard', () => {
+      const results = store.getByTopicPattern('order.created');
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('evt-1');
+    });
+
+    it('matches single segment with *', () => {
+      const results = store.getByTopicPattern('order.*');
+
+      expect(results).toHaveLength(3);
+      expect(results.map(e => e.id)).toEqual(['evt-1', 'evt-2', 'evt-3']);
+    });
+
+    it('does not match multiple segments with *', () => {
+      const results = store.getByTopicPattern('*.created');
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('evt-1');
+    });
+
+    it('matches any number of segments with **', () => {
+      const results = store.getByTopicPattern('**.created');
+
+      expect(results).toHaveLength(2);
+      expect(results.map(e => e.id)).toEqual(['evt-1', 'evt-5']);
+    });
+
+    it('matches all events with **', () => {
+      const results = store.getByTopicPattern('**');
+
+      expect(results).toHaveLength(5);
+    });
+
+    it('matches prefix with .**', () => {
+      const results = store.getByTopicPattern('order.**');
+
+      expect(results).toHaveLength(3);
+    });
+
+    it('returns results sorted by timestamp', () => {
+      const results = store.getByTopicPattern('**');
+
+      const timestamps = results.map(e => e.timestamp);
+      expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
+    });
+
+    it('returns empty array for non-matching pattern', () => {
+      const results = store.getByTopicPattern('non.existing.*');
+
+      expect(results).toEqual([]);
+    });
+
+    it('handles complex patterns with * and **', () => {
+      store.store(createEvent({ id: 'evt-6', topic: 'system.user.order.created', timestamp: 6000 }));
+
+      const results = store.getByTopicPattern('*.user.**');
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('evt-6');
+    });
+  });
+
   describe('default configuration', () => {
     it('uses default maxEvents of 10000', () => {
       const defaultStore = new EventStore();
