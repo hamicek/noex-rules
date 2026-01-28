@@ -1,6 +1,7 @@
 import type { RuleAction } from '../../types/action.js';
 import type { ActionBuilder } from '../types.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
+import { DslValidationError } from '../helpers/errors.js';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 const VALID_LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
@@ -39,10 +40,10 @@ class LogBuilder implements ActionBuilder {
 export function log(level: LogLevel, message: string): ActionBuilder {
   requireNonEmptyString(level, 'log() level');
   if (!VALID_LOG_LEVELS.has(level)) {
-    throw new Error(`log() level must be one of: debug, info, warn, error — got "${level}"`);
+    throw new DslValidationError(`log() level must be one of: debug, info, warn, error — got "${level}"`);
   }
   if (typeof message !== 'string') {
-    throw new Error('log() message must be a string');
+    throw new DslValidationError('log() message must be a string');
   }
   return new LogBuilder(level, message);
 }

@@ -156,7 +156,25 @@ describe('operators', () => {
   describe('error handling', () => {
     it('throws when building without operator', () => {
       const expr = event('field');
-      expect(() => expr.build()).toThrow('Condition operator not specified');
+      expect(() => expr.build()).toThrow('operator not specified');
+    });
+
+    it('includes source context in error for event()', () => {
+      expect(() => event('amount').build()).toThrow(
+        'Condition on event("amount"): operator not specified. Use .eq(), .gte(), etc.',
+      );
+    });
+
+    it('includes source context in error for fact()', () => {
+      expect(() => fact('customer:vip').build()).toThrow(
+        'Condition on fact("customer:vip"): operator not specified. Use .eq(), .gte(), etc.',
+      );
+    });
+
+    it('includes source context in error for context()', () => {
+      expect(() => context('threshold').build()).toThrow(
+        'Condition on context("threshold"): operator not specified. Use .eq(), .gte(), etc.',
+      );
     });
   });
 });

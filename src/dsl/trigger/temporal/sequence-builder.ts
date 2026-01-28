@@ -2,6 +2,7 @@ import type { RuleTrigger } from '../../../types/rule.js';
 import type { SequencePattern, EventMatcher } from '../../../types/temporal.js';
 import type { TriggerBuilder } from '../../types.js';
 import { requireNonEmptyString, requireDuration } from '../../helpers/validators.js';
+import { DslValidationError } from '../../helpers/errors.js';
 
 /**
  * Fluent builder pro sekvenční temporální vzor.
@@ -82,10 +83,10 @@ export class SequenceBuilder implements TriggerBuilder {
 
   build(): RuleTrigger {
     if (this.matchers.length === 0) {
-      throw new Error('sequence() requires at least one .event()');
+      throw new DslValidationError('sequence() requires at least one .event()');
     }
     if (this.windowValue === undefined) {
-      throw new Error('sequence() requires .within() to set the time window');
+      throw new DslValidationError('sequence() requires .within() to set the time window');
     }
 
     const pattern: SequencePattern = {

@@ -32,12 +32,13 @@ import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
 import { validateRule, YamlValidationError } from './schema.js';
 import type { RuleInput } from '../../types/rule.js';
+import { DslError } from '../helpers/errors.js';
 
 // ---------------------------------------------------------------------------
 // Error
 // ---------------------------------------------------------------------------
 
-export class YamlLoadError extends Error {
+export class YamlLoadError extends DslError {
   constructor(message: string, readonly filePath?: string | undefined) {
     super(filePath ? `${filePath}: ${message}` : message);
     this.name = 'YamlLoadError';

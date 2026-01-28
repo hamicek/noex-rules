@@ -2,6 +2,7 @@ import type { RuleAction } from '../../types/action.js';
 import type { ActionBuilder, Ref } from '../types.js';
 import { isRef } from '../helpers/ref.js';
 import { requireNonEmptyString } from '../helpers/validators.js';
+import { DslValidationError } from '../helpers/errors.js';
 
 /**
  * Fluent builder pro call_service akci.
@@ -38,7 +39,7 @@ class CallServiceFluentBuilder implements ActionBuilder {
 
   build(): RuleAction {
     if (!this.methodName) {
-      throw new Error(
+      throw new DslValidationError(
         `callService("${this.serviceName}") requires method name. Use .method(name) to set it.`
       );
     }

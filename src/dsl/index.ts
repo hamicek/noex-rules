@@ -47,6 +47,9 @@ export { loadRulesFromYAML, loadRulesFromFile, YamlLoadError, validateRule, Yaml
 // Helpers
 export { ref, isRef } from './helpers/index.js';
 
+// Errors
+export { DslError, DslValidationError } from './helpers/index.js';
+
 // Types
 export type {
   Ref,

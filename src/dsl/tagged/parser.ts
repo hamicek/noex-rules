@@ -20,6 +20,7 @@
 import type { RuleInput, RuleTrigger } from '../../types/rule.js';
 import type { RuleCondition } from '../../types/condition.js';
 import type { RuleAction } from '../../types/action.js';
+import { DslError } from '../helpers/errors.js';
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -28,7 +29,7 @@ import type { RuleAction } from '../../types/action.js';
 /**
  * Chyba parsování rule template s informací o řádku.
  */
-export class ParseError extends Error {
+export class ParseError extends DslError {
   readonly line: number;
   readonly source: string;
 

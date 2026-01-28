@@ -9,6 +9,7 @@ import type {
   BuiltRule,
 } from '../types.js';
 import { SourceExpr } from '../condition/operators.js';
+import { DslValidationError } from '../helpers/errors.js';
 
 /**
  * Fluent builder pro vytváření pravidel.
@@ -42,7 +43,7 @@ export class RuleBuilder {
    */
   static create(id: string): RuleBuilder {
     if (!id || typeof id !== 'string') {
-      throw new Error('Rule ID must be a non-empty string');
+      throw new DslValidationError('Rule ID must be a non-empty string');
     }
     return new RuleBuilder(id);
   }
@@ -68,7 +69,7 @@ export class RuleBuilder {
    */
   priority(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error('Priority must be a finite number');
+      throw new DslValidationError('Priority must be a finite number');
     }
     this.ctx.priority = value;
     return this;
@@ -143,15 +144,15 @@ export class RuleBuilder {
    */
   build(): BuiltRule {
     if (!this.ctx.id) {
-      throw new Error('Rule ID is required');
+      throw new DslValidationError('Rule ID is required');
     }
 
     if (!this.ctx.trigger) {
-      throw new Error(`Rule "${this.ctx.id}": trigger is required. Use .when()`);
+      throw new DslValidationError(`Rule "${this.ctx.id}": trigger is required. Use .when()`);
     }
 
     if (this.ctx.actions.length === 0) {
-      throw new Error(`Rule "${this.ctx.id}": at least one action is required. Use .then()`);
+      throw new DslValidationError(`Rule "${this.ctx.id}": at least one action is required. Use .then()`);
     }
 
     const rule: BuiltRule = {

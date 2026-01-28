@@ -2,6 +2,7 @@ import type { RuleTrigger } from '../../../types/rule.js';
 import type { AggregatePattern, EventMatcher } from '../../../types/temporal.js';
 import type { TriggerBuilder } from '../../types.js';
 import { requireNonEmptyString, requireDuration } from '../../helpers/validators.js';
+import { DslValidationError } from '../../helpers/errors.js';
 
 type AggregateFn = 'sum' | 'avg' | 'min' | 'max' | 'count';
 const VALID_FUNCTIONS: readonly AggregateFn[] = ['sum', 'avg', 'min', 'max', 'count'];
@@ -74,7 +75,7 @@ export class AggregateBuilder implements TriggerBuilder {
    */
   function(fn: AggregateFn): this {
     if (!VALID_FUNCTIONS.includes(fn)) {
-      throw new Error(
+      throw new DslValidationError(
         `aggregate().function() must be one of ${VALID_FUNCTIONS.join(', ')}, got '${fn}'`,
       );
     }
@@ -89,7 +90,7 @@ export class AggregateBuilder implements TriggerBuilder {
    */
   threshold(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error('aggregate().threshold() must be a finite number');
+      throw new DslValidationError('aggregate().threshold() must be a finite number');
     }
     this.thresholdValue = value;
     return this;
@@ -102,7 +103,7 @@ export class AggregateBuilder implements TriggerBuilder {
    */
   comparison(op: 'gte' | 'lte' | 'eq'): this {
     if (op !== 'gte' && op !== 'lte' && op !== 'eq') {
-      throw new Error(`aggregate().comparison() must be 'gte', 'lte', or 'eq', got '${op}'`);
+      throw new DslValidationError(`aggregate().comparison() must be 'gte', 'lte', or 'eq', got '${op}'`);
     }
     this.comparisonOp = op;
     return this;
@@ -132,19 +133,19 @@ export class AggregateBuilder implements TriggerBuilder {
 
   build(): RuleTrigger {
     if (!this.eventMatcher) {
-      throw new Error('aggregate() requires .event() to set the source event');
+      throw new DslValidationError('aggregate() requires .event() to set the source event');
     }
     if (!this.fieldPath) {
-      throw new Error('aggregate() requires .field() to set the aggregated field');
+      throw new DslValidationError('aggregate() requires .field() to set the aggregated field');
     }
     if (!this.aggregateFn) {
-      throw new Error('aggregate() requires .function() to set the aggregate function');
+      throw new DslValidationError('aggregate() requires .function() to set the aggregate function');
     }
     if (this.thresholdValue === undefined) {
-      throw new Error('aggregate() requires .threshold() to set the threshold value');
+      throw new DslValidationError('aggregate() requires .threshold() to set the threshold value');
     }
     if (this.windowValue === undefined) {
-      throw new Error('aggregate() requires .window() to set the time window');
+      throw new DslValidationError('aggregate() requires .window() to set the time window');
     }
 
     const pattern: AggregatePattern = {

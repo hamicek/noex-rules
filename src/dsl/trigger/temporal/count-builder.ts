@@ -2,6 +2,7 @@ import type { RuleTrigger } from '../../../types/rule.js';
 import type { CountPattern, EventMatcher } from '../../../types/temporal.js';
 import type { TriggerBuilder } from '../../types.js';
 import { requireNonEmptyString, requireDuration } from '../../helpers/validators.js';
+import { DslValidationError } from '../../helpers/errors.js';
 
 /**
  * Fluent builder pro count temporální vzor.
@@ -55,7 +56,7 @@ export class CountBuilder implements TriggerBuilder {
    */
   threshold(value: number): this {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-      throw new Error('count().threshold() must be a non-negative finite number');
+      throw new DslValidationError('count().threshold() must be a non-negative finite number');
     }
     this.thresholdValue = value;
     return this;
@@ -68,7 +69,7 @@ export class CountBuilder implements TriggerBuilder {
    */
   comparison(op: 'gte' | 'lte' | 'eq'): this {
     if (op !== 'gte' && op !== 'lte' && op !== 'eq') {
-      throw new Error(`count().comparison() must be 'gte', 'lte', or 'eq', got '${op}'`);
+      throw new DslValidationError(`count().comparison() must be 'gte', 'lte', or 'eq', got '${op}'`);
     }
     this.comparisonOp = op;
     return this;
@@ -108,13 +109,13 @@ export class CountBuilder implements TriggerBuilder {
 
   build(): RuleTrigger {
     if (!this.eventMatcher) {
-      throw new Error('count() requires .event() to set the counted event');
+      throw new DslValidationError('count() requires .event() to set the counted event');
     }
     if (this.thresholdValue === undefined) {
-      throw new Error('count() requires .threshold() to set the count threshold');
+      throw new DslValidationError('count() requires .threshold() to set the count threshold');
     }
     if (this.windowValue === undefined) {
-      throw new Error('count() requires .window() to set the time window');
+      throw new DslValidationError('count() requires .window() to set the time window');
     }
 
     const pattern: CountPattern = {

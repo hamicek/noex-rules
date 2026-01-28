@@ -1,6 +1,7 @@
 import type { RuleCondition } from '../../types/condition.js';
 import type { ConditionSource, ConditionBuilder, ValueOrRef } from '../types.js';
 import { normalizeValue } from '../helpers/ref.js';
+import { DslValidationError } from '../helpers/errors.js';
 
 /**
  * Source expression s podporou operátorů.
@@ -108,10 +109,19 @@ export class SourceExpr implements ConditionBuilder {
 
   /**
    * Sestaví RuleCondition objekt.
+   *
+   * @throws {DslValidationError} Pokud nebyl nastaven operátor
    */
   build(): RuleCondition {
     if (!this.operator) {
-      throw new Error('Condition operator not specified. Use .eq(), .gte(), etc.');
+      const src = this.source;
+      const hint =
+        src.type === 'event' ? `event("${src.field}")`
+        : src.type === 'fact' ? `fact("${src.pattern}")`
+        : `context("${src.key}")`;
+      throw new DslValidationError(
+        `Condition on ${hint}: operator not specified. Use .eq(), .gte(), etc.`,
+      );
     }
 
     return {

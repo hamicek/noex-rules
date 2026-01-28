@@ -2,6 +2,7 @@ import type { RuleTrigger } from '../../../types/rule.js';
 import type { AbsencePattern, EventMatcher } from '../../../types/temporal.js';
 import type { TriggerBuilder } from '../../types.js';
 import { requireNonEmptyString, requireDuration } from '../../helpers/validators.js';
+import { DslValidationError } from '../../helpers/errors.js';
 
 /**
  * Fluent builder pro absence temporální vzor.
@@ -82,13 +83,13 @@ export class AbsenceBuilder implements TriggerBuilder {
 
   build(): RuleTrigger {
     if (!this.afterMatcher) {
-      throw new Error('absence() requires .after() to set the trigger event');
+      throw new DslValidationError('absence() requires .after() to set the trigger event');
     }
     if (!this.expectedMatcher) {
-      throw new Error('absence() requires .expected() to set the awaited event');
+      throw new DslValidationError('absence() requires .expected() to set the awaited event');
     }
     if (this.windowValue === undefined) {
-      throw new Error('absence() requires .within() to set the time window');
+      throw new DslValidationError('absence() requires .within() to set the time window');
     }
 
     const pattern: AbsencePattern = {

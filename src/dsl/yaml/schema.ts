@@ -21,12 +21,13 @@ import type {
   AggregatePattern,
 } from '../../types/temporal.js';
 import type { TimerConfig } from '../../types/timer.js';
+import { DslError } from '../helpers/errors.js';
 
 // ---------------------------------------------------------------------------
 // Error
 // ---------------------------------------------------------------------------
 
-export class YamlValidationError extends Error {
+export class YamlValidationError extends DslError {
   readonly path: string;
 
   constructor(message: string, path: string) {

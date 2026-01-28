@@ -3,6 +3,7 @@ import type { TimerConfig } from '../../types/timer.js';
 import type { ActionBuilder, Ref } from '../types.js';
 import { isRef } from '../helpers/ref.js';
 import { requireNonEmptyString, requireDuration } from '../helpers/validators.js';
+import { DslValidationError } from '../helpers/errors.js';
 
 /**
  * Konfigurace pro setTimer s podporou ref().
@@ -122,7 +123,7 @@ class TimerFluentBuilder implements ActionBuilder {
 
   build(): RuleAction {
     if (!this.expireTopic) {
-      throw new Error(
+      throw new DslValidationError(
         `Timer "${this.timerName}" requires onExpire topic. Use .emit(topic, data) to set it.`
       );
     }
