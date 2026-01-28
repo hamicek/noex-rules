@@ -13,6 +13,7 @@ import { validateCommand, type ValidateOptions } from './commands/validate.js';
 import { importCommand, type ImportCommandOptions } from './commands/import.js';
 import { exportCommand, type ExportCommandOptions } from './commands/export.js';
 import { testCommand, type TestCommandOptions } from './commands/test.js';
+import { statsCommand, type StatsCommandOptions } from './commands/stats.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -208,11 +209,23 @@ function registerPlaceholderCommands(): void {
       process.exit(ExitCode.GeneralError);
     });
 
-  cli.command('stats', 'Show engine statistics').action(async (options: Record<string, unknown>) => {
-    processGlobalOptions(options);
-    printError(error(`Command 'stats' not yet implemented.`));
-    process.exit(ExitCode.GeneralError);
-  });
+  cli
+    .command('stats', 'Show engine statistics')
+    .option('-u, --url <url>', 'Server URL')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const statsOptions: StatsCommandOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined
+      };
+      try {
+        await statsCommand(statsOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
 
   cli.command('init', 'Initialize configuration file').action(async (options: Record<string, unknown>) => {
     processGlobalOptions(options);
