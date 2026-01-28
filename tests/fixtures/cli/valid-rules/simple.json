@@ -1,0 +1,26 @@
+{
+  "id": "simple-rule",
+  "name": "Simple Test Rule",
+  "description": "A simple rule for testing",
+  "priority": 10,
+  "enabled": true,
+  "tags": ["test", "simple"],
+  "trigger": {
+    "type": "event",
+    "topic": "order.created"
+  },
+  "conditions": [
+    {
+      "source": { "type": "event", "field": "amount" },
+      "operator": "gte",
+      "value": 100
+    }
+  ],
+  "actions": [
+    {
+      "type": "set_fact",
+      "key": "order:${event.orderId}:status",
+      "value": "high-value"
+    }
+  ]
+}

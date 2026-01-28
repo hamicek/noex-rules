@@ -1,0 +1,7 @@
+{
+  "id": "invalid-trigger-rule",
+  "name": "Invalid Trigger Rule",
+  "trigger": {
+    "type": "unknown"
+  }
+}

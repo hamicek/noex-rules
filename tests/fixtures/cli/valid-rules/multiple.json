@@ -1,0 +1,40 @@
+[
+  {
+    "id": "rule-1",
+    "name": "First Rule",
+    "trigger": {
+      "type": "event",
+      "topic": "user.registered"
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "emit_event",
+        "topic": "notification.send",
+        "data": { "type": "welcome" }
+      }
+    ]
+  },
+  {
+    "id": "rule-2",
+    "name": "Second Rule",
+    "trigger": {
+      "type": "fact",
+      "pattern": "user:*:premium"
+    },
+    "conditions": [
+      {
+        "source": { "type": "fact", "pattern": "user:*:premium" },
+        "operator": "eq",
+        "value": true
+      }
+    ],
+    "actions": [
+      {
+        "type": "log",
+        "level": "info",
+        "message": "User upgraded to premium"
+      }
+    ]
+  }
+]

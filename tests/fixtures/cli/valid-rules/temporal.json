@@ -1,0 +1,23 @@
+{
+  "id": "temporal-rule",
+  "name": "Payment Timeout Rule",
+  "description": "Detects when payment is not received within 24 hours of order",
+  "trigger": {
+    "type": "temporal",
+    "pattern": {
+      "type": "absence",
+      "after": { "topic": "order.created" },
+      "expected": { "topic": "payment.received" },
+      "within": "24h",
+      "groupBy": "orderId"
+    }
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "emit_event",
+      "topic": "order.payment_timeout",
+      "data": { "reason": "Payment not received within 24 hours" }
+    }
+  ]
+}

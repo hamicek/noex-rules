@@ -1,0 +1,7 @@
+{
+  "name": "Missing ID Rule",
+  "trigger": {
+    "type": "event",
+    "topic": "test"
+  }
+}

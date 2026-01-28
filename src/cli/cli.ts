@@ -9,6 +9,7 @@ import { ExitCode } from './types.js';
 import { loadConfig } from './utils/config.js';
 import { setOutputOptions, printError, error } from './utils/output.js';
 import { getExitCode, formatError } from './utils/errors.js';
+import { validateCommand, type ValidateOptions } from './commands/validate.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -50,16 +51,28 @@ function registerVersionCommand(): void {
   });
 }
 
-/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
-function registerPlaceholderCommands(): void {
+/** Registruje příkaz validate */
+function registerValidateCommand(): void {
   cli
     .command('validate <file>', 'Validate rules file')
     .option('-s, --strict', 'Enable strict validation mode')
     .action(async (file: string, options: Record<string, unknown>) => {
-      processGlobalOptions(options);
-      printError(error(`Command 'validate' not yet implemented. File: ${file}`));
-      process.exit(ExitCode.GeneralError);
+      const globalOptions = processGlobalOptions(options);
+      const validateOptions: ValidateOptions = {
+        ...globalOptions,
+        strict: (options['strict'] as boolean | undefined) ?? false
+      };
+      try {
+        await validateCommand(file, validateOptions);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
     });
+}
+
+/** Registruje placeholder příkazy (budou implementovány v dalších fázích) */
+function registerPlaceholderCommands(): void {
 
   cli
     .command('import <file>', 'Import rules from file')
@@ -163,6 +176,7 @@ function registerPlaceholderCommands(): void {
 export async function run(args: string[] = process.argv): Promise<void> {
   registerGlobalOptions();
   registerVersionCommand();
+  registerValidateCommand();
   registerPlaceholderCommands();
 
   cli.help();

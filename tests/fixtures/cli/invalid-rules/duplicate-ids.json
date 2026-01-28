@@ -1,0 +1,12 @@
+[
+  {
+    "id": "duplicate",
+    "name": "First Rule",
+    "trigger": { "type": "event", "topic": "test" }
+  },
+  {
+    "id": "duplicate",
+    "name": "Second Rule",
+    "trigger": { "type": "event", "topic": "test" }
+  }
+]
