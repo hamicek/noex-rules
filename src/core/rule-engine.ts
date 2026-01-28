@@ -435,6 +435,14 @@ export class RuleEngine {
     return this.traceCollector;
   }
 
+  /**
+   * Vrátí EventStore pro přímý přístup k eventům.
+   * Primárně určeno pro debugging a history queries.
+   */
+  getEventStore(): EventStore {
+    return this.eventStore;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //                            LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════

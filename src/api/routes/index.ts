@@ -9,6 +9,7 @@ import { registerTimersRoutes } from './timers.js';
 import { registerHealthRoutes } from './health.js';
 import { registerWebhooksRoutes } from './webhooks.js';
 import { registerStreamRoutes } from './stream.js';
+import { registerDebugRoutes } from './debug.js';
 
 export interface RouteContext {
   engine: RuleEngine;
@@ -29,6 +30,7 @@ export async function registerRoutes(
   await registerTimersRoutes(fastify);
   await registerWebhooksRoutes(fastify, context.webhookManager);
   await registerStreamRoutes(fastify, context.sseManager);
+  await registerDebugRoutes(fastify);
 }
 
 declare module 'fastify' {

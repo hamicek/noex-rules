@@ -1,0 +1,376 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import Fastify, { type FastifyInstance } from 'fastify';
+import { RuleEngine } from '../../src/core/rule-engine';
+import { registerDebugRoutes } from '../../src/api/routes/debug';
+import { errorHandler } from '../../src/api/middleware/error-handler';
+import type { RuleInput } from '../../src/types/rule';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    engine: RuleEngine;
+  }
+}
+
+describe('Debug Routes', () => {
+  let fastify: FastifyInstance;
+  let engine: RuleEngine;
+
+  const testRule: RuleInput = {
+    id: 'test-rule',
+    name: 'Test Rule',
+    priority: 10,
+    enabled: true,
+    tags: ['test'],
+    trigger: { type: 'event', topic: 'test.event' },
+    conditions: [
+      { source: { type: 'event', field: 'value' }, operator: 'gt', value: 5 }
+    ],
+    actions: [
+      { type: 'set_fact', key: 'test:result', value: 'success' },
+      { type: 'emit_event', topic: 'test.result', data: { status: 'done' } }
+    ]
+  };
+
+  beforeEach(async () => {
+    engine = await RuleEngine.start({
+      name: 'debug-routes-test',
+      tracing: { enabled: true }
+    });
+    engine.registerRule(testRule);
+
+    fastify = Fastify();
+    fastify.setErrorHandler(errorHandler);
+    fastify.decorate('engine', engine);
+    await registerDebugRoutes(fastify);
+    await fastify.ready();
+  });
+
+  afterEach(async () => {
+    await fastify.close();
+    await engine.stop();
+  });
+
+  describe('GET /debug/tracing', () => {
+    it('returns tracing status', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/tracing'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body).toEqual({ enabled: true });
+    });
+  });
+
+  describe('POST /debug/tracing/enable', () => {
+    it('enables tracing', async () => {
+      engine.disableTracing();
+
+      const response = await fastify.inject({
+        method: 'POST',
+        url: '/debug/tracing/enable'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body).toEqual({ enabled: true });
+      expect(engine.isTracingEnabled()).toBe(true);
+    });
+  });
+
+  describe('POST /debug/tracing/disable', () => {
+    it('disables tracing', async () => {
+      const response = await fastify.inject({
+        method: 'POST',
+        url: '/debug/tracing/disable'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body).toEqual({ enabled: false });
+      expect(engine.isTracingEnabled()).toBe(false);
+    });
+  });
+
+  describe('GET /debug/traces', () => {
+    it('returns recent trace entries', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/traces'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBeGreaterThan(0);
+
+      const types = body.map((e: { type: string }) => e.type);
+      expect(types).toContain('event_emitted');
+    });
+
+    it('filters by rule ID', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/traces?ruleId=test-rule'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      body.forEach((entry: { ruleId?: string }) => {
+        if (entry.ruleId) {
+          expect(entry.ruleId).toBe('test-rule');
+        }
+      });
+    });
+
+    it('filters by trace types', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/traces?types=rule_executed,rule_skipped'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      body.forEach((entry: { type: string }) => {
+        expect(['rule_executed', 'rule_skipped']).toContain(entry.type);
+      });
+    });
+
+    it('respects limit parameter', async () => {
+      await engine.emit('test.event', { value: 10 });
+      await engine.emit('test.event', { value: 20 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/traces?limit=2'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('GET /debug/history', () => {
+    it('returns event history', async () => {
+      await engine.emit('test.event', { value: 10 });
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/history?topic=test.event'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.events).toBeDefined();
+      expect(body.totalCount).toBeGreaterThan(0);
+      expect(body.queryTimeMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('filters by correlation ID', async () => {
+      const event = await engine.emitCorrelated('test.event', { value: 10 }, 'corr-123');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/history?correlationId=corr-123'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.events.length).toBeGreaterThan(0);
+      body.events.forEach((e: { correlationId?: string }) => {
+        expect(e.correlationId).toBe('corr-123');
+      });
+    });
+
+    it('includes context when requested', async () => {
+      await engine.emitCorrelated('test.event', { value: 10 }, 'corr-ctx');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/history?correlationId=corr-ctx&includeContext=true'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.events.length).toBeGreaterThan(0);
+    });
+
+    it('respects limit parameter', async () => {
+      for (let i = 0; i < 5; i++) {
+        await engine.emitCorrelated('test.event', { value: 10 + i }, 'corr-limit');
+      }
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/history?correlationId=corr-limit&limit=2'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.events.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('GET /debug/history/:eventId', () => {
+    it('returns event with context', async () => {
+      const event = await engine.emitCorrelated('test.event', { value: 10 }, 'corr-single');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: `/debug/history/${event.id}`
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.id).toBe(event.id);
+      expect(body.topic).toBe('test.event');
+    });
+
+    it('returns 404 for non-existent event', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/history/non-existent-id'
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe('GET /debug/correlation/:correlationId', () => {
+    it('returns correlation chain', async () => {
+      await engine.emitCorrelated('test.event', { value: 10 }, 'corr-chain');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/corr-chain'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBeGreaterThan(0);
+    });
+
+    it('returns empty array for non-existent correlation', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/non-existent'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(0);
+    });
+  });
+
+  describe('GET /debug/correlation/:correlationId/timeline', () => {
+    it('returns correlation timeline', async () => {
+      await engine.emitCorrelated('test.event', { value: 10 }, 'corr-timeline');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/corr-timeline/timeline'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      body.forEach((entry: { timestamp: number; type: string; depth: number }) => {
+        expect(entry.timestamp).toBeDefined();
+        expect(['event', 'trace']).toContain(entry.type);
+        expect(entry.depth).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    it('returns empty array for non-existent correlation', async () => {
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/non-existent/timeline'
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(0);
+    });
+  });
+
+  describe('GET /debug/correlation/:correlationId/export', () => {
+    it('exports to JSON by default', async () => {
+      await engine.emitCorrelated('test.event', { value: 10 }, 'corr-export-json');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/corr-export-json/export'
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/json');
+      const body = JSON.parse(response.body);
+      expect(Array.isArray(body)).toBe(true);
+    });
+
+    it('exports to Mermaid when format=mermaid', async () => {
+      await engine.emitCorrelated('test.event', { value: 10 }, 'corr-export-mermaid');
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/debug/correlation/corr-export-mermaid/export?format=mermaid'
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('text/plain');
+      expect(response.body).toContain('sequenceDiagram');
+    });
+  });
+
+  describe('tracing with correlation', () => {
+    it('captures full trace chain with correlation', async () => {
+      const correlationId = 'full-trace-test';
+      await engine.emitCorrelated('test.event', { value: 10 }, correlationId);
+
+      const tracesResponse = await fastify.inject({
+        method: 'GET',
+        url: `/debug/traces?correlationId=${correlationId}`
+      });
+
+      expect(tracesResponse.statusCode).toBe(200);
+      const traces = tracesResponse.json();
+
+      const types = traces.map((t: { type: string }) => t.type);
+      expect(types).toContain('event_emitted');
+      expect(types).toContain('rule_triggered');
+      expect(types).toContain('condition_evaluated');
+      expect(types).toContain('action_started');
+      expect(types).toContain('action_completed');
+      expect(types).toContain('rule_executed');
+    });
+
+    it('captures skipped rule trace', async () => {
+      const correlationId = 'skip-trace-test';
+      await engine.emitCorrelated('test.event', { value: 3 }, correlationId);
+
+      const tracesResponse = await fastify.inject({
+        method: 'GET',
+        url: `/debug/traces?correlationId=${correlationId}`
+      });
+
+      expect(tracesResponse.statusCode).toBe(200);
+      const traces = tracesResponse.json();
+
+      const types = traces.map((t: { type: string }) => t.type);
+      expect(types).toContain('rule_skipped');
+    });
+  });
+});
