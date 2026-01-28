@@ -31,7 +31,8 @@ export { onEvent, onFact, onTimer } from './trigger/index.js';
 export { event, fact, context, SourceExpr } from './condition/index.js';
 
 // Actions
-export { emit, setFact, deleteFact } from './action/index.js';
+export { emit, setFact, deleteFact, setTimer, cancelTimer } from './action/index.js';
+export type { SetTimerOptions } from './action/index.js';
 
 // Helpers
 export { ref, isRef } from './helpers/index.js';
