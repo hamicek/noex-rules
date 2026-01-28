@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { RuleInput, Rule } from '../../types/rule.js';
-import { NotFoundError, ConflictError, ValidationError } from '../middleware/error-handler.js';
+import { NotFoundError, ConflictError } from '../middleware/error-handler.js';
+import { rulesSchemas } from '../schemas/rule.js';
 
 interface RuleParams {
   id: string;
@@ -25,13 +26,14 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   const engine = fastify.engine;
 
   // GET /rules - Seznam pravidel
-  fastify.get('/rules', async (): Promise<Rule[]> => {
+  fastify.get('/rules', { schema: rulesSchemas.list }, async (): Promise<Rule[]> => {
     return engine.getRules();
   });
 
   // GET /rules/:id - Detail pravidla
   fastify.get<{ Params: RuleParams }>(
     '/rules/:id',
+    { schema: rulesSchemas.get },
     async (request): Promise<Rule> => {
       const rule = engine.getRule(request.params.id);
       if (!rule) {
@@ -44,18 +46,9 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   // POST /rules - Vytvoření pravidla
   fastify.post<{ Body: CreateRuleBody }>(
     '/rules',
+    { schema: rulesSchemas.create },
     async (request, reply): Promise<Rule> => {
       const body = request.body;
-
-      if (!body.id) {
-        throw new ValidationError('Missing required field: id');
-      }
-      if (!body.name) {
-        throw new ValidationError('Missing required field: name');
-      }
-      if (!body.trigger) {
-        throw new ValidationError('Missing required field: trigger');
-      }
 
       // Kontrola duplicity
       if (engine.getRule(body.id)) {
@@ -84,6 +77,7 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   // PUT /rules/:id - Aktualizace pravidla
   fastify.put<{ Params: RuleParams; Body: UpdateRuleBody }>(
     '/rules/:id',
+    { schema: rulesSchemas.update },
     async (request): Promise<Rule> => {
       const { id } = request.params;
       const existingRule = engine.getRule(id);
@@ -118,6 +112,7 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   // DELETE /rules/:id - Smazání pravidla
   fastify.delete<{ Params: RuleParams }>(
     '/rules/:id',
+    { schema: rulesSchemas.delete },
     async (request, reply): Promise<void> => {
       const deleted = engine.unregisterRule(request.params.id);
       if (!deleted) {
@@ -130,6 +125,7 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   // POST /rules/:id/enable - Povolení pravidla
   fastify.post<{ Params: RuleParams }>(
     '/rules/:id/enable',
+    { schema: rulesSchemas.enable },
     async (request): Promise<Rule> => {
       const { id } = request.params;
       const enabled = engine.enableRule(id);
@@ -144,6 +140,7 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
   // POST /rules/:id/disable - Zakázání pravidla
   fastify.post<{ Params: RuleParams }>(
     '/rules/:id/disable',
+    { schema: rulesSchemas.disable },
     async (request): Promise<Rule> => {
       const { id } = request.params;
       const disabled = engine.disableRule(id);

@@ -56,6 +56,14 @@ export class RuleEngineServer {
 
     const fastify = Fastify({
       logger: config.logger,
+      ajv: {
+        customOptions: {
+          coerceTypes: false,
+          removeAdditional: false,
+          useDefaults: true,
+          allErrors: true
+        }
+      },
       ...config.fastifyOptions
     });
 

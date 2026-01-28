@@ -6,6 +6,7 @@ import type {
   WebhookManagerStats
 } from '../notifications/webhook-manager.js';
 import { NotFoundError, ValidationError } from '../middleware/error-handler.js';
+import { webhooksSchemas } from '../schemas/webhook.js';
 
 interface WebhookParams {
   id: string;
@@ -45,18 +46,19 @@ export async function registerWebhooksRoutes(
   webhookManager: WebhookManager
 ): Promise<void> {
   // GET /webhooks - Seznam webhooků
-  fastify.get('/webhooks', async (): Promise<WebhookResponse[]> => {
+  fastify.get('/webhooks', { schema: webhooksSchemas.list }, async (): Promise<WebhookResponse[]> => {
     return webhookManager.list().map(toWebhookResponse);
   });
 
   // GET /webhooks/stats - Statistiky webhooků
-  fastify.get('/webhooks/stats', async (): Promise<WebhookManagerStats> => {
+  fastify.get('/webhooks/stats', { schema: webhooksSchemas.stats }, async (): Promise<WebhookManagerStats> => {
     return webhookManager.getStats();
   });
 
   // GET /webhooks/:id - Detail webhooku
   fastify.get<{ Params: WebhookParams }>(
     '/webhooks/:id',
+    { schema: webhooksSchemas.get },
     async (request): Promise<WebhookResponse> => {
       const webhook = webhookManager.get(request.params.id);
       if (!webhook) {
@@ -69,49 +71,13 @@ export async function registerWebhooksRoutes(
   // POST /webhooks - Registrace webhooku
   fastify.post<{ Body: CreateWebhookBody }>(
     '/webhooks',
+    { schema: webhooksSchemas.create },
     async (request, reply): Promise<WebhookResponse> => {
       const { url, patterns, secret, headers, timeout } = request.body;
 
-      if (!url || typeof url !== 'string') {
-        throw new ValidationError('Missing or invalid required field: url');
-      }
-
+      // Dodatečná validace URL protokolu
       if (!isValidUrl(url)) {
         throw new ValidationError('Invalid URL format. Must be a valid HTTP or HTTPS URL');
-      }
-
-      if (patterns !== undefined) {
-        if (!Array.isArray(patterns)) {
-          throw new ValidationError('Field patterns must be an array');
-        }
-        if (!patterns.every((p) => typeof p === 'string' && p.length > 0)) {
-          throw new ValidationError('Field patterns must contain non-empty strings');
-        }
-      }
-
-      if (secret !== undefined && typeof secret !== 'string') {
-        throw new ValidationError('Field secret must be a string');
-      }
-
-      if (headers !== undefined) {
-        if (typeof headers !== 'object' || headers === null || Array.isArray(headers)) {
-          throw new ValidationError('Field headers must be an object');
-        }
-        const invalidHeader = Object.entries(headers).find(
-          ([key, value]) => typeof key !== 'string' || typeof value !== 'string'
-        );
-        if (invalidHeader) {
-          throw new ValidationError('Field headers must contain string key-value pairs');
-        }
-      }
-
-      if (timeout !== undefined) {
-        if (typeof timeout !== 'number' || timeout <= 0 || !Number.isInteger(timeout)) {
-          throw new ValidationError('Field timeout must be a positive integer');
-        }
-        if (timeout > 60000) {
-          throw new ValidationError('Field timeout cannot exceed 60000ms');
-        }
       }
 
       const registration: WebhookRegistration = { url };
@@ -138,6 +104,7 @@ export async function registerWebhooksRoutes(
   // POST /webhooks/:id/enable - Povolení webhooku
   fastify.post<{ Params: WebhookParams }>(
     '/webhooks/:id/enable',
+    { schema: webhooksSchemas.enable },
     async (request): Promise<WebhookResponse> => {
       const success = webhookManager.enable(request.params.id);
       if (!success) {
@@ -151,6 +118,7 @@ export async function registerWebhooksRoutes(
   // POST /webhooks/:id/disable - Zakázání webhooku
   fastify.post<{ Params: WebhookParams }>(
     '/webhooks/:id/disable',
+    { schema: webhooksSchemas.disable },
     async (request): Promise<WebhookResponse> => {
       const success = webhookManager.disable(request.params.id);
       if (!success) {
@@ -164,6 +132,7 @@ export async function registerWebhooksRoutes(
   // DELETE /webhooks/:id - Smazání webhooku
   fastify.delete<{ Params: WebhookParams }>(
     '/webhooks/:id',
+    { schema: webhooksSchemas.delete },
     async (request, reply): Promise<void> => {
       const deleted = webhookManager.unregister(request.params.id);
       if (!deleted) {

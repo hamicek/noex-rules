@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Fact } from '../../types/fact.js';
-import { NotFoundError, ValidationError } from '../middleware/error-handler.js';
+import { NotFoundError } from '../middleware/error-handler.js';
+import { factsSchemas } from '../schemas/fact.js';
 
 interface FactParams {
   key: string;
@@ -18,13 +19,14 @@ export async function registerFactsRoutes(fastify: FastifyInstance): Promise<voi
   const engine = fastify.engine;
 
   // GET /facts - Seznam všech faktů
-  fastify.get('/facts', async (): Promise<Fact[]> => {
+  fastify.get('/facts', { schema: factsSchemas.list }, async (): Promise<Fact[]> => {
     return engine.getAllFacts();
   });
 
   // GET /facts/:key - Detail faktu
   fastify.get<{ Params: FactParams }>(
     '/facts/:key',
+    { schema: factsSchemas.get },
     async (request): Promise<Fact> => {
       const fact = engine.getFactFull(request.params.key);
       if (!fact) {
@@ -37,13 +39,10 @@ export async function registerFactsRoutes(fastify: FastifyInstance): Promise<voi
   // PUT /facts/:key - Nastavení faktu
   fastify.put<{ Params: FactParams; Body: SetFactBody }>(
     '/facts/:key',
+    { schema: factsSchemas.set },
     async (request, reply): Promise<Fact> => {
       const { key } = request.params;
       const { value } = request.body;
-
-      if (value === undefined) {
-        throw new ValidationError('Missing required field: value');
-      }
 
       const isNew = !engine.getFactFull(key);
       const fact = await engine.setFact(key, value);
@@ -59,6 +58,7 @@ export async function registerFactsRoutes(fastify: FastifyInstance): Promise<voi
   // DELETE /facts/:key - Smazání faktu
   fastify.delete<{ Params: FactParams }>(
     '/facts/:key',
+    { schema: factsSchemas.delete },
     async (request, reply): Promise<void> => {
       const deleted = engine.deleteFact(request.params.key);
       if (!deleted) {
@@ -71,12 +71,9 @@ export async function registerFactsRoutes(fastify: FastifyInstance): Promise<voi
   // POST /facts/query - Query podle patternu
   fastify.post<{ Body: QueryFactsBody }>(
     '/facts/query',
+    { schema: factsSchemas.query },
     async (request): Promise<Fact[]> => {
       const { pattern } = request.body;
-
-      if (!pattern) {
-        throw new ValidationError('Missing required field: pattern');
-      }
 
       if (pattern === '*') {
         return engine.getAllFacts();

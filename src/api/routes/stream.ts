@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { SSEManager, SSEManagerStats } from '../notifications/sse-manager.js';
+import { streamSchemas } from '../schemas/stream.js';
 
 interface StreamQuerystring {
   patterns?: string;
@@ -42,6 +43,7 @@ export async function registerStreamRoutes(
   // GET /stream/events - SSE stream pro eventy
   fastify.get<{ Querystring: StreamQuerystring }>(
     '/stream/events',
+    { schema: streamSchemas.events },
     async (request: FastifyRequest<{ Querystring: StreamQuerystring }>, reply) => {
       const patterns = parsePatterns(request.query.patterns);
       const connectionId = generateConnectionId();
@@ -57,12 +59,12 @@ export async function registerStreamRoutes(
   );
 
   // GET /stream/stats - Statistiky SSE připojení
-  fastify.get('/stream/stats', async (): Promise<SSEManagerStats> => {
+  fastify.get('/stream/stats', { schema: streamSchemas.stats }, async (): Promise<SSEManagerStats> => {
     return sseManager.getStats();
   });
 
   // GET /stream/connections - Seznam aktivních připojení (pro admin/debug)
-  fastify.get('/stream/connections', async (): Promise<ConnectionInfo[]> => {
+  fastify.get('/stream/connections', { schema: streamSchemas.connections }, async (): Promise<ConnectionInfo[]> => {
     return sseManager.getConnections();
   });
 }

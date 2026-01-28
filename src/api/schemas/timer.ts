@@ -6,10 +6,9 @@ import { nameParamSchema } from './common.js';
 export const timerSchema = {
   type: 'object',
   properties: {
+    id: { type: 'string' },
     name: { type: 'string' },
-    duration: { type: 'number' },
     expiresAt: { type: 'number' },
-    createdAt: { type: 'number' },
     repeat: {
       type: 'object',
       properties: {
@@ -25,9 +24,10 @@ export const timerSchema = {
         data: { type: 'object', additionalProperties: true }
       },
       required: ['topic']
-    }
+    },
+    correlationId: { type: 'string' }
   },
-  required: ['name', 'duration', 'expiresAt', 'createdAt', 'onExpire']
+  required: ['id', 'name', 'expiresAt', 'onExpire']
 } as const;
 
 export const timerArraySchema = {
@@ -37,27 +37,30 @@ export const timerArraySchema = {
 
 export const createTimerBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
     name: { type: 'string', description: 'Unique timer name' },
     duration: { oneOf: [{ type: 'string' }, { type: 'number' }], description: 'Duration in ms or string like "5s", "1m"' },
     onExpire: {
       type: 'object',
-      additionalProperties: true,
+      additionalProperties: false,
       properties: {
         topic: { type: 'string', description: 'Event topic to emit on expiration' },
         data: { type: 'object', additionalProperties: true, description: 'Event data' }
-      }
+      },
+      required: ['topic']
     },
     repeat: {
       type: 'object',
-      additionalProperties: true,
+      additionalProperties: false,
       properties: {
         interval: { oneOf: [{ type: 'string' }, { type: 'number' }], description: 'Repeat interval' },
         maxCount: { type: 'number', description: 'Maximum repeat count' }
-      }
+      },
+      required: ['interval']
     }
-  }
+  },
+  required: ['name', 'duration', 'onExpire']
 } as const;
 
 export const timersSchemas = {

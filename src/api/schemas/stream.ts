@@ -21,10 +21,9 @@ export const sseStatsSchema = {
   type: 'object',
   properties: {
     activeConnections: { type: 'number' },
-    totalConnections: { type: 'number' },
-    messagesSent: { type: 'number' }
+    totalEventsSent: { type: 'number' }
   },
-  required: ['activeConnections', 'totalConnections', 'messagesSent']
+  required: ['activeConnections', 'totalEventsSent']
 } as const;
 
 export const streamQuerySchema = {

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { EngineStats } from '../../types/index.js';
+import { healthSchemas } from '../schemas/health.js';
 
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'error';
@@ -21,6 +22,7 @@ export async function registerHealthRoutes(fastify: FastifyInstance): Promise<vo
 
   fastify.get<{ Reply: HealthResponse }>(
     '/health',
+    { schema: healthSchemas.health },
     async (): Promise<HealthResponse> => {
       const isRunning = engine.isRunning;
 
@@ -39,6 +41,7 @@ export async function registerHealthRoutes(fastify: FastifyInstance): Promise<vo
 
   fastify.get<{ Reply: StatsResponse }>(
     '/stats',
+    { schema: healthSchemas.stats },
     async (): Promise<StatsResponse> => {
       const stats = engine.getStats();
 

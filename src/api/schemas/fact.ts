@@ -5,13 +5,15 @@ import { keyParamSchema } from './common.js';
 
 export const factSchema = {
   type: 'object',
+  additionalProperties: true,
   properties: {
     key: { type: 'string' },
     value: {},
-    updatedAt: { type: 'number' },
+    timestamp: { type: 'number' },
+    source: { type: 'string' },
     version: { type: 'number' }
   },
-  required: ['key', 'value', 'updatedAt', 'version']
+  required: ['key', 'value', 'timestamp', 'source', 'version']
 } as const;
 
 export const factArraySchema = {
@@ -21,18 +23,20 @@ export const factArraySchema = {
 
 export const setFactBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
     value: { description: 'The value to store' }
-  }
+  },
+  required: ['value']
 } as const;
 
 export const queryFactsBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
     pattern: { type: 'string', description: 'Pattern to match fact keys (supports wildcards)' }
-  }
+  },
+  required: ['pattern']
 } as const;
 
 export const factsSchemas = {

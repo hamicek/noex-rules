@@ -37,14 +37,15 @@ export const webhookStatsSchema = {
 
 export const createWebhookBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
-    url: { type: 'string', description: 'Webhook endpoint URL (HTTP or HTTPS)' },
-    patterns: { type: 'array', items: { type: 'string' }, description: 'Topic patterns to subscribe (default: ["*"])' },
+    url: { type: 'string', format: 'uri', description: 'Webhook endpoint URL (HTTP or HTTPS)' },
+    patterns: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Topic patterns to subscribe (default: ["*"])' },
     secret: { type: 'string', description: 'Secret for HMAC-SHA256 signature' },
     headers: { type: 'object', additionalProperties: { type: 'string' }, description: 'Custom headers to include' },
-    timeout: { type: 'number', description: 'Request timeout in ms (max 60000)' }
-  }
+    timeout: { type: 'number', minimum: 1, maximum: 60000, description: 'Request timeout in ms (max 60000)' }
+  },
+  required: ['url']
 } as const;
 
 export const webhooksSchemas = {

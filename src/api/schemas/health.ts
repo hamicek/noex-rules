@@ -23,36 +23,15 @@ export const healthResponseSchema = {
 
 export const statsResponseSchema = {
   type: 'object',
+  additionalProperties: true,
   properties: {
     timestamp: { type: 'number' },
-    rules: {
-      type: 'object',
-      properties: {
-        total: { type: 'number' },
-        enabled: { type: 'number' },
-        disabled: { type: 'number' }
-      }
-    },
-    facts: {
-      type: 'object',
-      properties: {
-        total: { type: 'number' }
-      }
-    },
-    events: {
-      type: 'object',
-      properties: {
-        emitted: { type: 'number' },
-        processed: { type: 'number' }
-      }
-    },
-    timers: {
-      type: 'object',
-      properties: {
-        active: { type: 'number' },
-        fired: { type: 'number' }
-      }
-    }
+    rulesCount: { type: 'number' },
+    factsCount: { type: 'number' },
+    timersCount: { type: 'number' },
+    eventsProcessed: { type: 'number' },
+    rulesExecuted: { type: 'number' },
+    avgProcessingTimeMs: { type: 'number' }
   },
   required: ['timestamp']
 } as const;

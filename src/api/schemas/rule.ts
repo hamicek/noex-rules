@@ -5,57 +5,45 @@ import { idParamSchema } from './common.js';
 
 const triggerSchema = {
   type: 'object',
-  oneOf: [
-    {
-      properties: {
-        type: { const: 'event' },
-        topic: { type: 'string' }
-      },
-      required: ['type', 'topic']
-    },
-    {
-      properties: {
-        type: { const: 'fact' },
-        key: { type: 'string' }
-      },
-      required: ['type', 'key']
-    },
-    {
-      properties: {
-        type: { const: 'timer' },
-        name: { type: 'string' }
-      },
-      required: ['type', 'name']
-    }
-  ]
+  additionalProperties: true,
+  properties: {
+    type: { type: 'string' },
+    topic: { type: 'string' },
+    key: { type: 'string' },
+    pattern: { type: 'string' },
+    name: { type: 'string' }
+  },
+  required: ['type']
 } as const;
 
 const conditionSchema = {
   type: 'object',
+  additionalProperties: true,
   properties: {
-    type: { type: 'string', enum: ['fact', 'function'] },
+    type: { type: 'string' },
     key: { type: 'string' },
     operator: { type: 'string' },
     value: {},
-    negate: { type: 'boolean' }
-  },
-  required: ['type']
+    negate: { type: 'boolean' },
+    source: { type: 'object', additionalProperties: true }
+  }
 } as const;
 
 const actionSchema = {
   type: 'object',
+  additionalProperties: true,
   properties: {
-    type: { type: 'string', enum: ['emit', 'setFact', 'function'] },
+    type: { type: 'string' },
     topic: { type: 'string' },
     key: { type: 'string' },
     value: {},
-    data: { type: 'object' }
-  },
-  required: ['type']
+    data: { type: 'object', additionalProperties: true }
+  }
 } as const;
 
 export const ruleSchema = {
   type: 'object',
+  additionalProperties: true,
   properties: {
     id: { type: 'string' },
     name: { type: 'string' },
@@ -69,9 +57,10 @@ export const ruleSchema = {
     createdAt: { type: 'number' },
     updatedAt: { type: 'number' },
     lastFiredAt: { type: 'number', nullable: true },
-    fireCount: { type: 'number' }
+    fireCount: { type: 'number' },
+    version: { type: 'number' }
   },
-  required: ['id', 'name', 'trigger', 'actions']
+  required: ['id', 'name', 'trigger']
 } as const;
 
 export const ruleArraySchema = {
@@ -81,7 +70,7 @@ export const ruleArraySchema = {
 
 export const createRuleBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
     id: { type: 'string', description: 'Unique rule identifier' },
     name: { type: 'string', description: 'Human-readable name' },
@@ -92,12 +81,13 @@ export const createRuleBodySchema = {
     trigger: { ...triggerSchema, description: 'Event/fact/timer that activates this rule' },
     conditions: { type: 'array', items: conditionSchema, description: 'Conditions that must be met' },
     actions: { type: 'array', items: actionSchema, description: 'Actions to execute' }
-  }
+  },
+  required: ['id', 'name', 'trigger']
 } as const;
 
 export const updateRuleBodySchema = {
   type: 'object',
-  additionalProperties: true,
+  additionalProperties: false,
   properties: {
     name: { type: 'string' },
     description: { type: 'string' },

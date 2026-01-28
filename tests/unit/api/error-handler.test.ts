@@ -220,7 +220,7 @@ describe('errorHandler', () => {
       const sentResponse = (reply.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(sentResponse.statusCode).toBe(400);
       expect(sentResponse.error).toBe('Bad Request');
-      expect(sentResponse.message).toBe('Request validation failed');
+      expect(sentResponse.message).toBe('Field name must be string');
       expect(sentResponse.code).toBe('VALIDATION_ERROR');
       expect(sentResponse.details).toEqual([
         {

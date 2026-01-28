@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Event } from '../../types/event.js';
-import { ValidationError } from '../middleware/error-handler.js';
+import { eventsSchemas } from '../schemas/event.js';
 
 interface EmitEventBody {
   topic: string;
@@ -20,17 +20,9 @@ export async function registerEventsRoutes(fastify: FastifyInstance): Promise<vo
   // POST /events - Emitování eventu
   fastify.post<{ Body: EmitEventBody }>(
     '/events',
+    { schema: eventsSchemas.emit },
     async (request, reply): Promise<Event> => {
       const { topic, data } = request.body;
-
-      if (!topic || typeof topic !== 'string') {
-        throw new ValidationError('Missing or invalid required field: topic');
-      }
-
-      if (data !== undefined && (typeof data !== 'object' || data === null || Array.isArray(data))) {
-        throw new ValidationError('Field data must be an object');
-      }
-
       const event = await engine.emit(topic, data ?? {});
 
       reply.status(201);
@@ -41,24 +33,9 @@ export async function registerEventsRoutes(fastify: FastifyInstance): Promise<vo
   // POST /events/correlated - Event s korelací
   fastify.post<{ Body: EmitCorrelatedEventBody }>(
     '/events/correlated',
+    { schema: eventsSchemas.emitCorrelated },
     async (request, reply): Promise<Event> => {
       const { topic, data, correlationId, causationId } = request.body;
-
-      if (!topic || typeof topic !== 'string') {
-        throw new ValidationError('Missing or invalid required field: topic');
-      }
-
-      if (!correlationId || typeof correlationId !== 'string') {
-        throw new ValidationError('Missing or invalid required field: correlationId');
-      }
-
-      if (data !== undefined && (typeof data !== 'object' || data === null || Array.isArray(data))) {
-        throw new ValidationError('Field data must be an object');
-      }
-
-      if (causationId !== undefined && typeof causationId !== 'string') {
-        throw new ValidationError('Field causationId must be a string');
-      }
 
       const event = await engine.emitCorrelated(
         topic,

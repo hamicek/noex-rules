@@ -18,7 +18,15 @@ export async function createTestServer(): Promise<TestContext> {
   const webhookManager = new WebhookManager();
 
   const fastify = Fastify({
-    logger: false
+    logger: false,
+    ajv: {
+      customOptions: {
+        coerceTypes: false,
+        removeAdditional: false,
+        useDefaults: true,
+        allErrors: true
+      }
+    }
   });
 
   fastify.setErrorHandler(errorHandler);

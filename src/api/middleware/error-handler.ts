@@ -97,9 +97,49 @@ function extractValidationDetails(error: FastifyError): unknown {
   return undefined;
 }
 
+function formatValidationMessage(error: FastifyError): string {
+  if (!error.validation || !Array.isArray(error.validation)) {
+    return 'Request validation failed';
+  }
+
+  const messages = error.validation.map((v) => {
+    // Convert /path/to/field to path.to.field
+    const field = v.instancePath?.replace(/^\//, '').replace(/\//g, '.') || v.params?.['missingProperty'];
+    const parentPath = v.instancePath?.replace(/^\//, '').replace(/\//g, '.') || '';
+
+    if (v.keyword === 'required' && v.params?.['missingProperty']) {
+      const missingField = v.params['missingProperty'];
+      const fullPath = parentPath ? `${parentPath}.${missingField}` : missingField;
+      return `Missing required field: ${fullPath}`;
+    }
+    if (v.keyword === 'type') {
+      return `Field ${field} ${v.message}`;
+    }
+    if (v.keyword === 'additionalProperties') {
+      return `Unknown field: ${v.params?.['additionalProperty']}`;
+    }
+    if (v.keyword === 'minimum' || v.keyword === 'maximum') {
+      return `Field ${field} ${v.message}`;
+    }
+    if (v.keyword === 'minLength') {
+      return `Field ${field} must not be empty`;
+    }
+    if (v.keyword === 'format') {
+      if (v.params?.['format'] === 'uri') {
+        return 'Invalid URL format';
+      }
+      return `Field ${field} has invalid format`;
+    }
+
+    return v.message || 'Validation error';
+  });
+
+  return messages.join('; ');
+}
+
 function sanitizeErrorMessage(error: FastifyError | SyntaxError): string {
   if ('validation' in error || (error as FastifyError).code === FASTIFY_VALIDATION_CODE) {
-    return 'Request validation failed';
+    return formatValidationMessage(error as FastifyError);
   }
 
   if (error instanceof SyntaxError || isJsonParseError(error as FastifyError)) {
