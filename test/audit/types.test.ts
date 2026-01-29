@@ -20,6 +20,13 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.rule_disabled).toBe('rule_management');
     });
 
+    it('maps all group management events to rule_management', () => {
+      expect(AUDIT_EVENT_CATEGORIES.group_created).toBe('rule_management');
+      expect(AUDIT_EVENT_CATEGORIES.group_deleted).toBe('rule_management');
+      expect(AUDIT_EVENT_CATEGORIES.group_enabled).toBe('rule_management');
+      expect(AUDIT_EVENT_CATEGORIES.group_disabled).toBe('rule_management');
+    });
+
     it('maps all rule execution events to rule_execution', () => {
       expect(AUDIT_EVENT_CATEGORIES.rule_executed).toBe('rule_execution');
       expect(AUDIT_EVENT_CATEGORIES.rule_skipped).toBe('rule_execution');
@@ -41,8 +48,8 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.engine_stopped).toBe('system');
     });
 
-    it('covers exactly 13 event types', () => {
-      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(13);
+    it('covers exactly 17 event types', () => {
+      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(17);
     });
 
     it('maps to exactly 5 categories', () => {

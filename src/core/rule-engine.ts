@@ -2,6 +2,7 @@ import type { Fact } from '../types/fact.js';
 import type { Event } from '../types/event.js';
 import type { Timer } from '../types/timer.js';
 import type { Rule, RuleInput } from '../types/rule.js';
+import type { RuleGroup, RuleGroupInput } from '../types/group.js';
 import type { RuleEngineConfig, EngineStats } from '../types/index.js';
 import { RuleInputValidator, RuleValidationError } from '../validation/index.js';
 import type { ValidationResult } from '../validation/index.js';
@@ -200,6 +201,16 @@ export class RuleEngine {
       }
     }
 
+    if (input.group) {
+      const group = this.ruleManager.getGroup(input.group);
+      if (!group) {
+        throw new RuleValidationError(
+          `Rule references non-existent group: "${input.group}"`,
+          [{ path: 'group', message: `Group "${input.group}" does not exist`, severity: 'error' }]
+        );
+      }
+    }
+
     const rule = this.ruleManager.register(input);
 
     this.auditLog?.record('rule_registered', {
@@ -280,6 +291,125 @@ export class RuleEngine {
    */
   getRules(): Rule[] {
     return this.ruleManager.getAll();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                          SPRÁVA SKUPIN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Vytvoří novou skupinu pravidel.
+   *
+   * @throws {RuleValidationError} Pokud skupina s daným ID již existuje.
+   */
+  createGroup(input: RuleGroupInput): RuleGroup {
+    this.ensureRunning();
+
+    if (this.ruleManager.getGroup(input.id)) {
+      throw new RuleValidationError(
+        `Group "${input.id}" already exists`,
+        [{ path: 'id', message: `Group "${input.id}" already exists`, severity: 'error' }]
+      );
+    }
+
+    const group = this.ruleManager.registerGroup(input);
+
+    this.auditLog?.record('group_created', {
+      name: group.name,
+      ...(group.description !== undefined && { description: group.description }),
+      enabled: group.enabled,
+    }, {
+      ruleId: group.id,
+    });
+
+    return group;
+  }
+
+  /**
+   * Smaže skupinu pravidel. Pravidla ve skupině se stanou neseskupenými.
+   */
+  deleteGroup(groupId: string): boolean {
+    this.ensureRunning();
+
+    const group = this.ruleManager.getGroup(groupId);
+    const affectedRules = this.ruleManager.getGroupRules(groupId);
+    const deleted = this.ruleManager.unregisterGroup(groupId);
+
+    if (deleted) {
+      this.auditLog?.record('group_deleted', {
+        name: group!.name,
+        affectedRulesCount: affectedRules.length,
+      }, {
+        ruleId: groupId,
+      });
+    }
+
+    return deleted;
+  }
+
+  /**
+   * Povolí skupinu pravidel.
+   */
+  enableGroup(groupId: string): boolean {
+    this.ensureRunning();
+
+    const enabled = this.ruleManager.enableGroup(groupId);
+
+    if (enabled) {
+      const group = this.ruleManager.getGroup(groupId)!;
+      const rulesCount = this.ruleManager.getGroupRules(groupId).length;
+      this.auditLog?.record('group_enabled', {
+        name: group.name,
+        affectedRulesCount: rulesCount,
+      }, {
+        ruleId: groupId,
+      });
+    }
+
+    return enabled;
+  }
+
+  /**
+   * Zakáže skupinu pravidel.
+   */
+  disableGroup(groupId: string): boolean {
+    this.ensureRunning();
+
+    const disabled = this.ruleManager.disableGroup(groupId);
+
+    if (disabled) {
+      const group = this.ruleManager.getGroup(groupId)!;
+      const rulesCount = this.ruleManager.getGroupRules(groupId).length;
+      this.auditLog?.record('group_disabled', {
+        name: group.name,
+        affectedRulesCount: rulesCount,
+      }, {
+        ruleId: groupId,
+      });
+    }
+
+    return disabled;
+  }
+
+  /**
+   * Získá skupinu podle ID.
+   */
+  getGroup(groupId: string): RuleGroup | undefined {
+    return this.ruleManager.getGroup(groupId);
+  }
+
+  /**
+   * Vrátí všechny skupiny.
+   */
+  getGroups(): RuleGroup[] {
+    return this.ruleManager.getAllGroups();
+  }
+
+  /**
+   * Vrátí pravidla ve skupině.
+   */
+  getGroupRules(groupId: string): Rule[] {
+    return this.ruleManager.getGroupRules(groupId);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
