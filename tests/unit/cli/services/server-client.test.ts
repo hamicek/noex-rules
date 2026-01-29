@@ -70,7 +70,6 @@ describe('ServerClient', () => {
           expect.objectContaining({
             method: 'GET',
             headers: {
-              'Content-Type': 'application/json',
               Accept: 'application/json'
             }
           })

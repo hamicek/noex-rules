@@ -128,13 +128,18 @@ export class ServerClient {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+      };
+
+      if (body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const requestInit: RequestInit = {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        signal: controller.signal
+        headers,
+        signal: controller.signal,
       };
 
       if (body !== undefined) {
