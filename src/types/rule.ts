@@ -18,6 +18,7 @@ export interface Rule {
   enabled: boolean;
   version: number;
   tags: string[];
+  group?: string;
 
   // Typ triggeru
   trigger: RuleTrigger;
