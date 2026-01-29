@@ -7,6 +7,7 @@
 import { ACTION_TYPES, LOG_LEVELS, isValidDuration } from '../constants.js';
 import type { IssueCollector } from '../types.js';
 import { isObject, hasProperty } from '../types.js';
+import { validateConditions } from './condition.js';
 
 export function validateActions(
   actions: unknown,
@@ -77,6 +78,9 @@ export function validateAction(
       break;
     case 'log':
       validateLogAction(action, path, collector);
+      break;
+    case 'conditional':
+      validateConditionalAction(action, path, collector);
       break;
   }
 }
@@ -240,6 +244,46 @@ function validateLogAction(
     collector.addError(`${path}.message`, 'log action must have a "message" field');
   } else if (typeof action['message'] !== 'string') {
     collector.addError(`${path}.message`, 'log action message must be a string');
+  }
+}
+
+function validateConditionalAction(
+  action: Record<string, unknown>,
+  path: string,
+  collector: IssueCollector,
+): void {
+  if (!hasProperty(action, 'conditions')) {
+    collector.addError(`${path}.conditions`, 'conditional action must have a "conditions" field');
+  } else if (!Array.isArray(action['conditions'])) {
+    collector.addError(`${path}.conditions`, 'conditional action conditions must be an array');
+  } else if (action['conditions'].length === 0) {
+    collector.addError(`${path}.conditions`, 'conditional action conditions must not be empty');
+  } else {
+    validateConditions(action['conditions'], `${path}.conditions`, collector);
+  }
+
+  if (!hasProperty(action, 'then')) {
+    collector.addError(`${path}.then`, 'conditional action must have a "then" field');
+  } else if (!Array.isArray(action['then'])) {
+    collector.addError(`${path}.then`, 'conditional action then must be an array');
+  } else if (action['then'].length === 0) {
+    collector.addError(`${path}.then`, 'conditional action then must not be empty');
+  } else {
+    for (let i = 0; i < action['then'].length; i++) {
+      validateAction(action['then'][i], `${path}.then[${i}]`, collector);
+    }
+  }
+
+  if (hasProperty(action, 'else')) {
+    if (!Array.isArray(action['else'])) {
+      collector.addError(`${path}.else`, 'conditional action else must be an array');
+    } else if (action['else'].length === 0) {
+      collector.addWarning(`${path}.else`, 'conditional action else is empty');
+    } else {
+      for (let i = 0; i < action['else'].length; i++) {
+        validateAction(action['else'][i], `${path}.else[${i}]`, collector);
+      }
+    }
   }
 }
 

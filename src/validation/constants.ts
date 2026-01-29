@@ -26,6 +26,7 @@ export type ConditionSourceType = (typeof CONDITION_SOURCE_TYPES)[number];
 export const ACTION_TYPES = [
   'set_fact', 'delete_fact', 'emit_event',
   'set_timer', 'cancel_timer', 'call_service', 'log',
+  'conditional',
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
