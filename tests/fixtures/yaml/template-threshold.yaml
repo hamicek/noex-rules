@@ -1,0 +1,37 @@
+template:
+  templateId: threshold-alert
+  name: Threshold Alert
+  description: Monitors a metric and triggers an alert
+  version: "1.0.0"
+  tags:
+    - monitoring
+    - alerts
+  parameters:
+    - name: topic
+      type: string
+      description: Event topic to monitor
+    - name: threshold
+      type: number
+      default: 100
+  blueprint:
+    id: "alert-{{topic}}"
+    name: "Alert on {{topic}}"
+    priority: 50
+    tags:
+      - alerts
+    trigger:
+      type: event
+      topic: "{{topic}}"
+    conditions:
+      - source:
+          type: event
+          field: value
+        operator: gte
+        value: "{{threshold}}"
+    actions:
+      - type: emit_event
+        topic: alert.triggered
+        data:
+          source: "{{topic}}"
+          currentValue:
+            ref: event.value
