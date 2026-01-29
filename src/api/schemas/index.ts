@@ -10,3 +10,4 @@ export * from './health.js';
 export * from './webhook.js';
 export * from './stream.js';
 export * from './debug.js';
+export * from './audit.js';
