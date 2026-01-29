@@ -123,19 +123,20 @@ describe('Audit API schemas', () => {
     });
 
     it('supports time range filters (from, to)', () => {
-      expect(auditQuerySchema.properties.from.type).toBe('number');
-      expect(auditQuerySchema.properties.to.type).toBe('number');
+      expect(auditQuerySchema.properties.from.type).toBe('string');
+      expect(auditQuerySchema.properties.from.pattern).toBeDefined();
+      expect(auditQuerySchema.properties.to.type).toBe('string');
+      expect(auditQuerySchema.properties.to.pattern).toBeDefined();
     });
 
     it('supports pagination with limit and offset', () => {
       const limit = auditQuerySchema.properties.limit;
-      expect(limit.type).toBe('number');
-      expect(limit.minimum).toBe(1);
-      expect(limit.maximum).toBe(1000);
+      expect(limit.type).toBe('string');
+      expect(limit.pattern).toBeDefined();
 
       const offset = auditQuerySchema.properties.offset;
-      expect(offset.type).toBe('number');
-      expect(offset.minimum).toBe(0);
+      expect(offset.type).toBe('string');
+      expect(offset.pattern).toBeDefined();
     });
 
     it('all fields have descriptions', () => {
@@ -246,8 +247,8 @@ describe('Audit API schemas', () => {
       expect(auditExportQuerySchema.properties.types.type).toBe('string');
       expect(auditExportQuerySchema.properties.ruleId.type).toBe('string');
       expect(auditExportQuerySchema.properties.source.type).toBe('string');
-      expect(auditExportQuerySchema.properties.from.type).toBe('number');
-      expect(auditExportQuerySchema.properties.to.type).toBe('number');
+      expect(auditExportQuerySchema.properties.from.type).toBe('string');
+      expect(auditExportQuerySchema.properties.to.type).toBe('string');
     });
   });
 

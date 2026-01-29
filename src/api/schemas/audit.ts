@@ -55,10 +55,10 @@ export const auditQuerySchema = {
     ruleId: { type: 'string', description: 'Filter by rule ID' },
     source: { type: 'string', description: 'Filter by source component' },
     correlationId: { type: 'string', description: 'Filter by correlation ID' },
-    from: { type: 'number', description: 'Filter entries after this timestamp (inclusive)' },
-    to: { type: 'number', description: 'Filter entries before this timestamp (inclusive)' },
-    limit: { type: 'number', minimum: 1, maximum: 1000, description: 'Maximum number of entries to return' },
-    offset: { type: 'number', minimum: 0, description: 'Number of entries to skip for pagination' }
+    from: { type: 'string', pattern: '^\\d+$', description: 'Filter entries after this timestamp (inclusive)' },
+    to: { type: 'string', pattern: '^\\d+$', description: 'Filter entries before this timestamp (inclusive)' },
+    limit: { type: 'string', pattern: '^\\d+$', description: 'Maximum number of entries to return (1-1000)' },
+    offset: { type: 'string', pattern: '^\\d+$', description: 'Number of entries to skip for pagination' }
   }
 } as const;
 
@@ -114,8 +114,8 @@ export const auditExportQuerySchema = {
     types: { type: 'string', description: 'Comma-separated list of event types to filter' },
     ruleId: { type: 'string', description: 'Filter by rule ID' },
     source: { type: 'string', description: 'Filter by source component' },
-    from: { type: 'number', description: 'Filter entries after this timestamp (inclusive)' },
-    to: { type: 'number', description: 'Filter entries before this timestamp (inclusive)' }
+    from: { type: 'string', pattern: '^\\d+$', description: 'Filter entries after this timestamp (inclusive)' },
+    to: { type: 'string', pattern: '^\\d+$', description: 'Filter entries before this timestamp (inclusive)' }
   }
 } as const;
 
