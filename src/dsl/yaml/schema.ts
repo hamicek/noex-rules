@@ -583,5 +583,10 @@ export function validateRule(obj: unknown, path: string = 'rule'): RuleInput {
     rule.description = requireString(descriptionVal, `${path}.description`);
   }
 
+  const groupVal = get(o, 'group');
+  if (groupVal !== undefined) {
+    rule.group = requireString(groupVal, `${path}.group`);
+  }
+
   return rule;
 }
