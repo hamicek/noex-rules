@@ -48,8 +48,14 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.engine_stopped).toBe('system');
     });
 
-    it('covers exactly 18 event types', () => {
-      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(18);
+    it('maps hot reload events to system', () => {
+      expect(AUDIT_EVENT_CATEGORIES.hot_reload_started).toBe('system');
+      expect(AUDIT_EVENT_CATEGORIES.hot_reload_completed).toBe('system');
+      expect(AUDIT_EVENT_CATEGORIES.hot_reload_failed).toBe('system');
+    });
+
+    it('covers exactly 21 event types', () => {
+      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(21);
     });
 
     it('maps to exactly 5 categories', () => {

@@ -30,7 +30,10 @@ const auditEventTypeEnum = [
   'fact_deleted',
   'event_emitted',
   'engine_started',
-  'engine_stopped'
+  'engine_stopped',
+  'hot_reload_started',
+  'hot_reload_completed',
+  'hot_reload_failed'
 ] as const;
 
 export const auditEntrySchema = {

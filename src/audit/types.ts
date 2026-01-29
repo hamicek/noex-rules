@@ -32,7 +32,10 @@ export type AuditEventType =
   | 'fact_deleted'
   | 'event_emitted'
   | 'engine_started'
-  | 'engine_stopped';
+  | 'engine_stopped'
+  | 'hot_reload_started'
+  | 'hot_reload_completed'
+  | 'hot_reload_failed';
 
 /** Mapping from event type to its category */
 export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
@@ -54,6 +57,9 @@ export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
   event_emitted: 'event_emitted',
   engine_started: 'system',
   engine_stopped: 'system',
+  hot_reload_started: 'system',
+  hot_reload_completed: 'system',
+  hot_reload_failed: 'system',
 };
 
 /** A single audit log entry */
