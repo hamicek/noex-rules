@@ -49,7 +49,7 @@ export class RuleEngine {
   private readonly actionExecutor: ActionExecutor;
   private readonly traceCollector: TraceCollector;
   private readonly auditLog: AuditLogService | null;
-  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry'>>;
+  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry' | 'hotReload'>>;
   private readonly services: Map<string, unknown>;
   private readonly validator: RuleInputValidator;
 
