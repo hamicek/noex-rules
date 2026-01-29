@@ -74,6 +74,7 @@ export interface RuleBuildContext {
   priority?: number;
   enabled?: boolean;
   tags: string[];
+  group?: string;
   trigger?: RuleTrigger;
   conditions: RuleCondition[];
   actions: RuleAction[];

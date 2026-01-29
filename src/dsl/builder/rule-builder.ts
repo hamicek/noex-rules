@@ -116,6 +116,24 @@ export class RuleBuilder {
   }
 
   /**
+   * Assigns the rule to a logical group.
+   *
+   * A rule is active only when both its own `enabled` flag and its group's
+   * `enabled` flag are `true`. Omitting this call leaves the rule ungrouped.
+   *
+   * @param groupId - The ID of the group this rule belongs to.
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `groupId` is not a non-empty string.
+   */
+  group(groupId: string): this {
+    if (!groupId || typeof groupId !== 'string') {
+      throw new DslValidationError('Group ID must be a non-empty string');
+    }
+    this.ctx.group = groupId;
+    return this;
+  }
+
+  /**
    * Sets the trigger that determines when the rule fires.
    *
    * @param trigger - A {@link TriggerBuilder} (e.g. `onEvent`, `sequence`) or
@@ -205,6 +223,10 @@ export class RuleBuilder {
 
     if (this.ctx.description) {
       rule.description = this.ctx.description;
+    }
+
+    if (this.ctx.group) {
+      rule.group = this.ctx.group;
     }
 
     return rule;
