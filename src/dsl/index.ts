@@ -49,6 +49,22 @@ export { rule, parseRuleTemplate, ParseError } from './tagged/index.js';
 
 // YAML loader
 export { loadRulesFromYAML, loadRulesFromFile, YamlLoadError, validateRule, YamlValidationError } from './yaml/index.js';
+export { loadTemplateFromYAML, loadTemplateFromFile, isTemplateYAML } from './yaml/index.js';
+
+// Template
+export { RuleTemplate, TemplateBuilder } from './template/index.js';
+export { param, isTemplateParam } from './template/index.js';
+export { TemplateValidationError, TemplateInstantiationError } from './template/index.js';
+export type {
+  TemplateParamOptions,
+  TemplateParamType,
+  TemplateParameterDef,
+  TemplateParamMarker,
+  TemplateParams,
+  TemplateInstantiateOptions,
+  TemplateBlueprintData,
+  RuleTemplateDefinition,
+} from './template/index.js';
 
 // Helpers
 export { ref, isRef } from './helpers/index.js';
