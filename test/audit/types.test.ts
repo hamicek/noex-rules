@@ -48,8 +48,8 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.engine_stopped).toBe('system');
     });
 
-    it('covers exactly 17 event types', () => {
-      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(17);
+    it('covers exactly 18 event types', () => {
+      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(18);
     });
 
     it('maps to exactly 5 categories', () => {

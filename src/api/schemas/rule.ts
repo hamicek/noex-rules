@@ -51,6 +51,7 @@ export const ruleSchema = {
     priority: { type: 'number' },
     enabled: { type: 'boolean' },
     tags: { type: 'array', items: { type: 'string' } },
+    group: { type: 'string' },
     trigger: triggerSchema,
     conditions: { type: 'array', items: conditionSchema },
     actions: { type: 'array', items: actionSchema },
@@ -78,6 +79,7 @@ export const createRuleBodySchema = {
     priority: { type: 'number', description: 'Rule priority (higher = more important)' },
     enabled: { type: 'boolean', description: 'Whether rule is active' },
     tags: { type: 'array', items: { type: 'string' }, description: 'Tags for categorization' },
+    group: { type: 'string', description: 'Group ID this rule belongs to' },
     trigger: { ...triggerSchema, description: 'Event/fact/timer that activates this rule' },
     conditions: { type: 'array', items: conditionSchema, description: 'Conditions that must be met' },
     actions: { type: 'array', items: actionSchema, description: 'Actions to execute' }
@@ -94,6 +96,7 @@ export const updateRuleBodySchema = {
     priority: { type: 'number' },
     enabled: { type: 'boolean' },
     tags: { type: 'array', items: { type: 'string' } },
+    group: { type: 'string' },
     trigger: triggerSchema,
     conditions: { type: 'array', items: conditionSchema },
     actions: { type: 'array', items: actionSchema }

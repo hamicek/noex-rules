@@ -379,6 +379,22 @@ export class RuleManager {
   }
 
   /**
+   * Aktualizuje skupinu pravidel (name, description, enabled).
+   */
+  updateGroup(groupId: string, updates: { name?: string; description?: string; enabled?: boolean }): RuleGroup | undefined {
+    const group = this.groups.get(groupId);
+    if (!group) return undefined;
+
+    if (updates.name !== undefined) group.name = updates.name;
+    if (updates.description !== undefined) group.description = updates.description;
+    if (updates.enabled !== undefined) group.enabled = updates.enabled;
+    group.updatedAt = Date.now();
+
+    this.schedulePersist();
+    return group;
+  }
+
+  /**
    * Získá skupinu podle ID.
    */
   getGroup(groupId: string): RuleGroup | undefined {

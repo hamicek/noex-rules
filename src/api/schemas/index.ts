@@ -3,6 +3,7 @@
  */
 export * from './common.js';
 export * from './rule.js';
+export * from './group.js';
 export * from './fact.js';
 export * from './event.js';
 export * from './timer.js';

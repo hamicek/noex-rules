@@ -4,6 +4,7 @@ import type { WebhookManager } from '../notifications/webhook-manager.js';
 import type { SSEManager } from '../notifications/sse-manager.js';
 import type { MetricsCollector } from '../../observability/metrics-collector.js';
 import { registerRulesRoutes } from './rules.js';
+import { registerGroupsRoutes } from './groups.js';
 import { registerFactsRoutes } from './facts.js';
 import { registerEventsRoutes } from './events.js';
 import { registerTimersRoutes } from './timers.js';
@@ -29,6 +30,7 @@ export async function registerRoutes(
 
   await registerHealthRoutes(fastify);
   await registerRulesRoutes(fastify);
+  await registerGroupsRoutes(fastify);
   await registerFactsRoutes(fastify);
   await registerEventsRoutes(fastify);
   await registerTimersRoutes(fastify);

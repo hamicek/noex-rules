@@ -10,6 +10,7 @@ interface RuleParams {
 
 interface CreateRuleBody extends Omit<RuleInput, 'enabled'> {
   enabled?: boolean;
+  group?: string;
 }
 
 interface UpdateRuleBody {
@@ -18,6 +19,7 @@ interface UpdateRuleBody {
   priority?: number;
   enabled?: boolean;
   tags?: string[];
+  group?: string;
   trigger?: Rule['trigger'];
   conditions?: Rule['conditions'];
   actions?: Rule['actions'];
@@ -65,7 +67,8 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
         trigger: body.trigger,
         conditions: body.conditions ?? [],
         actions: body.actions ?? [],
-        ...(body.description !== undefined && { description: body.description })
+        ...(body.description !== undefined && { description: body.description }),
+        ...(body.group !== undefined && { group: body.group })
       };
 
       const rule = engine.registerRule(input);
@@ -103,6 +106,7 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
 
       // Register updated rule
       const description = body.description ?? existingRule.description;
+      const group = body.group ?? existingRule.group;
       const input: RuleInput = {
         id,
         name: body.name ?? existingRule.name,
@@ -112,7 +116,8 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
         trigger: body.trigger ?? existingRule.trigger,
         conditions: body.conditions ?? existingRule.conditions,
         actions: body.actions ?? existingRule.actions,
-        ...(description !== undefined && { description })
+        ...(description !== undefined && { description }),
+        ...(group !== undefined && { group })
       };
 
       return engine.registerRule(input);

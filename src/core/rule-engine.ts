@@ -392,6 +392,27 @@ export class RuleEngine {
   }
 
   /**
+   * Aktualizuje skupinu pravidel.
+   */
+  updateGroup(groupId: string, updates: { name?: string; description?: string; enabled?: boolean }): RuleGroup | undefined {
+    this.ensureRunning();
+
+    const group = this.ruleManager.updateGroup(groupId, updates);
+
+    if (group) {
+      this.auditLog?.record('group_updated', {
+        name: group.name,
+        ...(group.description !== undefined && { description: group.description }),
+        enabled: group.enabled,
+      }, {
+        ruleId: groupId,
+      });
+    }
+
+    return group;
+  }
+
+  /**
    * Získá skupinu podle ID.
    */
   getGroup(groupId: string): RuleGroup | undefined {

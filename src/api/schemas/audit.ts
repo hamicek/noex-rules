@@ -21,6 +21,7 @@ const auditEventTypeEnum = [
   'rule_skipped',
   'rule_failed',
   'group_created',
+  'group_updated',
   'group_deleted',
   'group_enabled',
   'group_disabled',
