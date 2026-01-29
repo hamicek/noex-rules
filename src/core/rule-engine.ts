@@ -99,7 +99,8 @@ export class RuleEngine {
       this.factStore,
       this.timerManager,
       (topic, event) => this.handleInternalEvent(topic, event),
-      this.services
+      this.services,
+      this.conditionEvaluator
     );
 
     this.setupTimerHandler();
