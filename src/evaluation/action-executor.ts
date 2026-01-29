@@ -122,6 +122,12 @@ export class ActionExecutor {
         };
       case 'log':
         return { level: action.level, message: interpolate(action.message, ctx) };
+      case 'conditional':
+        return {
+          conditionsCount: action.conditions.length,
+          thenActionsCount: action.then.length,
+          elseActionsCount: action.else?.length ?? 0
+        };
     }
   }
 
@@ -189,6 +195,10 @@ export class ActionExecutor {
         const message = interpolate(action.message, ctx);
         console[action.level](message);
         return message;
+      }
+
+      case 'conditional': {
+        throw new Error('Conditional action execution not yet implemented');
       }
     }
   }

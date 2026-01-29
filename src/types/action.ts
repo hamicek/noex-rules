@@ -1,3 +1,4 @@
+import type { RuleCondition } from './condition.js';
 import type { TimerConfig } from './timer.js';
 
 /** Akce pravidla */
@@ -8,7 +9,8 @@ export type RuleAction =
   | { type: 'set_timer'; timer: TimerConfig }
   | { type: 'cancel_timer'; name: string }
   | { type: 'call_service'; service: string; method: string; args: unknown[] }
-  | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string };
+  | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string }
+  | { type: 'conditional'; conditions: RuleCondition[]; then: RuleAction[]; else?: RuleAction[] };
 
 /** Výsledek akce */
 export interface ActionResult {
@@ -16,4 +18,11 @@ export interface ActionResult {
   success: boolean;
   result?: unknown;
   error?: string;
+}
+
+/** Výsledek podmíněné akce */
+export interface ConditionalActionResult {
+  conditionMet: boolean;
+  branchExecuted: 'then' | 'else' | 'none';
+  results: ActionResult[];
 }
