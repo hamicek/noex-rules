@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { RuleInput, Rule } from '../../types/rule.js';
+import type { ValidationResult } from '../../validation/index.js';
 import { NotFoundError, ConflictError } from '../middleware/error-handler.js';
 import { rulesSchemas } from '../schemas/rule.js';
 
@@ -71,6 +72,15 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
 
       reply.status(201);
       return rule;
+    }
+  );
+
+  // POST /rules/validate - Dry-run validace pravidla
+  fastify.post(
+    '/rules/validate',
+    { schema: rulesSchemas.validate },
+    async (request): Promise<ValidationResult> => {
+      return engine.validateRule(request.body);
     }
   );
 

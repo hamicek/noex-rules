@@ -100,6 +100,32 @@ export const updateRuleBodySchema = {
   }
 } as const;
 
+const validationIssueSchema = {
+  type: 'object',
+  properties: {
+    path: { type: 'string' },
+    message: { type: 'string' },
+    severity: { type: 'string', enum: ['error', 'warning'] }
+  },
+  required: ['path', 'message', 'severity']
+} as const;
+
+export const validationResultSchema = {
+  type: 'object',
+  properties: {
+    valid: { type: 'boolean' },
+    errors: { type: 'array', items: validationIssueSchema },
+    warnings: { type: 'array', items: validationIssueSchema }
+  },
+  required: ['valid', 'errors', 'warnings']
+} as const;
+
+export const validateRuleBodySchema = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'Rule input to validate (any shape accepted for validation)'
+} as const;
+
 export const rulesSchemas = {
   list: {
     tags: ['Rules'],
@@ -162,6 +188,15 @@ export const rulesSchemas = {
     params: idParamSchema,
     response: {
       200: ruleSchema
+    }
+  },
+  validate: {
+    tags: ['Rules'],
+    summary: 'Validate a rule (dry-run)',
+    description: 'Validates rule input without registering it. Returns validation result with errors and warnings.',
+    body: validateRuleBodySchema,
+    response: {
+      200: validationResultSchema
     }
   }
 };

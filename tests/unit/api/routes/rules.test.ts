@@ -291,6 +291,129 @@ describe('Rules API', () => {
     });
   });
 
+  describe('POST /rules/validate', () => {
+    it('returns valid result for a correct rule', async () => {
+      const ruleInput = createTestRule();
+
+      const response = await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ruleInput)
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('returns invalid result for missing required fields', async () => {
+      const response = await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.some((e: { message: string }) => e.message.toLowerCase().includes('id'))).toBe(true);
+    });
+
+    it('returns invalid result for unknown trigger type', async () => {
+      const response = await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'bad-trigger',
+          name: 'Bad Trigger Rule',
+          trigger: { type: 'unknown_type' }
+        })
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e: { message: string }) => e.message.toLowerCase().includes('trigger'))).toBe(true);
+    });
+
+    it('returns invalid result for malformed actions', async () => {
+      const response = await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'bad-actions',
+          name: 'Bad Actions Rule',
+          trigger: { type: 'event', topic: 'test' },
+          actions: [{ type: 'set_fact' }] // missing key and value
+        })
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('does not register the rule', async () => {
+      const ruleInput = createTestRule({ id: 'validate-only' });
+
+      await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ruleInput)
+      });
+
+      // Rule should NOT be registered
+      const getResponse = await fetch(`${baseUrl}/rules/validate-only`);
+      expect(getResponse.status).toBe(404);
+    });
+
+    it('returns errors and warnings with proper structure', async () => {
+      const response = await fetch(`${baseUrl}/rules/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 123, name: 'Test', trigger: { type: 'event', topic: 'x' } })
+      });
+      const result = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(result.valid).toBe(false);
+      // Each error has the correct structure
+      for (const issue of result.errors) {
+        expect(issue).toHaveProperty('path');
+        expect(issue).toHaveProperty('message');
+        expect(issue).toHaveProperty('severity');
+        expect(issue.severity).toBe('error');
+      }
+    });
+  });
+
+  describe('POST /rules validation errors', () => {
+    it('returns 400 with validation details when engine rejects invalid rule', async () => {
+      // Fastify schema validation catches missing required fields first,
+      // but engine validation catches semantic issues like invalid trigger types
+      const response = await fetch(`${baseUrl}/rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'invalid-trigger',
+          name: 'Invalid Trigger Rule',
+          trigger: { type: 'nonexistent' }
+        })
+      });
+      const error = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(error.code).toBe('RULE_VALIDATION_ERROR');
+      expect(error.details).toBeDefined();
+      expect(Array.isArray(error.details)).toBe(true);
+      expect(error.details.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('rule with complex trigger types', () => {
     it('creates rule with fact trigger', async () => {
       const ruleInput = createTestRule({
