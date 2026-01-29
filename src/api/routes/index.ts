@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { RuleEngine } from '../../core/rule-engine.js';
 import type { WebhookManager } from '../notifications/webhook-manager.js';
 import type { SSEManager } from '../notifications/sse-manager.js';
+import type { MetricsCollector } from '../../observability/metrics-collector.js';
 import { registerRulesRoutes } from './rules.js';
 import { registerFactsRoutes } from './facts.js';
 import { registerEventsRoutes } from './events.js';
@@ -11,11 +12,13 @@ import { registerWebhooksRoutes } from './webhooks.js';
 import { registerStreamRoutes } from './stream.js';
 import { registerDebugRoutes } from './debug.js';
 import { registerAuditRoutes } from './audit.js';
+import { registerMetricsRoutes } from './metrics.js';
 
 export interface RouteContext {
   engine: RuleEngine;
   webhookManager: WebhookManager;
   sseManager: SSEManager;
+  metricsCollector?: MetricsCollector;
 }
 
 export async function registerRoutes(
@@ -33,6 +36,10 @@ export async function registerRoutes(
   await registerStreamRoutes(fastify, context.sseManager);
   await registerDebugRoutes(fastify);
   await registerAuditRoutes(fastify);
+
+  if (context.metricsCollector) {
+    await registerMetricsRoutes(fastify, context.metricsCollector);
+  }
 }
 
 declare module 'fastify' {
