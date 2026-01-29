@@ -1,4 +1,5 @@
 import type { Rule, RuleInput } from '../types/rule.js';
+import type { RuleGroup, RuleGroupInput } from '../types/group.js';
 import type { RulePersistence } from '../persistence/rule-persistence.js';
 import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/pattern-matcher.js';
 
@@ -25,6 +26,8 @@ export class RuleManager {
   private wildcardTimerNames: Map<string, Set<string>> = new Map();
 
   private byTags: Map<string, Set<string>> = new Map();
+  private groups: Map<string, RuleGroup> = new Map();
+  private byGroup: Map<string, Set<string>> = new Map();
   private temporalRules: Set<string> = new Set();
   private nextVersion = 1;
 
@@ -92,6 +95,18 @@ export class RuleManager {
   }
 
   /**
+   * Zjistí, zda je pravidlo aktivní (enabled + skupina enabled).
+   */
+  isRuleActive(rule: Rule): boolean {
+    if (!rule.enabled) return false;
+    if (rule.group) {
+      const group = this.groups.get(rule.group);
+      if (group && !group.enabled) return false;
+    }
+    return true;
+  }
+
+  /**
    * Získá pravidlo podle ID.
    */
   get(ruleId: string): Rule | undefined {
@@ -110,7 +125,7 @@ export class RuleManager {
     if (exactRuleIds) {
       for (const id of exactRuleIds) {
         const rule = this.rules.get(id);
-        if (rule?.enabled) results.push(rule);
+        if (rule && this.isRuleActive(rule)) results.push(rule);
       }
     }
 
@@ -119,7 +134,7 @@ export class RuleManager {
       if (matchesFactPattern(key, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
-          if (rule?.enabled) results.push(rule);
+          if (rule && this.isRuleActive(rule)) results.push(rule);
         }
       }
     }
@@ -139,7 +154,7 @@ export class RuleManager {
     if (exactRuleIds) {
       for (const id of exactRuleIds) {
         const rule = this.rules.get(id);
-        if (rule?.enabled) results.push(rule);
+        if (rule && this.isRuleActive(rule)) results.push(rule);
       }
     }
 
@@ -148,7 +163,7 @@ export class RuleManager {
       if (matchesTopic(topic, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
-          if (rule?.enabled) results.push(rule);
+          if (rule && this.isRuleActive(rule)) results.push(rule);
         }
       }
     }
@@ -169,7 +184,7 @@ export class RuleManager {
     if (exactRuleIds) {
       for (const id of exactRuleIds) {
         const rule = this.rules.get(id);
-        if (rule?.enabled) results.push(rule);
+        if (rule && this.isRuleActive(rule)) results.push(rule);
       }
     }
 
@@ -178,7 +193,7 @@ export class RuleManager {
       if (matchesTimerPattern(name, pattern)) {
         for (const id of ruleIds) {
           const rule = this.rules.get(id);
-          if (rule?.enabled) results.push(rule);
+          if (rule && this.isRuleActive(rule)) results.push(rule);
         }
       }
     }
@@ -192,7 +207,7 @@ export class RuleManager {
   getTemporalRules(): Rule[] {
     return [...this.temporalRules]
       .map(id => this.rules.get(id))
-      .filter((r): r is Rule => r !== undefined && r.enabled);
+      .filter((r): r is Rule => r !== undefined && this.isRuleActive(r));
   }
 
   /**
@@ -237,6 +252,10 @@ export class RuleManager {
     for (const tag of rule.tags) {
       this.addToIndex(this.byTags, tag, rule.id);
     }
+
+    if (rule.group) {
+      this.addToIndex(this.byGroup, rule.group, rule.id);
+    }
   }
 
   private unindexRule(rule: Rule): void {
@@ -267,6 +286,10 @@ export class RuleManager {
     for (const tag of rule.tags) {
       this.removeFromIndex(this.byTags, tag, rule.id);
     }
+
+    if (rule.group) {
+      this.removeFromIndex(this.byGroup, rule.group, rule.id);
+    }
   }
 
   private addToIndex(index: Map<string, Set<string>>, key: string, ruleId: string): void {
@@ -283,6 +306,101 @@ export class RuleManager {
         index.delete(key);
       }
     }
+  }
+
+  // --- Group management ---
+
+  /**
+   * Registruje novou skupinu pravidel.
+   */
+  registerGroup(input: RuleGroupInput): RuleGroup {
+    const group: RuleGroup = {
+      id: input.id,
+      name: input.name,
+      ...(input.description !== undefined && { description: input.description }),
+      enabled: input.enabled ?? true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    this.groups.set(group.id, group);
+    this.schedulePersist();
+    return group;
+  }
+
+  /**
+   * Odregistruje skupinu. Odstraní group referenci z přiřazených pravidel.
+   */
+  unregisterGroup(groupId: string): boolean {
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+
+    const ruleIds = this.byGroup.get(groupId);
+    if (ruleIds) {
+      for (const ruleId of ruleIds) {
+        const rule = this.rules.get(ruleId);
+        if (rule) {
+          delete rule.group;
+          rule.updatedAt = Date.now();
+        }
+      }
+      this.byGroup.delete(groupId);
+    }
+
+    this.groups.delete(groupId);
+    this.schedulePersist();
+    return true;
+  }
+
+  /**
+   * Povolí skupinu pravidel.
+   */
+  enableGroup(groupId: string): boolean {
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+
+    group.enabled = true;
+    group.updatedAt = Date.now();
+    this.schedulePersist();
+    return true;
+  }
+
+  /**
+   * Zakáže skupinu pravidel.
+   */
+  disableGroup(groupId: string): boolean {
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+
+    group.enabled = false;
+    group.updatedAt = Date.now();
+    this.schedulePersist();
+    return true;
+  }
+
+  /**
+   * Získá skupinu podle ID.
+   */
+  getGroup(groupId: string): RuleGroup | undefined {
+    return this.groups.get(groupId);
+  }
+
+  /**
+   * Vrátí všechny skupiny.
+   */
+  getAllGroups(): RuleGroup[] {
+    return [...this.groups.values()];
+  }
+
+  /**
+   * Vrátí pravidla ve skupině.
+   */
+  getGroupRules(groupId: string): Rule[] {
+    const ruleIds = this.byGroup.get(groupId);
+    if (!ruleIds) return [];
+    return [...ruleIds]
+      .map(id => this.rules.get(id))
+      .filter((r): r is Rule => r !== undefined);
   }
 
   /**
