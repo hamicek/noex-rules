@@ -15,6 +15,7 @@ import { ActionExecutor, type ExecutionContext, type ExecutionOptions } from '..
 import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
 import { Profiler } from '../debugging/profiler.js';
+import { AuditLogService } from '../audit/audit-log-service.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -45,6 +46,7 @@ export class RuleEngine {
   private readonly conditionEvaluator: ConditionEvaluator;
   private readonly actionExecutor: ActionExecutor;
   private readonly traceCollector: TraceCollector;
+  private readonly auditLog: AuditLogService | null;
   private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit'>>;
   private readonly services: Map<string, unknown>;
   private readonly validator: RuleInputValidator;
@@ -69,6 +71,7 @@ export class RuleEngine {
     timerManager: TimerManager,
     ruleManager: RuleManager,
     traceCollector: TraceCollector,
+    auditLog: AuditLogService | null,
     config: RuleEngineConfig
   ) {
     this.factStore = factStore;
@@ -76,6 +79,7 @@ export class RuleEngine {
     this.timerManager = timerManager;
     this.ruleManager = ruleManager;
     this.traceCollector = traceCollector;
+    this.auditLog = auditLog;
     this.conditionEvaluator = new ConditionEvaluator();
 
     this.config = {
@@ -135,8 +139,23 @@ export class RuleEngine {
       await ruleManager.restore();
     }
 
-    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, config);
+    let auditLog: AuditLogService | null = null;
+    if (config.audit) {
+      auditLog = await AuditLogService.start(config.audit.adapter, {
+        ...(config.audit.retentionMs !== undefined && { retentionMs: config.audit.retentionMs }),
+        ...(config.audit.batchSize !== undefined && { batchSize: config.audit.batchSize }),
+        ...(config.audit.flushIntervalMs !== undefined && { flushIntervalMs: config.audit.flushIntervalMs }),
+        ...(config.audit.maxMemoryEntries !== undefined && { maxMemoryEntries: config.audit.maxMemoryEntries }),
+      });
+    }
+
+    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, auditLog, config);
     engine.running = true;
+
+    engine.auditLog?.record('engine_started', {
+      name: engine.config.name,
+      rulesCount: ruleManager.size,
+    });
 
     return engine;
   }
@@ -171,7 +190,18 @@ export class RuleEngine {
       }
     }
 
-    return this.ruleManager.register(input);
+    const rule = this.ruleManager.register(input);
+
+    this.auditLog?.record('rule_registered', {
+      trigger: rule.trigger,
+      conditionsCount: rule.conditions.length,
+      actionsCount: rule.actions.length,
+    }, {
+      ruleId: rule.id,
+      ruleName: rule.name,
+    });
+
+    return rule;
   }
 
   /**
@@ -179,7 +209,17 @@ export class RuleEngine {
    */
   unregisterRule(ruleId: string): boolean {
     this.ensureRunning();
-    return this.ruleManager.unregister(ruleId);
+    const rule = this.ruleManager.get(ruleId);
+    const removed = this.ruleManager.unregister(ruleId);
+
+    if (removed) {
+      this.auditLog?.record('rule_unregistered', {}, {
+        ruleId,
+        ...(rule?.name !== undefined && { ruleName: rule.name }),
+      });
+    }
+
+    return removed;
   }
 
   /**
@@ -187,7 +227,17 @@ export class RuleEngine {
    */
   enableRule(ruleId: string): boolean {
     this.ensureRunning();
-    return this.ruleManager.enable(ruleId);
+    const enabled = this.ruleManager.enable(ruleId);
+
+    if (enabled) {
+      const rule = this.ruleManager.get(ruleId);
+      this.auditLog?.record('rule_enabled', {}, {
+        ruleId,
+        ...(rule?.name !== undefined && { ruleName: rule.name }),
+      });
+    }
+
+    return enabled;
   }
 
   /**
@@ -195,7 +245,17 @@ export class RuleEngine {
    */
   disableRule(ruleId: string): boolean {
     this.ensureRunning();
-    return this.ruleManager.disable(ruleId);
+    const disabled = this.ruleManager.disable(ruleId);
+
+    if (disabled) {
+      const rule = this.ruleManager.get(ruleId);
+      this.auditLog?.record('rule_disabled', {}, {
+        ruleId,
+        ...(rule?.name !== undefined && { ruleName: rule.name }),
+      });
+    }
+
+    return disabled;
   }
 
   /**
@@ -231,6 +291,13 @@ export class RuleEngine {
       source: fact.source
     });
 
+    const auditType = previousValue === undefined ? 'fact_created' : 'fact_updated';
+    this.auditLog?.record(auditType, {
+      key: fact.key,
+      value: fact.value,
+      ...(previousValue !== undefined && { previousValue }),
+    });
+
     await this.processTrigger({ type: 'fact', data: fact });
     return fact;
   }
@@ -254,7 +321,17 @@ export class RuleEngine {
    */
   deleteFact(key: string): boolean {
     this.ensureRunning();
-    return this.factStore.delete(key);
+    const existing = this.factStore.get(key);
+    const deleted = this.factStore.delete(key);
+
+    if (deleted) {
+      this.auditLog?.record('fact_deleted', {
+        key,
+        lastValue: existing?.value,
+      });
+    }
+
+    return deleted;
   }
 
   /**
@@ -455,6 +532,10 @@ export class RuleEngine {
       };
     }
 
+    if (this.auditLog) {
+      stats.audit = this.auditLog.getStats();
+    }
+
     return stats;
   }
 
@@ -506,6 +587,14 @@ export class RuleEngine {
     return this.factStore;
   }
 
+  /**
+   * Vrátí AuditLogService pro přímý přístup k audit záznamům.
+   * Vrací null pokud není audit nakonfigurován.
+   */
+  getAuditLog(): AuditLogService | null {
+    return this.auditLog;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   //                              PROFILING
   // ═══════════════════════════════════════════════════════════════════════════
@@ -554,6 +643,14 @@ export class RuleEngine {
    * Zastaví engine a uvolní všechny prostředky.
    */
   async stop(): Promise<void> {
+    this.auditLog?.record('engine_stopped', {
+      name: this.config.name,
+      rulesCount: this.ruleManager.size,
+      factsCount: this.factStore.size,
+      eventsProcessed: this.internals.totalEventsProcessed,
+      rulesExecuted: this.internals.totalRulesExecuted,
+    });
+
     this.running = false;
 
     // Počkat na dokončení zpracování
@@ -569,6 +666,7 @@ export class RuleEngine {
     }
 
     await this.timerManager.stop();
+    await this.auditLog?.stop();
     this.subscribers.clear();
     this.wildcardSubscribers.clear();
   }
@@ -627,6 +725,15 @@ export class RuleEngine {
     }, {
       ...(event.correlationId && { correlationId: event.correlationId }),
       ...(event.causationId && { causationId: event.causationId })
+    });
+
+    this.auditLog?.record('event_emitted', {
+      eventId: event.id,
+      topic: event.topic,
+      data: event.data,
+    }, {
+      source: event.source,
+      ...(event.correlationId && { correlationId: event.correlationId }),
     });
 
     // Notifikovat subscribery
@@ -799,6 +906,7 @@ export class RuleEngine {
 
       const conditionsMet = this.conditionEvaluator.evaluateAll(rule.conditions, evalContext, evalOptions);
       if (!conditionsMet) {
+        const skipDurationMs = Date.now() - startTime;
         this.traceCollector.record('rule_skipped', {
           reason: 'conditions_not_met'
         }, {
@@ -806,8 +914,19 @@ export class RuleEngine {
           ruleName: rule.name,
           ...(correlationId && { correlationId }),
           ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
-          durationMs: Date.now() - startTime
+          durationMs: skipDurationMs
         });
+
+        this.auditLog?.record('rule_skipped', {
+          reason: 'conditions_not_met',
+          triggerType: trigger.type,
+        }, {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          ...(correlationId && { correlationId }),
+          durationMs: skipDurationMs,
+        });
+
         return;
       }
 
@@ -891,6 +1010,16 @@ export class RuleEngine {
         ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
         durationMs
       });
+
+      this.auditLog?.record('rule_executed', {
+        actionsCount: rule.actions.length,
+        triggerType: trigger.type,
+      }, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        ...(correlationId && { correlationId }),
+        durationMs,
+      });
     } catch (error) {
       // Unexpected errors outside ActionExecutor (e.g., context preparation)
       // Action-level failures are traced via onActionFailed callback
@@ -898,6 +1027,16 @@ export class RuleEngine {
         `[${this.config.name}] Error executing rule "${rule.name}" (${rule.id}):`,
         error
       );
+
+      this.auditLog?.record('rule_failed', {
+        error: error instanceof Error ? error.message : String(error),
+        triggerType: trigger.type,
+      }, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        ...(correlationId && { correlationId }),
+        durationMs: Date.now() - startTime,
+      });
     }
   }
 
