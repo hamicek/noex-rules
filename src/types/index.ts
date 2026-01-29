@@ -1,5 +1,8 @@
 import type { StorageAdapter } from '@hamicek/noex';
 import type { AuditStats } from '../audit/types.js';
+import type { MetricsConfig, OpenTelemetryConfig } from '../observability/types.js';
+
+export type { MetricsConfig, OpenTelemetryConfig } from '../observability/types.js';
 
 export * from './fact.js';
 export * from './event.js';
@@ -104,4 +107,6 @@ export interface RuleEngineConfig {
   tracing?: TracingConfig;        // Konfigurace debugging tracingu
   timerPersistence?: TimerPersistenceConfig;  // Persistence timerů přes DurableTimerService
   audit?: AuditPersistenceConfig;  // Persistence audit logu
+  metrics?: MetricsConfig;        // Prometheus metriky (opt-in)
+  opentelemetry?: OpenTelemetryConfig;  // OpenTelemetry tracing (opt-in)
 }
