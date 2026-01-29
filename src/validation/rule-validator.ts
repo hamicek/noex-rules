@@ -183,6 +183,14 @@ export class RuleInputValidator {
         }
       }
     }
+
+    if (hasProperty(rule, 'group')) {
+      if (typeof rule['group'] !== 'string') {
+        collector.addError(this.fieldPath(prefix, 'group'), 'Field "group" must be a string');
+      } else if (rule['group'].trim() === '') {
+        collector.addError(this.fieldPath(prefix, 'group'), 'Field "group" cannot be empty');
+      }
+    }
   }
 
   private checkUnusedAliases(prefix: string, collector: IssueCollector): void {
