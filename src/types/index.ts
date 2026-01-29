@@ -1,4 +1,5 @@
 import type { StorageAdapter } from '@hamicek/noex';
+import type { AuditStats } from '../audit/types.js';
 
 export * from './fact.js';
 export * from './event.js';
@@ -42,6 +43,7 @@ export interface EngineStats {
   avgProcessingTimeMs: number;
   tracing?: TracingStats;
   profiling?: ProfilingStats;
+  audit?: AuditStats;
 }
 
 /** Konfigurace persistence */
@@ -74,6 +76,24 @@ export interface TracingConfig {
   maxEntries?: number;
 }
 
+/** Konfigurace persistence audit logu */
+export interface AuditPersistenceConfig {
+  /** Storage adapter pro ukládání audit záznamů */
+  adapter: StorageAdapter;
+
+  /** Jak dlouho uchovávat záznamy v ms (výchozí: 30 dní) */
+  retentionMs?: number;
+
+  /** Počet záznamů na persistence batch (výchozí: 100) */
+  batchSize?: number;
+
+  /** Interval mezi flush cykly v ms (výchozí: 5000) */
+  flushIntervalMs?: number;
+
+  /** Maximální počet záznamů v paměti (výchozí: 50000) */
+  maxMemoryEntries?: number;
+}
+
 /** Konfigurace Rule Engine */
 export interface RuleEngineConfig {
   name?: string;
@@ -83,4 +103,5 @@ export interface RuleEngineConfig {
   services?: Record<string, unknown>;  // Externí služby pro call_service
   tracing?: TracingConfig;        // Konfigurace debugging tracingu
   timerPersistence?: TimerPersistenceConfig;  // Persistence timerů přes DurableTimerService
+  audit?: AuditPersistenceConfig;  // Persistence audit logu
 }

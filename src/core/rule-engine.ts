@@ -45,7 +45,7 @@ export class RuleEngine {
   private readonly conditionEvaluator: ConditionEvaluator;
   private readonly actionExecutor: ActionExecutor;
   private readonly traceCollector: TraceCollector;
-  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence'>>;
+  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit'>>;
   private readonly services: Map<string, unknown>;
   private readonly validator: RuleInputValidator;
 
