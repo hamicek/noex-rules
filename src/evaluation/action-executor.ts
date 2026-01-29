@@ -1,4 +1,4 @@
-import type { RuleAction, ActionResult } from '../types/action.js';
+import type { RuleAction, ActionResult, ConditionalActionResult } from '../types/action.js';
 import type { Event } from '../types/event.js';
 import type { FactStore } from '../core/fact-store.js';
 import type { TimerManager } from '../core/timer-manager.js';
@@ -9,6 +9,7 @@ import type {
   ActionCompletedCallback,
   ActionFailedCallback
 } from '../debugging/types.js';
+import type { ConditionEvaluator, EvaluationContext } from './condition-evaluator.js';
 
 export interface ExecutionContext extends InterpolationContext {
   correlationId?: string;
@@ -36,7 +37,8 @@ export class ActionExecutor {
     private factStore: FactStore,
     private timerManager: TimerManager,
     private emitEvent: EventEmitter,
-    private services: Map<string, unknown> = new Map()
+    private services: Map<string, unknown> = new Map(),
+    private conditionEvaluator?: ConditionEvaluator
   ) {}
 
   /**
@@ -60,7 +62,7 @@ export class ActionExecutor {
       });
 
       try {
-        const result = await this.executeAction(action, context);
+        const result = await this.executeAction(action, context, options);
         const durationMs = performance.now() - startTime;
 
         options?.onActionCompleted?.({
@@ -131,7 +133,7 @@ export class ActionExecutor {
     }
   }
 
-  private async executeAction(action: RuleAction, ctx: ExecutionContext): Promise<unknown> {
+  private async executeAction(action: RuleAction, ctx: ExecutionContext, options?: ExecutionOptions): Promise<unknown> {
     switch (action.type) {
       case 'set_fact': {
         const key = interpolate(action.key, ctx);
@@ -198,7 +200,29 @@ export class ActionExecutor {
       }
 
       case 'conditional': {
-        throw new Error('Conditional action execution not yet implemented');
+        if (!this.conditionEvaluator) {
+          throw new Error('ConditionEvaluator is required for conditional actions');
+        }
+
+        const evalContext: EvaluationContext = {
+          trigger: ctx.trigger as EvaluationContext['trigger'],
+          facts: ctx.facts as FactStore,
+          variables: ctx.variables
+        };
+
+        const conditionMet = this.conditionEvaluator.evaluateAll(action.conditions, evalContext);
+
+        if (conditionMet) {
+          const results = await this.execute(action.then, ctx, options);
+          return { conditionMet: true, branchExecuted: 'then', results } satisfies ConditionalActionResult;
+        }
+
+        if (action.else) {
+          const results = await this.execute(action.else, ctx, options);
+          return { conditionMet: false, branchExecuted: 'else', results } satisfies ConditionalActionResult;
+        }
+
+        return { conditionMet: false, branchExecuted: 'none', results: [] } satisfies ConditionalActionResult;
       }
     }
   }
