@@ -16,6 +16,7 @@ import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
 import { Profiler } from '../debugging/profiler.js';
 import { AuditLogService } from '../audit/audit-log-service.js';
+import { MetricsCollector } from '../observability/metrics-collector.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -64,6 +65,7 @@ export class RuleEngine {
   private processingQueue: Promise<void> = Promise.resolve();
   private processingDepth = 0;
   private profiler: Profiler | null = null;
+  private metricsCollector: MetricsCollector | null = null;
 
   private constructor(
     factStore: FactStore,
@@ -151,6 +153,14 @@ export class RuleEngine {
 
     const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, auditLog, config);
     engine.running = true;
+
+    if (config.metrics?.enabled) {
+      engine.metricsCollector = new MetricsCollector(
+        traceCollector,
+        () => engine.getStats(),
+        config.metrics,
+      );
+    }
 
     engine.auditLog?.record('engine_started', {
       name: engine.config.name,
@@ -636,6 +646,18 @@ export class RuleEngine {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //                            METRICS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Vrátí MetricsCollector pro přístup k Prometheus metrikám.
+   * Vrací null pokud nejsou metriky povoleny v konfiguraci.
+   */
+  getMetricsCollector(): MetricsCollector | null {
+    return this.metricsCollector;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //                            LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -663,6 +685,12 @@ export class RuleEngine {
     if (this.profiler) {
       this.profiler.stop();
       this.profiler = null;
+    }
+
+    // Zastavit metrics collector pokud běží
+    if (this.metricsCollector) {
+      this.metricsCollector.stop();
+      this.metricsCollector = null;
     }
 
     await this.timerManager.stop();
