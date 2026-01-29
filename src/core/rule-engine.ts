@@ -18,6 +18,7 @@ import { TraceCollector } from '../debugging/trace-collector.js';
 import { Profiler } from '../debugging/profiler.js';
 import { AuditLogService } from '../audit/audit-log-service.js';
 import { MetricsCollector } from '../observability/metrics-collector.js';
+import { HotReloadWatcher } from './hot-reload/watcher.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -67,6 +68,7 @@ export class RuleEngine {
   private processingDepth = 0;
   private profiler: Profiler | null = null;
   private metricsCollector: MetricsCollector | null = null;
+  private hotReloadWatcher: HotReloadWatcher | null = null;
 
   private constructor(
     factStore: FactStore,
@@ -162,6 +164,10 @@ export class RuleEngine {
         () => engine.getStats(),
         config.metrics,
       );
+    }
+
+    if (config.hotReload) {
+      engine.hotReloadWatcher = await HotReloadWatcher.start(engine, config.hotReload);
     }
 
     engine.auditLog?.record('engine_started', {
@@ -827,6 +833,12 @@ export class RuleEngine {
 
     this.running = false;
 
+    // Zastavit hot-reload watcher jako první — nechceme měnit pravidla během shutdown
+    if (this.hotReloadWatcher) {
+      await this.hotReloadWatcher.stop();
+      this.hotReloadWatcher = null;
+    }
+
     // Počkat na dokončení zpracování
     await this.processingQueue;
 
@@ -859,6 +871,14 @@ export class RuleEngine {
    */
   waitForProcessingQueue(): Promise<void> {
     return this.processingQueue;
+  }
+
+  /**
+   * Vrátí HotReloadWatcher pro přístup ke stavu hot-reload.
+   * Vrací null pokud hot-reload není nakonfigurován.
+   */
+  getHotReloadWatcher(): HotReloadWatcher | null {
+    return this.hotReloadWatcher;
   }
 
   /**

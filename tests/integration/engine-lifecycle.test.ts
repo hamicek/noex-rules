@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RuleEngine } from '../../src/core/rule-engine';
 import type { RuleInput } from '../../src/types/rule';
 import type { Event } from '../../src/types/event';
+import type { HotReloadConfig } from '../../src/core/hot-reload/types';
 
 describe('Engine Lifecycle Integration', () => {
   describe('start and stop', () => {
@@ -466,6 +467,79 @@ describe('Engine Lifecycle Integration', () => {
       await engine.emit('invoke.service', {});
 
       expect(testService.process).toHaveBeenCalledWith('arg1');
+
+      await engine.stop();
+    });
+  });
+
+  describe('hot-reload watcher lifecycle', () => {
+    it('starts watcher when hotReload is configured', async () => {
+      const hotReload: HotReloadConfig = { intervalMs: 60_000 };
+      const engine = await RuleEngine.start({ name: 'hot-reload-start', hotReload });
+
+      const watcher = engine.getHotReloadWatcher();
+      expect(watcher).not.toBeNull();
+      expect(watcher!.getStatus().running).toBe(true);
+      expect(watcher!.getStatus().intervalMs).toBe(60_000);
+
+      await engine.stop();
+    });
+
+    it('returns null when hotReload is not configured', async () => {
+      const engine = await RuleEngine.start({ name: 'no-hot-reload' });
+
+      expect(engine.getHotReloadWatcher()).toBeNull();
+
+      await engine.stop();
+    });
+
+    it('stops watcher when engine stops', async () => {
+      const hotReload: HotReloadConfig = { intervalMs: 60_000 };
+      const engine = await RuleEngine.start({ name: 'hot-reload-stop', hotReload });
+
+      const watcher = engine.getHotReloadWatcher();
+      expect(watcher!.getStatus().running).toBe(true);
+
+      await engine.stop();
+
+      expect(watcher!.getStatus().running).toBe(false);
+      expect(engine.getHotReloadWatcher()).toBeNull();
+    });
+
+    it('initializes baseline hashes from existing rules', async () => {
+      const hotReload: HotReloadConfig = { intervalMs: 60_000 };
+      const engine = await RuleEngine.start({ name: 'hot-reload-baseline', hotReload });
+
+      engine.registerRule({
+        id: 'baseline-rule',
+        name: 'Baseline',
+        priority: 10,
+        enabled: true,
+        tags: [],
+        trigger: { type: 'event', topic: 'test' },
+        conditions: [],
+        actions: [],
+      });
+
+      // Watcher was started before rule was registered,
+      // so trackedRulesCount reflects initial engine state (0 rules at start)
+      const watcher = engine.getHotReloadWatcher()!;
+      expect(watcher.getStatus().trackedRulesCount).toBe(0);
+
+      await engine.stop();
+    });
+
+    it('starts watcher with custom config options', async () => {
+      const hotReload: HotReloadConfig = {
+        intervalMs: 10_000,
+        validateBeforeApply: false,
+        atomicReload: false,
+      };
+      const engine = await RuleEngine.start({ name: 'hot-reload-config', hotReload });
+
+      const watcher = engine.getHotReloadWatcher();
+      expect(watcher).not.toBeNull();
+      expect(watcher!.getStatus().intervalMs).toBe(10_000);
 
       await engine.stop();
     });
