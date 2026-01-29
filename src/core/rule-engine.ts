@@ -852,6 +852,16 @@ export class RuleEngine {
   }
 
   /**
+   * Počká na dokončení aktuálně zpracovávaných pravidel.
+   *
+   * Užitečné pro bezpečnou výměnu pravidel — zajistí, že se pravidla
+   * nezmění uprostřed vyhodnocování.
+   */
+  waitForProcessingQueue(): Promise<void> {
+    return this.processingQueue;
+  }
+
+  /**
    * Kontroluje, zda engine běží.
    */
   get isRunning(): boolean {
