@@ -411,7 +411,8 @@ export class RuleManager {
   }
 
   /**
-   * Načte pravidla z persistence storage.
+   * Načte pravidla a skupiny z persistence storage.
+   * Skupiny se obnovují před pravidly, aby group reference fungovala správně.
    * @returns Počet načtených pravidel
    */
   async restore(): Promise<number> {
@@ -419,7 +420,13 @@ export class RuleManager {
       return 0;
     }
 
-    const rules = await this.persistence.load();
+    const { rules, groups } = await this.persistence.load();
+
+    // Skupiny se obnovují první — pravidla mohou odkazovat na skupiny
+    for (const group of groups) {
+      this.groups.set(group.id, group);
+    }
+
     let maxVersion = 0;
 
     for (const rule of rules) {
@@ -437,7 +444,7 @@ export class RuleManager {
   }
 
   /**
-   * Manuálně uloží všechna pravidla do persistence storage.
+   * Manuálně uloží všechna pravidla a skupiny do persistence storage.
    */
   async persist(): Promise<void> {
     if (!this.persistence) {
@@ -450,12 +457,12 @@ export class RuleManager {
       this.persistTimer = null;
     }
 
-    await this.persistence.save(this.getAll());
+    await this.persistence.save(this.getAll(), this.getAllGroups());
   }
 
   /**
    * Naplánuje debounced persist.
-   * Volá se automaticky při změnách pravidel.
+   * Volá se automaticky při změnách pravidel i skupin.
    */
   private schedulePersist(): void {
     if (!this.persistence) {
@@ -468,7 +475,7 @@ export class RuleManager {
 
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      this.persistence?.save(this.getAll()).catch(() => {
+      this.persistence?.save(this.getAll(), this.getAllGroups()).catch(() => {
         // Ignoruj chyby při background persistenci
       });
     }, this.persistDebounceMs);

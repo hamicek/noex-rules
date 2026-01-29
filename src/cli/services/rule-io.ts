@@ -110,7 +110,7 @@ export class RuleIOService {
 
     if (merge) {
       // Merge mode - sloučit s existujícími
-      const existingRules = await this.persistence.load();
+      const { rules: existingRules } = await this.persistence.load();
       const existingById = new Map(existingRules.map((r) => [r.id, r]));
 
       const finalRules: Rule[] = [];
@@ -165,7 +165,7 @@ export class RuleIOService {
   async export(options: ExportOptions = {}): Promise<ExportResult> {
     const { tags, enabled } = options;
 
-    const allRules = await this.persistence.load();
+    const { rules: allRules } = await this.persistence.load();
     let filteredRules = allRules;
 
     // Filtrování podle tagů
@@ -218,7 +218,7 @@ export class RuleIOService {
     const normalizedRules = rules.map((r) => this.normalizeRule(r as RuleInput));
 
     if (merge) {
-      const existingRules = await this.persistence.load();
+      const { rules: existingRules } = await this.persistence.load();
       const existingById = new Map(existingRules.map((r) => [r.id, r]));
       const newIds = new Set(normalizedRules.map((r) => r.id));
 

@@ -1,5 +1,6 @@
 import type { StorageAdapter, PersistedState, StateMetadata } from '@hamicek/noex';
 import type { Rule } from '../types/rule.js';
+import type { RuleGroup } from '../types/group.js';
 
 /** Konfigurační options pro RulePersistence */
 export interface RulePersistenceOptions {
@@ -12,6 +13,13 @@ export interface RulePersistenceOptions {
 /** Interní struktura uloženého stavu */
 interface RulesState {
   rules: Rule[];
+  groups?: RuleGroup[];
+}
+
+/** Výsledek načtení stavu z persistence */
+export interface LoadResult {
+  rules: Rule[];
+  groups: RuleGroup[];
 }
 
 /**
@@ -32,10 +40,14 @@ export class RulePersistence {
   }
 
   /**
-   * Uloží pravidla do storage.
+   * Uloží pravidla a skupiny do storage.
    */
-  async save(rules: Rule[]): Promise<void> {
+  async save(rules: Rule[], groups?: RuleGroup[]): Promise<void> {
     const state: RulesState = { rules };
+    if (groups && groups.length > 0) {
+      state.groups = groups;
+    }
+
     const metadata: StateMetadata = {
       persistedAt: Date.now(),
       serverId: 'rule-engine',
@@ -51,21 +63,23 @@ export class RulePersistence {
   }
 
   /**
-   * Načte pravidla ze storage.
-   * Vrátí prázdné pole pokud žádná pravidla nejsou uložena.
+   * Načte pravidla a skupiny ze storage.
+   * Vrátí prázdné pole pokud žádná data nejsou uložena.
    */
-  async load(): Promise<Rule[]> {
+  async load(): Promise<LoadResult> {
     const result = await this.adapter.load<RulesState>(this.key);
     if (!result) {
-      return [];
+      return { rules: [], groups: [] };
     }
 
     if (result.metadata.schemaVersion !== this.schemaVersion) {
-      // V budoucnu zde může být migrace
-      return [];
+      return { rules: [], groups: [] };
     }
 
-    return result.state.rules;
+    return {
+      rules: result.state.rules,
+      groups: result.state.groups ?? [],
+    };
   }
 
   /**

@@ -527,5 +527,126 @@ describe('RuleManager — groups', () => {
 
       expect(saveSpy).toHaveBeenCalled();
     });
+
+    it('includes groups in persisted data', async () => {
+      manager.registerGroup(createGroupInput());
+      manager.register(createEventRule({ id: 'r1', group: 'billing' }));
+
+      await vi.advanceTimersByTimeAsync(20);
+
+      const { rules, groups } = await persistence.load();
+
+      expect(rules).toHaveLength(1);
+      expect(rules[0].id).toBe('r1');
+      expect(groups).toHaveLength(1);
+      expect(groups[0].id).toBe('billing');
+    });
+
+    it('persist() saves groups alongside rules', async () => {
+      manager.registerGroup(createGroupInput({ id: 'billing', name: 'Billing' }));
+      manager.registerGroup(createGroupInput({ id: 'shipping', name: 'Shipping' }));
+      manager.register(createEventRule({ id: 'r1', group: 'billing' }));
+
+      await manager.persist();
+
+      const { rules, groups } = await persistence.load();
+
+      expect(rules).toHaveLength(1);
+      expect(groups).toHaveLength(2);
+      expect(groups.map(g => g.id).sort()).toEqual(['billing', 'shipping']);
+    });
+  });
+
+  describe('restore with groups', () => {
+    let persistence: RulePersistence;
+
+    beforeEach(() => {
+      persistence = new RulePersistence(new MemoryAdapter());
+      manager.setPersistence(persistence);
+    });
+
+    it('restores groups from persistence', async () => {
+      await persistence.save([], [
+        { id: 'billing', name: 'Billing', enabled: true, createdAt: 1000, updatedAt: 1000 },
+        { id: 'shipping', name: 'Shipping', enabled: false, createdAt: 2000, updatedAt: 2000 },
+      ]);
+
+      await manager.restore();
+
+      expect(manager.getAllGroups()).toHaveLength(2);
+      expect(manager.getGroup('billing')?.enabled).toBe(true);
+      expect(manager.getGroup('shipping')?.enabled).toBe(false);
+    });
+
+    it('restores groups before rules so group references work', async () => {
+      const rules = [
+        {
+          ...createEventRule({ id: 'r1', group: 'billing' }),
+          version: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ] as any;
+      const groups = [
+        { id: 'billing', name: 'Billing', enabled: false, createdAt: 1000, updatedAt: 1000 },
+      ];
+
+      await persistence.save(rules, groups);
+      await manager.restore();
+
+      // Skupina je disabled → pravidlo by nemělo být aktivní
+      const rule = manager.get('r1')!;
+      expect(rule.group).toBe('billing');
+      expect(manager.isRuleActive(rule)).toBe(false);
+    });
+
+    it('restores group index correctly', async () => {
+      const rules = [
+        {
+          ...createEventRule({ id: 'r1', group: 'billing' }),
+          version: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          ...createEventRule({ id: 'r2', group: 'billing' }),
+          version: 2,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ] as any;
+      const groups = [
+        { id: 'billing', name: 'Billing', enabled: true, createdAt: 1000, updatedAt: 1000 },
+      ];
+
+      await persistence.save(rules, groups);
+      await manager.restore();
+
+      expect(manager.getGroupRules('billing')).toHaveLength(2);
+    });
+
+    it('returns 0 when persistence has no data', async () => {
+      const count = await manager.restore();
+
+      expect(count).toBe(0);
+      expect(manager.getAllGroups()).toEqual([]);
+    });
+
+    it('handles persistence with rules but no groups (backward compat)', async () => {
+      await persistence.save([
+        {
+          ...createEventRule({ id: 'r1' }),
+          version: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as any,
+      ]);
+
+      const count = await manager.restore();
+
+      expect(count).toBe(1);
+      expect(manager.getAllGroups()).toEqual([]);
+      expect(manager.get('r1')).toBeDefined();
+    });
   });
 });

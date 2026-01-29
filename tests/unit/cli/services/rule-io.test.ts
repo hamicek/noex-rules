@@ -59,7 +59,7 @@ describe('RuleIOService', () => {
       expect(result.total).toBe(1);
       expect(result.importedIds).toContain('test-rule');
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(1);
       expect(stored[0].id).toBe('test-rule');
     });
@@ -76,7 +76,7 @@ describe('RuleIOService', () => {
       expect(result.imported).toBe(3);
       expect(result.total).toBe(3);
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(3);
     });
 
@@ -89,7 +89,7 @@ describe('RuleIOService', () => {
       expect(result.imported).toBe(1);
       expect(result.total).toBe(1);
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(1);
       expect(stored[0].id).toBe('new-rule');
     });
@@ -104,7 +104,7 @@ describe('RuleIOService', () => {
       expect(result.updated).toBe(0);
       expect(result.total).toBe(2);
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(2);
       expect(stored.map((r) => r.id)).toContain('existing-rule');
       expect(stored.map((r) => r.id)).toContain('new-rule');
@@ -121,7 +121,7 @@ describe('RuleIOService', () => {
       expect(result.updated).toBe(1);
       expect(result.updatedIds).toContain('shared-rule');
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(1);
       expect(stored[0].name).toBe('New Name');
       expect(stored[0].version).toBe(2);
@@ -138,7 +138,7 @@ describe('RuleIOService', () => {
 
       await service.import(rules);
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored[0].priority).toBe(0);
       expect(stored[0].enabled).toBe(true);
       expect(stored[0].tags).toEqual([]);
@@ -188,7 +188,7 @@ describe('RuleIOService', () => {
       const rules = [createValidRule({ id: 'rule', name: 'Updated' })];
       await service.import(rules, { merge: true });
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored[0].createdAt).toBe(oldCreatedAt);
       expect(stored[0].updatedAt).toBeGreaterThan(oldCreatedAt);
     });
@@ -277,7 +277,7 @@ describe('RuleIOService', () => {
       expect(preview.toImport.length).toBe(1);
       expect(preview.toImport[0].id).toBe('test-rule');
 
-      const stored = await persistence.load();
+      const { rules: stored } = await persistence.load();
       expect(stored.length).toBe(0);
     });
 

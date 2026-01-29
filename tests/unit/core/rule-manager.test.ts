@@ -712,7 +712,7 @@ describe('RuleManager', () => {
 
         await manager.persist();
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded).toHaveLength(2);
         expect(loaded.map(r => r.id).sort()).toEqual(['r1', 'r2']);
       });
@@ -729,7 +729,7 @@ describe('RuleManager', () => {
         manager.unregister('r1');
         await manager.persist();
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded).toHaveLength(1);
         expect(loaded[0].id).toBe('r2');
       });
@@ -744,7 +744,7 @@ describe('RuleManager', () => {
         // Počkáme na debounce
         await vi.advanceTimersByTimeAsync(20);
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded).toHaveLength(1);
         expect(loaded[0].id).toBe('r1');
       });
@@ -757,7 +757,7 @@ describe('RuleManager', () => {
         manager.unregister('r1');
         await vi.advanceTimersByTimeAsync(20);
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded).toHaveLength(0);
       });
 
@@ -769,7 +769,7 @@ describe('RuleManager', () => {
         manager.enable('r1');
         await vi.advanceTimersByTimeAsync(20);
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded[0].enabled).toBe(true);
       });
 
@@ -781,7 +781,7 @@ describe('RuleManager', () => {
         manager.disable('r1');
         await vi.advanceTimersByTimeAsync(20);
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
         expect(loaded[0].enabled).toBe(false);
       });
 
@@ -800,11 +800,14 @@ describe('RuleManager', () => {
 
         // Pouze jedno save po debounce
         expect(saveSpy).toHaveBeenCalledTimes(1);
-        expect(saveSpy).toHaveBeenCalledWith(expect.arrayContaining([
-          expect.objectContaining({ id: 'r1' }),
-          expect.objectContaining({ id: 'r2' }),
-          expect.objectContaining({ id: 'r3' }),
-        ]));
+        expect(saveSpy).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ id: 'r1' }),
+            expect.objectContaining({ id: 'r2' }),
+            expect.objectContaining({ id: 'r3' }),
+          ]),
+          [], // groups
+        );
       });
     });
   });

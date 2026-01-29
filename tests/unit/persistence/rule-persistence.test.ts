@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryAdapter, SQLiteAdapter } from '@hamicek/noex';
 import { RulePersistence } from '../../../src/persistence/rule-persistence';
 import type { Rule } from '../../../src/types/rule';
+import type { RuleGroup } from '../../../src/types/group';
 
 const createTestRule = (id: string, overrides: Partial<Rule> = {}): Rule => ({
   id,
@@ -14,6 +15,15 @@ const createTestRule = (id: string, overrides: Partial<Rule> = {}): Rule => ({
   trigger: { type: 'fact', pattern: `test:${id}:*` },
   conditions: [],
   actions: [],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  ...overrides,
+});
+
+const createTestGroup = (id: string, overrides: Partial<RuleGroup> = {}): RuleGroup => ({
+  id,
+  name: `Group ${id}`,
+  enabled: true,
   createdAt: Date.now(),
   updatedAt: Date.now(),
   ...overrides,
@@ -43,17 +53,17 @@ describe('RulePersistence', () => {
         await persistence.save([createTestRule('rule-1')]);
         await persistence.save([createTestRule('rule-2'), createTestRule('rule-3')]);
 
-        const loaded = await persistence.load();
+        const { rules } = await persistence.load();
 
-        expect(loaded).toHaveLength(2);
-        expect(loaded.map(r => r.id)).toEqual(['rule-2', 'rule-3']);
+        expect(rules).toHaveLength(2);
+        expect(rules.map(r => r.id)).toEqual(['rule-2', 'rule-3']);
       });
 
       it('saves empty array when no rules provided', async () => {
         await persistence.save([]);
 
-        const loaded = await persistence.load();
-        expect(loaded).toEqual([]);
+        const { rules } = await persistence.load();
+        expect(rules).toEqual([]);
       });
     });
 
@@ -65,7 +75,7 @@ describe('RulePersistence', () => {
         ];
         await persistence.save(rules);
 
-        const loaded = await persistence.load();
+        const { rules: loaded } = await persistence.load();
 
         expect(loaded).toHaveLength(2);
         expect(loaded[0].id).toBe('rule-1');
@@ -74,10 +84,10 @@ describe('RulePersistence', () => {
         expect(loaded[1].priority).toBe(100);
       });
 
-      it('returns empty array when no rules saved', async () => {
-        const loaded = await persistence.load();
+      it('returns empty result when no rules saved', async () => {
+        const result = await persistence.load();
 
-        expect(loaded).toEqual([]);
+        expect(result).toEqual({ rules: [], groups: [] });
       });
 
       it('preserves all rule properties', async () => {
@@ -90,7 +100,7 @@ describe('RulePersistence', () => {
         });
         await persistence.save([rule]);
 
-        const [loaded] = await persistence.load();
+        const { rules: [loaded] } = await persistence.load();
 
         expect(loaded.id).toBe('complex-rule');
         expect(loaded.description).toBe('Complex test rule');
@@ -100,14 +110,14 @@ describe('RulePersistence', () => {
         expect(loaded.actions).toHaveLength(1);
       });
 
-      it('returns empty array for schema version mismatch', async () => {
+      it('returns empty result for schema version mismatch', async () => {
         const v1Persistence = new RulePersistence(adapter, { schemaVersion: 1 });
         await v1Persistence.save([createTestRule('rule-1')]);
 
         const v2Persistence = new RulePersistence(adapter, { schemaVersion: 2 });
-        const loaded = await v2Persistence.load();
+        const result = await v2Persistence.load();
 
-        expect(loaded).toEqual([]);
+        expect(result).toEqual({ rules: [], groups: [] });
       });
     });
 
@@ -175,14 +185,103 @@ describe('RulePersistence', () => {
         await persistence1.save([createTestRule('rule-1')]);
         await persistence2.save([createTestRule('rule-2')]);
 
-        const loaded1 = await persistence1.load();
-        const loaded2 = await persistence2.load();
+        const { rules: loaded1 } = await persistence1.load();
+        const { rules: loaded2 } = await persistence2.load();
 
         expect(loaded1).toHaveLength(1);
         expect(loaded1[0].id).toBe('rule-1');
         expect(loaded2).toHaveLength(1);
         expect(loaded2[0].id).toBe('rule-2');
       });
+    });
+  });
+
+  describe('group persistence', () => {
+    let adapter: MemoryAdapter;
+    let persistence: RulePersistence;
+
+    beforeEach(() => {
+      adapter = new MemoryAdapter();
+      persistence = new RulePersistence(adapter);
+    });
+
+    it('saves and loads groups alongside rules', async () => {
+      const rules = [createTestRule('rule-1')];
+      const groups = [createTestGroup('billing')];
+
+      await persistence.save(rules, groups);
+      const result = await persistence.load();
+
+      expect(result.rules).toHaveLength(1);
+      expect(result.rules[0].id).toBe('rule-1');
+      expect(result.groups).toHaveLength(1);
+      expect(result.groups[0].id).toBe('billing');
+    });
+
+    it('preserves all group properties', async () => {
+      const group = createTestGroup('billing', {
+        name: 'Billing Rules',
+        description: 'All billing-related rules',
+        enabled: false,
+        createdAt: 1700000000000,
+        updatedAt: 1700000001000,
+      });
+
+      await persistence.save([], [group]);
+      const { groups: [loaded] } = await persistence.load();
+
+      expect(loaded.id).toBe('billing');
+      expect(loaded.name).toBe('Billing Rules');
+      expect(loaded.description).toBe('All billing-related rules');
+      expect(loaded.enabled).toBe(false);
+      expect(loaded.createdAt).toBe(1700000000000);
+      expect(loaded.updatedAt).toBe(1700000001000);
+    });
+
+    it('returns empty groups array when no groups saved', async () => {
+      await persistence.save([createTestRule('rule-1')]);
+
+      const { groups } = await persistence.load();
+
+      expect(groups).toEqual([]);
+    });
+
+    it('returns empty groups array when loading from storage without groups field', async () => {
+      // Simuluje zpětnou kompatibilitu s daty uloženými před přidáním skupin
+      await persistence.save([createTestRule('rule-1')]);
+
+      const result = await persistence.load();
+
+      expect(result.rules).toHaveLength(1);
+      expect(result.groups).toEqual([]);
+    });
+
+    it('saves multiple groups', async () => {
+      const groups = [
+        createTestGroup('billing', { name: 'Billing' }),
+        createTestGroup('shipping', { name: 'Shipping' }),
+        createTestGroup('notifications', { name: 'Notifications' }),
+      ];
+
+      await persistence.save([], groups);
+      const { groups: loaded } = await persistence.load();
+
+      expect(loaded).toHaveLength(3);
+      expect(loaded.map(g => g.id).sort()).toEqual(['billing', 'notifications', 'shipping']);
+    });
+
+    it('omits groups field from state when no groups provided', async () => {
+      await persistence.save([createTestRule('rule-1')]);
+      const { groups } = await persistence.load();
+
+      expect(groups).toEqual([]);
+    });
+
+    it('omits groups field from state when empty groups array provided', async () => {
+      await persistence.save([createTestRule('rule-1')], []);
+      const { groups } = await persistence.load();
+
+      expect(groups).toEqual([]);
     });
   });
 
@@ -205,7 +304,7 @@ describe('RulePersistence', () => {
       const rules = [createTestRule('sqlite-rule-1'), createTestRule('sqlite-rule-2')];
 
       await persistence.save(rules);
-      const loaded = await persistence.load();
+      const { rules: loaded } = await persistence.load();
 
       expect(loaded).toHaveLength(2);
       expect(loaded[0].id).toBe('sqlite-rule-1');
@@ -222,7 +321,7 @@ describe('RulePersistence', () => {
       });
 
       await persistence.save([rule]);
-      const [loaded] = await persistence.load();
+      const { rules: [loaded] } = await persistence.load();
 
       expect(loaded.priority).toBe(150);
       expect(loaded.enabled).toBe(false);
@@ -249,7 +348,7 @@ describe('RulePersistence', () => {
       ];
 
       await persistence.save(rules);
-      const loaded = await persistence.load();
+      const { rules: loaded } = await persistence.load();
 
       expect(loaded).toHaveLength(4);
       expect(loaded[0].trigger.type).toBe('fact');
@@ -262,7 +361,7 @@ describe('RulePersistence', () => {
       const rules = Array.from({ length: 100 }, (_, i) => createTestRule(`rule-${i}`));
 
       await persistence.save(rules);
-      const loaded = await persistence.load();
+      const { rules: loaded } = await persistence.load();
 
       expect(loaded).toHaveLength(100);
     });

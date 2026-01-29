@@ -127,7 +127,7 @@ describe('RuleEngine Persistence Integration', () => {
 
       // Ověříme, že pravidla byla uložena
       const persistence = new RulePersistence(adapter);
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved).toHaveLength(2);
       expect(saved.map(r => r.id).sort()).toEqual(['rule-1', 'rule-2']);
     });
@@ -156,7 +156,7 @@ describe('RuleEngine Persistence Integration', () => {
       await engine.stop();
 
       // Ověříme uložené změny
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved).toHaveLength(2);
 
       const initialRule = saved.find(r => r.id === 'initial-rule');
@@ -304,7 +304,7 @@ describe('RuleEngine Persistence Integration', () => {
 
       // Ověříme, že adapter je stále prázdný
       const persistence = new RulePersistence(adapter);
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved).toHaveLength(0);
     });
   });
@@ -330,7 +330,7 @@ describe('RuleEngine Persistence Integration', () => {
       await vi.advanceTimersByTimeAsync(20);
 
       const persistence = new RulePersistence(adapter);
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved).toHaveLength(1);
 
       vi.useRealTimers();
@@ -357,7 +357,7 @@ describe('RuleEngine Persistence Integration', () => {
 
       await vi.advanceTimersByTimeAsync(20);
 
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved[0].enabled).toBe(true);
 
       vi.useRealTimers();
@@ -384,7 +384,7 @@ describe('RuleEngine Persistence Integration', () => {
 
       await vi.advanceTimersByTimeAsync(20);
 
-      const saved = await persistence.load();
+      const { rules: saved } = await persistence.load();
       expect(saved[0].enabled).toBe(false);
 
       vi.useRealTimers();
