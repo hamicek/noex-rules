@@ -41,7 +41,8 @@ export type { SequenceBuilder, AbsenceBuilder, CountBuilder, AggregateBuilder } 
 export { event, fact, context, SourceExpr } from './condition/index.js';
 
 // Actions
-export { emit, setFact, deleteFact, setTimer, cancelTimer, callService, log } from './action/index.js';
+export { emit, setFact, deleteFact, setTimer, cancelTimer, callService, log, conditional } from './action/index.js';
+export { ConditionalBuilder } from './action/index.js';
 export type { SetTimerOptions } from './action/index.js';
 
 // Tagged template
