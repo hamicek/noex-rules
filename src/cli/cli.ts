@@ -28,6 +28,14 @@ import {
   type RuleCommandOptions
 } from './commands/rule.js';
 import { initCommand, type InitCommandOptions } from './commands/init.js';
+import {
+  auditListCommand,
+  auditSearchCommand,
+  auditExportCommand,
+  type AuditListOptions,
+  type AuditSearchOptions,
+  type AuditExportOptions
+} from './commands/audit.js';
 
 /** CLI instance */
 const cli = cac('noex-rules');
@@ -353,6 +361,121 @@ function registerInitCommand(): void {
     });
 }
 
+/** Registruje audit příkazy */
+function registerAuditCommands(): void {
+
+  cli
+    .command('audit list', 'List audit log entries')
+    .option('-u, --url <url>', 'Server URL')
+    .option('--category <category>', 'Filter by category')
+    .option('--type <type>', 'Filter by event type')
+    .option('--rule-id <ruleId>', 'Filter by rule ID')
+    .option('--from <from>', 'From timestamp or ISO date')
+    .option('--to <to>', 'To timestamp or ISO date')
+    .option('-l, --limit <limit>', 'Max entries to return')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const category = options['category'] as string | undefined;
+      const type = options['type'] as string | undefined;
+      const ruleId = options['ruleId'] as string | undefined;
+      const from = options['from'] as string | undefined;
+      const to = options['to'] as string | undefined;
+      const limit = options['limit'] ? Number(options['limit']) : undefined;
+      const auditOptions: AuditListOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined,
+        ...(category !== undefined && { category }),
+        ...(type !== undefined && { type }),
+        ...(ruleId !== undefined && { ruleId }),
+        ...(from !== undefined && { from }),
+        ...(to !== undefined && { to }),
+        ...(limit !== undefined && { limit }),
+      };
+      try {
+        await auditListCommand(auditOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
+
+  cli
+    .command('audit search <query>', 'Search audit log entries')
+    .option('-u, --url <url>', 'Server URL')
+    .option('--category <category>', 'Filter by category')
+    .option('--type <type>', 'Filter by event type')
+    .option('--rule-id <ruleId>', 'Filter by rule ID')
+    .option('--from <from>', 'From timestamp or ISO date')
+    .option('--to <to>', 'To timestamp or ISO date')
+    .option('-l, --limit <limit>', 'Max entries to search')
+    .action(async (query: string, options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const sCategory = options['category'] as string | undefined;
+      const sType = options['type'] as string | undefined;
+      const sRuleId = options['ruleId'] as string | undefined;
+      const sFrom = options['from'] as string | undefined;
+      const sTo = options['to'] as string | undefined;
+      const sLimit = options['limit'] ? Number(options['limit']) : undefined;
+      const searchOptions: AuditSearchOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined,
+        ...(sCategory !== undefined && { category: sCategory }),
+        ...(sType !== undefined && { type: sType }),
+        ...(sRuleId !== undefined && { ruleId: sRuleId }),
+        ...(sFrom !== undefined && { from: sFrom }),
+        ...(sTo !== undefined && { to: sTo }),
+        ...(sLimit !== undefined && { limit: sLimit }),
+      };
+      try {
+        await auditSearchCommand(query, searchOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
+
+  cli
+    .command('audit export', 'Export audit log entries')
+    .option('-u, --url <url>', 'Server URL')
+    .option('-o, --output <file>', 'Output file path (stdout if omitted)')
+    .option('--export-format <format>', 'Export format: json or csv', { default: 'json' })
+    .option('--category <category>', 'Filter by category')
+    .option('--type <type>', 'Filter by event type')
+    .option('--rule-id <ruleId>', 'Filter by rule ID')
+    .option('--from <from>', 'From timestamp or ISO date')
+    .option('--to <to>', 'To timestamp or ISO date')
+    .action(async (options: Record<string, unknown>) => {
+      const globalOptions = processGlobalOptions(options);
+      const config = loadConfig(options['config'] as string | undefined);
+      const eOutput = options['output'] as string | undefined;
+      const eFormat = options['exportFormat'] as 'json' | 'csv' | undefined;
+      const eCategory = options['category'] as string | undefined;
+      const eType = options['type'] as string | undefined;
+      const eRuleId = options['ruleId'] as string | undefined;
+      const eFrom = options['from'] as string | undefined;
+      const eTo = options['to'] as string | undefined;
+      const exportOptions: AuditExportOptions = {
+        ...globalOptions,
+        url: options['url'] as string | undefined,
+        ...(eOutput !== undefined && { output: eOutput }),
+        ...(eFormat !== undefined && { exportFormat: eFormat }),
+        ...(eCategory !== undefined && { category: eCategory }),
+        ...(eType !== undefined && { type: eType }),
+        ...(eRuleId !== undefined && { ruleId: eRuleId }),
+        ...(eFrom !== undefined && { from: eFrom }),
+        ...(eTo !== undefined && { to: eTo }),
+      };
+      try {
+        await auditExportCommand(exportOptions, config);
+      } catch (err) {
+        printError(formatError(err));
+        process.exit(getExitCode(err));
+      }
+    });
+}
+
 /** Inicializuje a spustí CLI */
 export async function run(args: string[] = process.argv): Promise<void> {
   registerGlobalOptions();
@@ -365,6 +488,7 @@ export async function run(args: string[] = process.argv): Promise<void> {
   registerRuleCommands();
   registerStatsCommand();
   registerInitCommand();
+  registerAuditCommands();
 
   cli.help();
   cli.version(version);
