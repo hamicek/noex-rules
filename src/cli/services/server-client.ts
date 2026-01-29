@@ -3,6 +3,13 @@
  */
 
 import { ConnectionError } from '../utils/errors.js';
+import type {
+  AuditCategory,
+  AuditEventType,
+  AuditEntry,
+  AuditQueryResult,
+  AuditStats,
+} from '../../audit/types.js';
 
 /** Konfigurace klienta */
 export interface ServerClientConfig {
@@ -62,6 +69,36 @@ export interface ApiErrorResponse {
   error: string;
   message: string;
   statusCode: number;
+}
+
+/** Parametry pro dotazování audit záznamů */
+export interface AuditEntriesParams {
+  category?: AuditCategory;
+  types?: AuditEventType[];
+  ruleId?: string;
+  source?: string;
+  correlationId?: string;
+  from?: number;
+  to?: number;
+  limit?: number;
+  offset?: number;
+}
+
+/** Parametry pro export audit záznamů */
+export interface AuditExportParams {
+  format?: 'json' | 'csv';
+  category?: AuditCategory;
+  types?: AuditEventType[];
+  ruleId?: string;
+  source?: string;
+  from?: number;
+  to?: number;
+}
+
+/** Výsledek audit cleanup operace */
+export interface AuditCleanupResult {
+  removedCount: number;
+  remainingCount: number;
 }
 
 /** HTTP klient pro API server */
@@ -194,6 +231,108 @@ export class ServerClient {
   /** Smaže pravidlo */
   async deleteRule(id: string): Promise<void> {
     return this.delete<void>(`/rules/${encodeURIComponent(id)}`);
+  }
+
+  /** Sestaví query string z parametrů, vynechá undefined hodnoty */
+  private buildQueryString(params: Record<string, string | number | undefined>): string {
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) {
+        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+      }
+    }
+    return parts.length > 0 ? `?${parts.join('&')}` : '';
+  }
+
+  /** Provede HTTP request a vrátí raw text místo parsovaného JSON */
+  private async requestText(
+    method: 'GET' | 'POST',
+    endpoint: string,
+  ): Promise<string> {
+    const url = this.buildUrl(endpoint);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { Accept: '*/*' },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+        const message = errorBody?.message ?? `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(message);
+      }
+
+      return await response.text();
+    } catch (err) {
+      clearTimeout(timeoutId);
+
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          throw new ConnectionError(url, new Error('Request timeout'));
+        }
+        if (
+          err.message.includes('ECONNREFUSED') ||
+          err.message.includes('fetch failed') ||
+          err.message.includes('network')
+        ) {
+          throw new ConnectionError(url, err);
+        }
+        throw err;
+      }
+
+      throw new ConnectionError(url, err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+
+  /** Získá audit záznamy s volitelným filtrováním */
+  async getAuditEntries(params: AuditEntriesParams = {}): Promise<AuditQueryResult> {
+    const qs = this.buildQueryString({
+      category: params.category,
+      types: params.types?.join(','),
+      ruleId: params.ruleId,
+      source: params.source,
+      correlationId: params.correlationId,
+      from: params.from,
+      to: params.to,
+      limit: params.limit,
+      offset: params.offset,
+    });
+    return this.get<AuditQueryResult>(`/audit/entries${qs}`);
+  }
+
+  /** Získá jeden audit záznam podle ID */
+  async getAuditEntry(id: string): Promise<AuditEntry> {
+    return this.get<AuditEntry>(`/audit/entries/${encodeURIComponent(id)}`);
+  }
+
+  /** Získá statistiky audit logu */
+  async getAuditStats(): Promise<AuditStats> {
+    return this.get<AuditStats>('/audit/stats');
+  }
+
+  /** Exportuje audit záznamy jako raw text (JSON nebo CSV) */
+  async exportAudit(params: AuditExportParams = {}): Promise<string> {
+    const qs = this.buildQueryString({
+      format: params.format,
+      category: params.category,
+      types: params.types?.join(','),
+      ruleId: params.ruleId,
+      source: params.source,
+      from: params.from,
+      to: params.to,
+    });
+    return this.requestText('GET', `/audit/export${qs}`);
+  }
+
+  /** Spustí manuální cleanup starých audit záznamů */
+  async cleanupAudit(): Promise<AuditCleanupResult> {
+    return this.post<AuditCleanupResult>('/audit/cleanup');
   }
 }
 
