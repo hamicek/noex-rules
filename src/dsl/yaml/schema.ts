@@ -520,6 +520,46 @@ function validateAction(obj: unknown, path: string): RuleAction {
       };
     }
 
+    case 'conditional': {
+      // Accept singular "condition" (auto-wrap) or plural "conditions"
+      const rawPlural = get(o, 'conditions');
+      const rawSingular = get(o, 'condition');
+
+      let conditions: RuleCondition[];
+      if (rawPlural !== undefined) {
+        const arr = requireArray(rawPlural, `${path}.conditions`);
+        if (arr.length === 0) {
+          throw new YamlValidationError('must have at least one condition', `${path}.conditions`);
+        }
+        conditions = arr.map((c, i) => validateCondition(c, `${path}.conditions[${i}]`));
+      } else if (rawSingular !== undefined) {
+        conditions = [validateCondition(rawSingular, `${path}.condition`)];
+      } else {
+        throw new YamlValidationError(
+          'missing required field "conditions" (or singular "condition")',
+          path,
+        );
+      }
+
+      // then — required, non-empty
+      const rawThen = requireField(o, 'then', path);
+      const thenArr = requireArray(rawThen, `${path}.then`);
+      if (thenArr.length === 0) {
+        throw new YamlValidationError('must have at least one action', `${path}.then`);
+      }
+      const thenActions = thenArr.map((a, i) => validateAction(a, `${path}.then[${i}]`));
+
+      // else — optional
+      const rawElse = get(o, 'else');
+      if (rawElse !== undefined) {
+        const elseArr = requireArray(rawElse, `${path}.else`);
+        const elseActions = elseArr.map((a, i) => validateAction(a, `${path}.else[${i}]`));
+        return { type: 'conditional', conditions, then: thenActions, else: elseActions };
+      }
+
+      return { type: 'conditional', conditions, then: thenActions };
+    }
+
     default:
       throw new YamlValidationError(`unknown action type "${type}"`, `${path}.type`);
   }
