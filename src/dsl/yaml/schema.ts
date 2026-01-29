@@ -24,6 +24,34 @@ import type {
 } from '../../types/temporal.js';
 import type { TimerConfig } from '../../types/timer.js';
 import { DslError } from '../helpers/errors.js';
+import {
+  DURATION_RE,
+  TRIGGER_TYPES as TRIGGER_TYPE_VALUES,
+  TEMPORAL_PATTERN_TYPES,
+  CONDITION_OPERATORS as CONDITION_OPERATOR_VALUES,
+  CONDITION_SOURCE_TYPES as CONDITION_SOURCE_TYPE_VALUES,
+  ACTION_TYPES as ACTION_TYPE_VALUES,
+  LOG_LEVELS as LOG_LEVEL_VALUES,
+  AGGREGATE_FUNCTIONS as AGGREGATE_FN_VALUES,
+  COMPARISONS,
+  UNARY_OPERATORS as UNARY_OPERATOR_VALUES,
+} from '../../validation/constants.js';
+
+// ---------------------------------------------------------------------------
+// Set-based lookups derived from shared constants
+// ---------------------------------------------------------------------------
+
+const TRIGGER_TYPES: ReadonlySet<string> = new Set(TRIGGER_TYPE_VALUES);
+const TEMPORAL_TYPES: ReadonlySet<string> = new Set(TEMPORAL_PATTERN_TYPES);
+const COMPARISON_OPS: ReadonlySet<string> = new Set(COMPARISONS);
+const AGGREGATE_FUNCTIONS: ReadonlySet<string> = new Set(AGGREGATE_FN_VALUES);
+const CONDITION_SOURCE_TYPES: ReadonlySet<string> = new Set(CONDITION_SOURCE_TYPE_VALUES);
+const CONDITION_OPERATORS: ReadonlySet<string> = new Set(CONDITION_OPERATOR_VALUES);
+const CONDITION_OPERATORS_MSG = CONDITION_OPERATOR_VALUES.join(', ');
+const UNARY_OPERATORS: ReadonlySet<string> = new Set(UNARY_OPERATOR_VALUES);
+const ACTION_TYPES: ReadonlySet<string> = new Set(ACTION_TYPE_VALUES);
+const ACTION_TYPES_MSG = ACTION_TYPE_VALUES.join(', ');
+const LOG_LEVELS: ReadonlySet<string> = new Set(LOG_LEVEL_VALUES);
 
 // ---------------------------------------------------------------------------
 // Error
@@ -105,8 +133,6 @@ function requireObject(value: unknown, path: string): Record<string, unknown> {
 // ---------------------------------------------------------------------------
 // Duration validation (matches DSL validators)
 // ---------------------------------------------------------------------------
-
-const DURATION_RE = /^\d+(ms|s|m|h|d|w|y)$/;
 
 function requireDuration(value: unknown, path: string): string | number {
   if (typeof value === 'number') {
@@ -197,10 +223,6 @@ function validateEventMatcher(obj: unknown, path: string): EventMatcher {
 // ---------------------------------------------------------------------------
 // Temporal patterns
 // ---------------------------------------------------------------------------
-
-const TEMPORAL_TYPES: ReadonlySet<string> = new Set(['sequence', 'absence', 'count', 'aggregate']);
-const COMPARISON_OPS: ReadonlySet<string> = new Set(['gte', 'lte', 'eq']);
-const AGGREGATE_FUNCTIONS: ReadonlySet<string> = new Set(['sum', 'avg', 'min', 'max', 'count']);
 
 function validateTemporalPattern(obj: unknown, path: string): TemporalPattern {
   const o = requireObject(obj, path);
@@ -315,8 +337,6 @@ function validateAggregatePattern(o: Record<string, unknown>, path: string): Agg
 // Trigger
 // ---------------------------------------------------------------------------
 
-const TRIGGER_TYPES: ReadonlySet<string> = new Set(['event', 'fact', 'timer', 'temporal']);
-
 function validateTrigger(obj: unknown, path: string): RuleTrigger {
   const o = requireObject(obj, path);
   const type = requireString(requireField(o, 'type', path), `${path}.type`);
@@ -348,18 +368,6 @@ function validateTrigger(obj: unknown, path: string): RuleTrigger {
 // ---------------------------------------------------------------------------
 // Condition
 // ---------------------------------------------------------------------------
-
-const CONDITION_SOURCE_TYPES: ReadonlySet<string> = new Set(['event', 'fact', 'context']);
-
-const CONDITION_OPERATORS_LIST = [
-  'eq', 'neq', 'gt', 'gte', 'lt', 'lte',
-  'in', 'not_in', 'contains', 'not_contains',
-  'matches', 'exists', 'not_exists',
-] as const;
-const CONDITION_OPERATORS: ReadonlySet<string> = new Set(CONDITION_OPERATORS_LIST);
-const CONDITION_OPERATORS_MSG = CONDITION_OPERATORS_LIST.join(', ');
-
-const UNARY_OPERATORS: ReadonlySet<string> = new Set(['exists', 'not_exists']);
 
 function validateConditionSource(obj: unknown, path: string): RuleCondition['source'] {
   const o = requireObject(obj, path);
@@ -408,15 +416,6 @@ function validateCondition(obj: unknown, path: string): RuleCondition {
 // ---------------------------------------------------------------------------
 // Action
 // ---------------------------------------------------------------------------
-
-const ACTION_TYPES_LIST = [
-  'set_fact', 'delete_fact', 'emit_event',
-  'set_timer', 'cancel_timer', 'call_service', 'log',
-] as const;
-const ACTION_TYPES: ReadonlySet<string> = new Set(ACTION_TYPES_LIST);
-const ACTION_TYPES_MSG = ACTION_TYPES_LIST.join(', ');
-
-const LOG_LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
 
 function validateTimerConfig(obj: unknown, path: string): TimerConfig {
   const o = requireObject(obj, path);
