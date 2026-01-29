@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { RuleEngineServer } from '../../../src/api/server';
 import { RuleEngine } from '../../../src/core/rule-engine';
+import { MetricsCollector } from '../../../src/observability/metrics-collector';
 
 describe('RuleEngineServer', () => {
   let server: RuleEngineServer | undefined;
@@ -278,6 +279,153 @@ describe('RuleEngineServer', () => {
       });
 
       expect(server.getEngine().isRunning).toBe(true);
+    });
+  });
+
+  describe('metrics integration', () => {
+    it('exposes /metrics when engine has metrics enabled', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        engineConfig: { metrics: { enabled: true } },
+      });
+
+      expect(server.getMetricsCollector()).toBeInstanceOf(MetricsCollector);
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/plain');
+    });
+
+    it('exposes /metrics when server metricsConfig is provided', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        metricsConfig: { enabled: true },
+      });
+
+      expect(server.getMetricsCollector()).toBeInstanceOf(MetricsCollector);
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/plain');
+    });
+
+    it('does not expose /metrics without metrics config', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+      });
+
+      expect(server.getMetricsCollector()).toBeNull();
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      expect(response.status).toBe(404);
+    });
+
+    it('prefers engine MetricsCollector over server metricsConfig', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        engineConfig: { metrics: { enabled: true } },
+        metricsConfig: { enabled: true },
+      });
+
+      // MetricsCollector pochází z enginu, ne ze server config
+      const collector = server.getMetricsCollector();
+      expect(collector).toBe(server.getEngine().getMetricsCollector());
+    });
+
+    it('returns gauge data in /metrics response', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        metricsConfig: { enabled: true },
+      });
+
+      const engine = server.getEngine();
+      engine.registerRule({
+        id: 'srv-gauge',
+        name: 'Server Gauge Rule',
+        trigger: { type: 'event', topic: 'srv.test' },
+        tags: [],
+      });
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      const body = await response.text();
+
+      expect(body).toContain('noex_rules_active_rules 1');
+    });
+
+    it('returns counter data after events in /metrics response', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        metricsConfig: { enabled: true },
+      });
+
+      const engine = server.getEngine();
+      engine.registerRule({
+        id: 'srv-counter',
+        name: 'Server Counter Rule',
+        priority: 0,
+        enabled: true,
+        trigger: { type: 'event', topic: 'srv.counter' },
+        conditions: [],
+        actions: [{ type: 'set_fact', key: 'srv:done', value: true }],
+        tags: [],
+      });
+
+      await engine.emit('srv.counter', {});
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      const body = await response.text();
+
+      expect(body).toContain('noex_rules_rules_executed_total');
+      expect(body).toContain('noex_rules_rules_triggered_total');
+    });
+
+    it('stops server-owned MetricsCollector on server stop', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        metricsConfig: { enabled: true },
+      });
+
+      const collector = server.getMetricsCollector()!;
+      const stopSpy = vi.spyOn(collector, 'stop');
+
+      await server.stop();
+      server = undefined;
+
+      expect(stopSpy).toHaveBeenCalledOnce();
+    });
+
+    it('does not stop engine-owned MetricsCollector on server stop', async () => {
+      externalEngine = await RuleEngine.start({
+        name: 'ext-metrics',
+        metrics: { enabled: true },
+      });
+
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        engine: externalEngine,
+      });
+
+      const collector = server.getMetricsCollector()!;
+      const stopSpy = vi.spyOn(collector, 'stop');
+
+      await server.stop();
+      server = undefined;
+
+      // Server nesmí zastavit MetricsCollector, který vlastní engine
+      expect(stopSpy).not.toHaveBeenCalled();
+    });
+
+    it('ignores metricsConfig when enabled is false', async () => {
+      server = await RuleEngineServer.start({
+        server: { port: 0, logger: false },
+        metricsConfig: { enabled: false },
+      });
+
+      expect(server.getMetricsCollector()).toBeNull();
+
+      const response = await fetch(`${server.address}/api/v1/metrics`);
+      expect(response.status).toBe(404);
     });
   });
 });

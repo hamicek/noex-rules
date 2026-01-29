@@ -13,6 +13,8 @@ import { registerRoutes } from './routes/index.js';
 import { registerSwagger } from './swagger.js';
 import { WebhookManager, type WebhookManagerConfig } from './notifications/webhook-manager.js';
 import { SSEManager, type SSEManagerConfig } from './notifications/sse-manager.js';
+import { MetricsCollector } from '../observability/metrics-collector.js';
+import type { MetricsConfig } from '../observability/types.js';
 
 export interface ServerOptions {
   /** Konfigurace HTTP serveru */
@@ -29,6 +31,15 @@ export interface ServerOptions {
 
   /** Konfigurace pro SSEManager */
   sseConfig?: SSEManagerConfig;
+
+  /**
+   * Konfigurace Prometheus metrik na úrovni serveru.
+   *
+   * Pokud engine již má MetricsCollector (engine config metrics.enabled),
+   * použije se ten. Jinak se z této konfigurace vytvoří nový MetricsCollector
+   * vlastněný serverem.
+   */
+  metricsConfig?: MetricsConfig;
 }
 
 export class RuleEngineServer {
@@ -38,6 +49,8 @@ export class RuleEngineServer {
   private readonly ownsEngine: boolean;
   private readonly _webhookManager: WebhookManager;
   private readonly _sseManager: SSEManager;
+  private readonly _metricsCollector: MetricsCollector | null;
+  private readonly ownsMetrics: boolean;
   private started = false;
 
   private constructor(
@@ -46,7 +59,9 @@ export class RuleEngineServer {
     config: ServerConfig,
     ownsEngine: boolean,
     webhookManager: WebhookManager,
-    sseManager: SSEManager
+    sseManager: SSEManager,
+    metricsCollector: MetricsCollector | null,
+    ownsMetrics: boolean,
   ) {
     this.fastify = fastify;
     this.engine = engine;
@@ -54,6 +69,8 @@ export class RuleEngineServer {
     this.ownsEngine = ownsEngine;
     this._webhookManager = webhookManager;
     this._sseManager = sseManager;
+    this._metricsCollector = metricsCollector;
+    this.ownsMetrics = ownsMetrics;
   }
 
   static async start(options: ServerOptions = {}): Promise<RuleEngineServer> {
@@ -118,16 +135,40 @@ export class RuleEngineServer {
       sseManager.broadcast(event, topic);
     });
 
+    // Resolve MetricsCollector: přednost má engine, fallback na server-owned instanci
+    let metricsCollector = engine.getMetricsCollector();
+    let ownsMetrics = false;
+
+    if (!metricsCollector && options.metricsConfig?.enabled) {
+      metricsCollector = new MetricsCollector(
+        engine.getTraceCollector(),
+        () => engine.getStats(),
+        options.metricsConfig,
+      );
+      ownsMetrics = true;
+    }
+
+    const routeContext = {
+      engine,
+      webhookManager,
+      sseManager,
+      ...(metricsCollector && { metricsCollector }),
+    };
+
     await fastify.register(
       async (instance) => {
-        await registerRoutes(instance, { engine, webhookManager, sseManager });
+        await registerRoutes(instance, routeContext);
       },
       { prefix: config.apiPrefix }
     );
 
     await fastify.listen({ port: config.port, host: config.host });
 
-    return new RuleEngineServer(fastify, engine, config, ownsEngine, webhookManager, sseManager);
+    return new RuleEngineServer(
+      fastify, engine, config, ownsEngine,
+      webhookManager, sseManager,
+      metricsCollector, ownsMetrics,
+    );
   }
 
   getEngine(): RuleEngine {
@@ -140,6 +181,10 @@ export class RuleEngineServer {
 
   getSSEManager(): SSEManager {
     return this._sseManager;
+  }
+
+  getMetricsCollector(): MetricsCollector | null {
+    return this._metricsCollector;
   }
 
   get address(): string {
@@ -160,6 +205,11 @@ export class RuleEngineServer {
   async stop(): Promise<void> {
     // Zastavit SSE manager (uzavře všechna připojení)
     this._sseManager.stop();
+
+    // Zastavit server-owned MetricsCollector (engine-owned se zastaví s enginem)
+    if (this.ownsMetrics && this._metricsCollector) {
+      this._metricsCollector.stop();
+    }
 
     await this.fastify.close();
 
