@@ -10,6 +10,9 @@ import { DashboardPage } from './pages/DashboardPage';
 import { RulesPage } from './pages/RulesPage';
 import { RuleDetailPage } from './pages/RuleDetailPage';
 import { RuleCreatePage } from './pages/RuleCreatePage';
+import { GroupsPage } from './pages/GroupsPage';
+import { FactsPage } from './pages/FactsPage';
+import { TimersPage } from './pages/TimersPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 
 function RootLayout() {
@@ -57,13 +60,13 @@ const ruleCreateRoute = createRoute({
 const groupsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/groups',
-  component: () => <PlaceholderPage title="Groups" />,
+  component: GroupsPage,
 });
 
 const factsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/facts',
-  component: () => <PlaceholderPage title="Facts" />,
+  component: FactsPage,
 });
 
 const eventsRoute = createRoute({
@@ -75,7 +78,7 @@ const eventsRoute = createRoute({
 const timersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/timers',
-  component: () => <PlaceholderPage title="Timers" />,
+  component: TimersPage,
 });
 
 const auditRoute = createRoute({

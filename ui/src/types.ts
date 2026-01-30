@@ -42,6 +42,35 @@ export interface RuleGroup {
   description?: string;
   enabled: boolean;
   rulesCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Fact {
+  key: string;
+  value: unknown;
+  timestamp: number;
+  source: string;
+  version: number;
+}
+
+export interface TimerExpireConfig {
+  topic: string;
+  data: unknown;
+}
+
+export interface TimerRepeatConfig {
+  interval: number;
+  maxCount?: number;
+}
+
+export interface Timer {
+  id: string;
+  name: string;
+  expiresAt: number;
+  onExpire: TimerExpireConfig;
+  repeat?: TimerRepeatConfig;
+  correlationId?: string;
 }
 
 export type TriggerType = 'fact' | 'event' | 'timer' | 'temporal';

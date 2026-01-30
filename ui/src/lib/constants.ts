@@ -28,6 +28,9 @@ export const POLLING_INTERVALS = {
   health: 5_000,
   stats: 5_000,
   rules: 30_000,
+  groups: 30_000,
+  facts: 30_000,
+  timers: 10_000,
 } as const;
 
 export const CONDITION_SOURCE_TYPE_LABELS: Record<string, string> = {

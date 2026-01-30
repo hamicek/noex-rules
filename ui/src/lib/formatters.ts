@@ -36,3 +36,33 @@ export function formatMs(ms: number): string {
   if (ms < 1000) return `${ms.toFixed(1)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
+
+export function formatCountdown(expiresAt: number): string {
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) return 'expired';
+
+  const seconds = Math.floor(remaining / 1_000) % 60;
+  const minutes = Math.floor(remaining / 60_000) % 60;
+  const hours = Math.floor(remaining / 3_600_000) % 24;
+  const days = Math.floor(remaining / 86_400_000);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+export function formatDuration(ms: number): string {
+  if (ms < 1_000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1_000).toFixed(0)}s`;
+  if (ms < 3_600_000) return `${(ms / 60_000).toFixed(0)}m`;
+  if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+  return `${(ms / 86_400_000).toFixed(1)}d`;
+}
+
+export function formatJson(value: unknown): string {
+  if (value === null || value === undefined) return String(value);
+  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value !== 'object') return String(value);
+  return JSON.stringify(value);
+}
