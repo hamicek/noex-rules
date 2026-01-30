@@ -7,6 +7,7 @@ import { engineResolvers } from './engine.resolvers.js';
 import { auditResolvers } from './audit.resolvers.js';
 import { versionResolvers } from './version.resolvers.js';
 import { backwardResolvers } from './backward.resolvers.js';
+import { subscriptionResolvers } from './subscription.resolvers.js';
 
 /**
  * Sloučí pole resolver modulů do jednoho resolver mapu.
@@ -41,4 +42,5 @@ export const resolvers = mergeResolvers(
   auditResolvers,
   versionResolvers,
   backwardResolvers,
+  subscriptionResolvers,
 );
