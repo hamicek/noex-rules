@@ -25,5 +25,8 @@ export * from './audit/index.js';
 // Observability
 export * from './observability/index.js';
 
+// Versioning
+export * from './versioning/index.js';
+
 // Hlavní RuleEngine class
 export { RuleEngine } from './core/rule-engine.js';

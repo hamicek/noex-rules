@@ -14,6 +14,7 @@ import { registerStreamRoutes } from './stream.js';
 import { registerDebugRoutes } from './debug.js';
 import { registerAuditRoutes } from './audit.js';
 import { registerMetricsRoutes } from './metrics.js';
+import { registerVersionsRoutes } from './versions.js';
 
 export interface RouteContext {
   engine: RuleEngine;
@@ -38,6 +39,7 @@ export async function registerRoutes(
   await registerStreamRoutes(fastify, context.sseManager);
   await registerDebugRoutes(fastify);
   await registerAuditRoutes(fastify);
+  await registerVersionsRoutes(fastify);
 
   if (context.metricsCollector) {
     await registerMetricsRoutes(fastify, context.metricsCollector);
