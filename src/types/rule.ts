@@ -1,6 +1,7 @@
 import type { RuleCondition } from './condition.js';
 import type { RuleAction } from './action.js';
 import type { TemporalPattern } from './temporal.js';
+import type { DataRequirement } from './lookup.js';
 
 /** Trigger - co spustí pravidlo */
 export type RuleTrigger =
@@ -28,6 +29,9 @@ export interface Rule {
 
   // Akce při splnění
   actions: RuleAction[];
+
+  // Externí data (lookup) — volitelné deklarace požadavků na data z externích služeb
+  lookups?: DataRequirement[];
 
   // Metadata
   createdAt: number;

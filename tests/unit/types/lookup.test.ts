@@ -1,5 +1,6 @@
 import { describe, it, expect, expectTypeOf } from 'vitest';
 import type { DataRequirement, LookupCacheConfig, LookupErrorStrategy } from '../../../src/types/index.js';
+import type { Rule, RuleInput } from '../../../src/types/rule.js';
 
 describe('LookupErrorStrategy', () => {
   describe('type compatibility', () => {
@@ -172,6 +173,108 @@ describe('DataRequirement', () => {
     it('should have correct optional field types', () => {
       expectTypeOf<DataRequirement['cache']>().toEqualTypeOf<LookupCacheConfig | undefined>();
       expectTypeOf<DataRequirement['onError']>().toEqualTypeOf<LookupErrorStrategy | undefined>();
+    });
+  });
+});
+
+describe('Rule.lookups', () => {
+  const baseRule: Rule = {
+    id: 'test-rule',
+    name: 'Test Rule',
+    description: 'Rule for testing lookups',
+    priority: 1,
+    enabled: true,
+    version: 1,
+    tags: [],
+    trigger: { type: 'event', topic: 'order.created' },
+    conditions: [],
+    actions: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  describe('type compatibility', () => {
+    it('should allow Rule without lookups', () => {
+      expect(baseRule.lookups).toBeUndefined();
+    });
+
+    it('should allow Rule with empty lookups array', () => {
+      const rule: Rule = { ...baseRule, lookups: [] };
+      expect(rule.lookups).toEqual([]);
+    });
+
+    it('should allow Rule with DataRequirement[] lookups', () => {
+      const rule: Rule = {
+        ...baseRule,
+        lookups: [
+          {
+            name: 'credit',
+            service: 'creditService',
+            method: 'getScore',
+            args: [{ ref: 'event.customerId' }],
+            cache: { ttl: '5m' },
+          },
+          {
+            name: 'fraud',
+            service: 'fraudService',
+            method: 'checkRisk',
+            args: [{ ref: 'event.email' }, { ref: 'event.amount' }],
+            onError: 'skip',
+          },
+        ],
+      };
+
+      expect(rule.lookups).toHaveLength(2);
+      expect(rule.lookups![0]!.name).toBe('credit');
+      expect(rule.lookups![1]!.onError).toBe('skip');
+    });
+  });
+
+  describe('type-level assertions', () => {
+    it('should have lookups as optional DataRequirement[]', () => {
+      expectTypeOf<Rule['lookups']>().toEqualTypeOf<DataRequirement[] | undefined>();
+    });
+  });
+});
+
+describe('RuleInput.lookups', () => {
+  const baseInput: RuleInput = {
+    id: 'test-input',
+    name: 'Test Input',
+    priority: 1,
+    enabled: true,
+    tags: [],
+    trigger: { type: 'event', topic: 'order.created' },
+    conditions: [],
+    actions: [],
+  };
+
+  describe('type compatibility', () => {
+    it('should allow RuleInput without lookups', () => {
+      expect(baseInput.lookups).toBeUndefined();
+    });
+
+    it('should allow RuleInput with lookups', () => {
+      const input: RuleInput = {
+        ...baseInput,
+        lookups: [
+          {
+            name: 'pricing',
+            service: 'pricingService',
+            method: 'getDiscount',
+            args: [{ ref: 'event.productId' }],
+          },
+        ],
+      };
+
+      expect(input.lookups).toHaveLength(1);
+      expect(input.lookups![0]!.name).toBe('pricing');
+    });
+  });
+
+  describe('type-level assertions', () => {
+    it('should inherit lookups type from Rule', () => {
+      expectTypeOf<RuleInput['lookups']>().toEqualTypeOf<DataRequirement[] | undefined>();
     });
   });
 });
