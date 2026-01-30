@@ -5,12 +5,14 @@ import type { RuleEngineConfig } from '../types/index.js';
 import {
   resolveConfig,
   resolveCorsConfig,
+  resolveGraphQLConfig,
   type ServerConfig,
   type ServerConfigInput
 } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes/index.js';
 import { registerSwagger } from './swagger.js';
+import { registerGraphQL } from './graphql/index.js';
 import { WebhookManager, type WebhookManagerConfig } from './notifications/webhook-manager.js';
 import { SSEManager, type SSEManagerConfig } from './notifications/sse-manager.js';
 import { MetricsCollector } from '../observability/metrics-collector.js';
@@ -161,6 +163,11 @@ export class RuleEngineServer {
       },
       { prefix: config.apiPrefix }
     );
+
+    const graphqlConfig = resolveGraphQLConfig(config.graphql);
+    if (graphqlConfig !== false) {
+      await registerGraphQL(fastify, routeContext, graphqlConfig);
+    }
 
     await fastify.listen({ port: config.port, host: config.host });
 
