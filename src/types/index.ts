@@ -16,6 +16,7 @@ export * from './action.js';
 export * from './temporal.js';
 export * from './rule.js';
 export * from './group.js';
+export * from './lookup.js';
 
 /** Unified input - společný vstup do enginu */
 export type EngineInput =
