@@ -68,6 +68,9 @@ export type {
   RuleTemplateDefinition,
 } from './template/index.js';
 
+// Query (backward chaining goals)
+export { factGoal, eventGoal, FactGoalBuilder, EventGoalBuilder } from './query/index.js';
+
 // Helpers
 export { ref, isRef } from './helpers/index.js';
 
@@ -80,6 +83,7 @@ export type {
   ConditionBuilder,
   TriggerBuilder,
   ActionBuilder,
+  GoalBuilder,
   LookupConfig,
   BuiltRule,
   ValueOrRef,

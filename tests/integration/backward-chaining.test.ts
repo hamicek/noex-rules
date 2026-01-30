@@ -8,6 +8,7 @@ import type {
   FactExistsNode,
   UnachievableNode,
 } from '../../src/types/backward';
+import { factGoal, eventGoal } from '../../src/dsl/query';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -555,6 +556,92 @@ describe('Backward Chaining — RuleEngine Integration', () => {
       });
 
       expect(result.achievable).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // DSL goal builders integration
+  // -------------------------------------------------------------------------
+
+  describe('DSL goal builders', () => {
+    it('query() accepts factGoal builder', async () => {
+      engine = await RuleEngine.start({ name: 'bc-dsl-fact' });
+
+      await engine.setFact('customer:tier', 'vip');
+
+      const result = engine.query(factGoal('customer:tier').equals('vip'));
+
+      expect(result.achievable).toBe(true);
+      expect(result.goal).toEqual({
+        type: 'fact',
+        key: 'customer:tier',
+        value: 'vip',
+        operator: 'eq',
+      });
+    });
+
+    it('query() accepts factGoal existence check', async () => {
+      engine = await RuleEngine.start({ name: 'bc-dsl-exists' });
+
+      await engine.setFact('order:status', 'pending');
+
+      const result = engine.query(factGoal('order:status').exists());
+
+      expect(result.achievable).toBe(true);
+    });
+
+    it('query() accepts factGoal with numeric operator', async () => {
+      engine = await RuleEngine.start({ name: 'bc-dsl-gte' });
+
+      await engine.setFact('sensor:temp', 150);
+
+      const result = engine.query(factGoal('sensor:temp').gte(100));
+
+      expect(result.achievable).toBe(true);
+    });
+
+    it('query() accepts eventGoal builder', async () => {
+      engine = await RuleEngine.start({ name: 'bc-dsl-event' });
+
+      engine.registerRule(rule({
+        id: 'emit-order',
+        actions: [{ type: 'emit_event', topic: 'order.completed', data: {} }],
+      }));
+
+      const result = engine.query(eventGoal('order.completed'));
+
+      expect(result.achievable).toBe(true);
+      expect(result.goal).toEqual({
+        type: 'event',
+        topic: 'order.completed',
+      });
+    });
+
+    it('DSL builders work with rule chains', async () => {
+      engine = await RuleEngine.start({ name: 'bc-dsl-chain' });
+
+      await engine.setFact('customer:active', true);
+
+      engine.registerRule(rule({
+        id: 'earn-points',
+        conditions: [
+          { source: { type: 'fact', pattern: 'customer:active' }, operator: 'eq', value: true },
+        ],
+        actions: [{ type: 'set_fact', key: 'loyalty:points', value: 500 }],
+      }));
+
+      engine.registerRule(rule({
+        id: 'vip-upgrade',
+        conditions: [
+          { source: { type: 'fact', pattern: 'loyalty:points' }, operator: 'exists', value: true },
+        ],
+        actions: [{ type: 'set_fact', key: 'customer:tier', value: 'vip' }],
+      }));
+
+      const result = engine.query(factGoal('customer:tier'));
+
+      expect(result.achievable).toBe(true);
+      expect(result.exploredRules).toBe(2);
     });
   });
 });

@@ -28,6 +28,7 @@ import { BaselineStore } from '../baseline/baseline-store.js';
 import type { BaselineStats } from '../types/baseline.js';
 import { BackwardChainer } from '../backward/backward-chainer.js';
 import type { Goal, QueryResult, BackwardChainingConfig } from '../types/backward.js';
+import type { GoalBuilder } from '../dsl/types.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -1037,9 +1038,13 @@ export class RuleEngine {
    *
    * Backward chaining je read-only operace — nemodifikuje stav enginu.
    * Výsledek obsahuje proof tree vysvětlující, proč je/není cíl dosažitelný.
+   *
+   * Přijímá jak surový {@link Goal} objekt, tak {@link GoalBuilder} z DSL.
    */
-  query(goal: Goal): QueryResult {
+  query(goal: Goal | GoalBuilder): QueryResult {
     this.ensureRunning();
+
+    const resolved: Goal = 'build' in goal ? goal.build() : goal;
 
     if (!this.backwardChainer) {
       this.backwardChainer = new BackwardChainer(
@@ -1050,7 +1055,7 @@ export class RuleEngine {
       );
     }
 
-    return this.backwardChainer.evaluate(goal);
+    return this.backwardChainer.evaluate(resolved);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

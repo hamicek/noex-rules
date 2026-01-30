@@ -2,6 +2,7 @@ import type { RuleCondition } from '../types/condition.js';
 import type { RuleAction } from '../types/action.js';
 import type { RuleTrigger, RuleInput } from '../types/rule.js';
 import type { DataRequirement, LookupCacheConfig, LookupErrorStrategy } from '../types/lookup.js';
+import type { Goal } from '../types/backward.js';
 
 /**
  * A dynamic reference to a runtime value resolved during rule evaluation.
@@ -63,6 +64,16 @@ export interface TriggerBuilder {
 export interface ActionBuilder {
   /** Builds and returns the underlying {@link RuleAction} object. */
   build(): RuleAction;
+}
+
+/**
+ * Builder interface for backward chaining goals.
+ *
+ * Implemented by {@link FactGoalBuilder} and {@link EventGoalBuilder}.
+ */
+export interface GoalBuilder {
+  /** Builds and returns the underlying {@link Goal} object. */
+  build(): Goal;
 }
 
 /**
