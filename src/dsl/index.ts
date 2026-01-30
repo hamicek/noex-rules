@@ -38,7 +38,7 @@ export { sequence, absence, count, aggregate } from './trigger/temporal/index.js
 export type { SequenceBuilder, AbsenceBuilder, CountBuilder, AggregateBuilder } from './trigger/temporal/index.js';
 
 // Conditions
-export { event, fact, context, SourceExpr } from './condition/index.js';
+export { event, fact, context, lookup, SourceExpr } from './condition/index.js';
 
 // Actions
 export { emit, setFact, deleteFact, setTimer, cancelTimer, callService, log, conditional } from './action/index.js';
