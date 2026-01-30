@@ -20,7 +20,7 @@ export const CONDITION_OPERATORS = [
 ] as const;
 export type ConditionOperator = (typeof CONDITION_OPERATORS)[number];
 
-export const CONDITION_SOURCE_TYPES = ['event', 'fact', 'context'] as const;
+export const CONDITION_SOURCE_TYPES = ['event', 'fact', 'context', 'lookup'] as const;
 export type ConditionSourceType = (typeof CONDITION_SOURCE_TYPES)[number];
 
 export const ACTION_TYPES = [

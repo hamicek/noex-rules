@@ -13,6 +13,9 @@ import { RuleManager } from './rule-manager.js';
 import { RulePersistence, type RulePersistenceOptions } from '../persistence/rule-persistence.js';
 import { ConditionEvaluator, type EvaluationContext, type EvaluationOptions } from '../evaluation/condition-evaluator.js';
 import { ActionExecutor, type ExecutionContext, type ExecutionOptions } from '../evaluation/action-executor.js';
+import { DataResolver } from '../evaluation/data-resolver.js';
+import { LookupCache } from '../evaluation/lookup-cache.js';
+import type { InterpolationContext } from '../utils/interpolation.js';
 import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
 import { Profiler } from '../debugging/profiler.js';
@@ -51,6 +54,8 @@ export class RuleEngine {
   private readonly conditionEvaluator: ConditionEvaluator;
   private readonly actionExecutor: ActionExecutor;
   private readonly traceCollector: TraceCollector;
+  private readonly lookupCache: LookupCache;
+  private readonly dataResolver: DataResolver;
   private readonly auditLog: AuditLogService | null;
   private readonly versionStore: RuleVersionStore | null;
   private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry' | 'hotReload' | 'versioning'>>;
@@ -100,6 +105,8 @@ export class RuleEngine {
     };
 
     this.services = new Map(Object.entries(this.config.services));
+    this.lookupCache = new LookupCache();
+    this.dataResolver = new DataResolver(this.services, this.lookupCache);
     this.validator = new RuleInputValidator();
 
     this.actionExecutor = new ActionExecutor(
@@ -1025,6 +1032,7 @@ export class RuleEngine {
       this.metricsCollector = null;
     }
 
+    this.lookupCache.clear();
     await this.versionStore?.stop();
     await this.timerManager.stop();
     await this.auditLog?.stop();
@@ -1048,6 +1056,13 @@ export class RuleEngine {
    */
   getHotReloadWatcher(): HotReloadWatcher | null {
     return this.hotReloadWatcher;
+  }
+
+  /**
+   * Vrátí LookupCache pro přístup ke statistikám a správě cache externích dat.
+   */
+  getLookupCache(): LookupCache {
+    return this.lookupCache;
   }
 
   /**
@@ -1264,6 +1279,56 @@ export class RuleEngine {
         variables: new Map()
       };
 
+      // Resolve external data lookups before condition evaluation
+      if (rule.lookups && rule.lookups.length > 0) {
+        const lookupStart = performance.now();
+        const resolution = await this.dataResolver.resolveAll(
+          rule.lookups,
+          evalContext as unknown as InterpolationContext
+        );
+        const lookupDurationMs = performance.now() - lookupStart;
+
+        this.traceCollector.record('lookup_resolved', {
+          lookups: rule.lookups.map(r => r.name),
+          resolved: [...resolution.lookups.keys()],
+          errors: resolution.errors.map(e => ({ lookup: e.lookupName, error: e.message })),
+        }, {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          ...(correlationId && { correlationId }),
+          ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+          durationMs: lookupDurationMs,
+        });
+
+        if (resolution.skipped) {
+          const skipDurationMs = Date.now() - startTime;
+          this.traceCollector.record('rule_skipped', {
+            reason: 'lookup_failed',
+            errors: resolution.errors.map(e => ({ lookup: e.lookupName, error: e.message })),
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            ...(triggeredEntry?.id && { causationId: triggeredEntry.id }),
+            durationMs: skipDurationMs,
+          });
+
+          this.auditLog?.record('rule_skipped', {
+            reason: 'lookup_failed',
+            triggerType: trigger.type,
+          }, {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            ...(correlationId && { correlationId }),
+            durationMs: skipDurationMs,
+          });
+
+          return;
+        }
+
+        evalContext.lookups = resolution.lookups;
+      }
+
       const evalOptions: EvaluationOptions = {
         onConditionEvaluated: (result) => {
           this.traceCollector.record('condition_evaluated', {
@@ -1312,7 +1377,8 @@ export class RuleEngine {
       const execContext: ExecutionContext = {
         trigger: evalContext.trigger,
         facts: this.factStore,
-        variables: new Map()
+        variables: new Map(),
+        ...(evalContext.lookups && { lookups: evalContext.lookups }),
       };
 
       if (trigger.type === 'event') {

@@ -118,6 +118,16 @@ function validateConditionSource(
         collector.addError(`${path}.key`, 'Context source key must be a string');
       }
       break;
+    case 'lookup':
+      if (!hasProperty(source, 'name')) {
+        collector.addError(`${path}.name`, 'Lookup source must have a "name" field');
+      } else if (typeof source['name'] !== 'string') {
+        collector.addError(`${path}.name`, 'Lookup source name must be a string');
+      }
+      if (hasProperty(source, 'field') && typeof source['field'] !== 'string') {
+        collector.addError(`${path}.field`, 'Lookup source field must be a string');
+      }
+      break;
   }
 }
 

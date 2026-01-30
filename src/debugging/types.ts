@@ -15,7 +15,8 @@ export type TraceEntryType =
   | 'event_emitted'
   | 'timer_set'
   | 'timer_cancelled'
-  | 'timer_expired';
+  | 'timer_expired'
+  | 'lookup_resolved';
 
 /** A single trace entry recording an engine activity */
 export interface DebugTraceEntry {

@@ -207,7 +207,8 @@ export class ActionExecutor {
         const evalContext: EvaluationContext = {
           trigger: ctx.trigger as EvaluationContext['trigger'],
           facts: ctx.facts as FactStore,
-          variables: ctx.variables
+          variables: ctx.variables,
+          ...(ctx.lookups && { lookups: ctx.lookups }),
         };
 
         const conditionMet = this.conditionEvaluator.evaluateAll(action.conditions, evalContext);
