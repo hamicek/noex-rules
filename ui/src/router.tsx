@@ -15,7 +15,7 @@ import { FactsPage } from './pages/FactsPage';
 import { TimersPage } from './pages/TimersPage';
 import { EventsPage } from './pages/EventsPage';
 import { AuditPage } from './pages/AuditPage';
-import { PlaceholderPage } from './pages/PlaceholderPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 function RootLayout() {
   return (
@@ -92,7 +92,7 @@ const auditRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: () => <PlaceholderPage title="Settings" />,
+  component: SettingsPage,
 });
 
 const routeTree = rootRoute.addChildren([
