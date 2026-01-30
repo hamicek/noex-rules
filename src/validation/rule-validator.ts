@@ -13,6 +13,7 @@ import type { ValidationResult } from './types.js';
 import { validateTrigger } from './validators/trigger.js';
 import { validateConditions } from './validators/condition.js';
 import { validateActions } from './validators/action.js';
+import { validateLookups } from './validators/lookup.js';
 
 /** Options for {@link RuleInputValidator}. */
 export interface ValidatorOptions {
@@ -105,6 +106,10 @@ export class RuleInputValidator {
 
     if (hasProperty(rule, 'actions')) {
       validateActions(rule['actions'], this.fieldPath(prefix, 'actions'), collector);
+    }
+
+    if (hasProperty(rule, 'lookups')) {
+      validateLookups(rule['lookups'], this.fieldPath(prefix, 'lookups'), collector);
     }
 
     if (this.strict) {
