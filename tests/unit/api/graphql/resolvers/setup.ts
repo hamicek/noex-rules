@@ -4,6 +4,7 @@ import type { GraphQLContext } from '../../../../../src/api/graphql/context';
 import type { RuleInput, RuleEngineConfig } from '../../../../../src/types';
 import { WebhookManager } from '../../../../../src/api/notifications/webhook-manager';
 import { SSEManager } from '../../../../../src/api/notifications/sse-manager';
+import { createLoaders } from '../../../../../src/api/graphql/loaders';
 
 export async function createTestContext(
   configOverrides?: Partial<RuleEngineConfig>,
@@ -11,7 +12,7 @@ export async function createTestContext(
   const engine = await RuleEngine.start({ name: 'graphql-test', ...configOverrides });
   const webhookManager = new WebhookManager();
   const sseManager = new SSEManager();
-  return { engine, webhookManager, sseManager };
+  return { engine, webhookManager, sseManager, loaders: createLoaders(engine) };
 }
 
 export async function createTestContextWithSubsystems(): Promise<GraphQLContext> {

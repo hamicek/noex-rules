@@ -51,6 +51,7 @@
     "@fastify/swagger-ui": "^5.2.5",
     "@hamicek/noex": "^0.1.0",
     "cac": "^6.7.14",
+    "dataloader": "^2.2.3",
     "fastify": "^5.7.2",
     "graphql": "^16.9.0",
     "mercurius": "^15.0.0",

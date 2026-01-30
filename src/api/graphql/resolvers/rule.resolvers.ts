@@ -2,7 +2,6 @@ import type { GraphQLContext } from '../context.js';
 import type { Rule, RuleInput } from '../../../types/rule.js';
 import type { RuleVersionQueryResult } from '../../../versioning/types.js';
 import type { AuditEntry } from '../../../audit/types.js';
-import type { RuleGroup } from '../../../types/group.js';
 import { NotFoundError, ConflictError } from '../../middleware/error-handler.js';
 
 interface CreateRuleInput {
@@ -110,8 +109,8 @@ export const ruleResolvers = {
     // Map TS Rule.group (string) → GraphQL Rule.groupId (String)
     groupId: (rule: Rule): string | null => rule.group ?? null,
 
-    group: (rule: Rule, _: unknown, ctx: GraphQLContext): RuleGroup | null =>
-      rule.group ? ctx.engine.getGroup(rule.group) ?? null : null,
+    group: (rule: Rule, _: unknown, ctx: GraphQLContext) =>
+      rule.group ? ctx.loaders.groupLoader.load(rule.group) : null,
 
     versions: (
       rule: Rule,

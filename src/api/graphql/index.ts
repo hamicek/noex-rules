@@ -2,9 +2,10 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
-import type { GraphQLContext } from './context.js';
+import type { GraphQLBaseContext, GraphQLContext } from './context.js';
 import { errorFormatter } from './error-mapper.js';
 import { resolvers } from './resolvers/index.js';
+import { createLoaders } from './loaders/index.js';
 import type { GraphQLConfig } from '../config.js';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
@@ -42,7 +43,7 @@ async function loadSchema(): Promise<string> {
  */
 export async function registerGraphQL(
   fastify: FastifyInstance,
-  routeContext: GraphQLContext,
+  routeContext: GraphQLBaseContext,
   config: Required<GraphQLConfig>,
 ): Promise<void> {
   const mercurius = await import('mercurius');
@@ -55,9 +56,17 @@ export async function registerGraphQL(
     resolvers: resolvers as any,
     path: config.path,
     graphiql: config.graphiql,
-    context: () => routeContext,
+    context: (): GraphQLContext => ({
+      ...routeContext,
+      loaders: createLoaders(routeContext.engine),
+    }),
     subscription: config.subscriptions
-      ? { context: () => routeContext }
+      ? {
+          context: (): GraphQLContext => ({
+            ...routeContext,
+            loaders: createLoaders(routeContext.engine),
+          }),
+        }
       : false,
     errorFormatter,
   });

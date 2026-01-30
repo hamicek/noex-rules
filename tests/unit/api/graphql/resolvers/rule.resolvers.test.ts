@@ -199,24 +199,25 @@ describe('ruleResolvers', () => {
       expect(RuleType.group(rule, {}, ctx)).toBeNull();
     });
 
-    it('resolves group object when rule belongs to a group', () => {
+    it('resolves group object when rule belongs to a group', async () => {
       ctx.engine.createGroup({ id: 'g1', name: 'Group One' });
       ctx.engine.registerRule(createTestRule({ id: 'grp-rule', group: 'g1' }));
       const rule = ctx.engine.getRule('grp-rule')!;
 
-      const group = RuleType.group(rule, {}, ctx);
+      const group = await RuleType.group(rule, {}, ctx);
       expect(group).not.toBeNull();
       expect(group!.id).toBe('g1');
       expect(group!.name).toBe('Group One');
     });
 
-    it('returns null when group reference is stale (group deleted)', () => {
+    it('returns null when group reference is stale (group deleted)', async () => {
       ctx.engine.createGroup({ id: 'g-del', name: 'Deleted' });
       ctx.engine.registerRule(createTestRule({ id: 'stale', group: 'g-del' }));
       ctx.engine.deleteGroup('g-del');
       const rule = ctx.engine.getRule('stale')!;
 
-      expect(RuleType.group(rule, {}, ctx)).toBeNull();
+      const group = await RuleType.group(rule, {}, ctx);
+      expect(group).toBeNull();
     });
   });
 

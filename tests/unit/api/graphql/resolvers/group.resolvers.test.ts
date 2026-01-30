@@ -154,42 +154,42 @@ describe('groupResolvers', () => {
   // ─── RuleGroup type resolvers ────────────────────────────────────
 
   describe('RuleGroup.rules', () => {
-    it('returns empty array when group has no rules', () => {
+    it('returns empty array when group has no rules', async () => {
       ctx.engine.createGroup({ id: 'empty-g', name: 'Empty' });
       const group = ctx.engine.getGroup('empty-g')!;
 
-      expect(RuleGroupType.rules(group, {}, ctx)).toEqual([]);
+      expect(await RuleGroupType.rules(group, {}, ctx)).toEqual([]);
     });
 
-    it('returns rules belonging to the group', () => {
+    it('returns rules belonging to the group', async () => {
       ctx.engine.createGroup({ id: 'g-rules', name: 'With Rules' });
       ctx.engine.registerRule(createTestRule({ id: 'r1', name: 'R1', group: 'g-rules' }));
       ctx.engine.registerRule(createTestRule({ id: 'r2', name: 'R2', group: 'g-rules' }));
       ctx.engine.registerRule(createTestRule({ id: 'r3', name: 'R3' })); // no group
       const group = ctx.engine.getGroup('g-rules')!;
 
-      const rules = RuleGroupType.rules(group, {}, ctx);
+      const rules = await RuleGroupType.rules(group, {}, ctx);
       expect(rules).toHaveLength(2);
-      expect(rules.map(r => r.id).sort()).toEqual(['r1', 'r2']);
+      expect([...rules].map(r => r.id).sort()).toEqual(['r1', 'r2']);
     });
   });
 
   describe('RuleGroup.rulesCount', () => {
-    it('returns 0 for empty group', () => {
+    it('returns 0 for empty group', async () => {
       ctx.engine.createGroup({ id: 'cnt-0', name: 'Empty' });
       const group = ctx.engine.getGroup('cnt-0')!;
 
-      expect(RuleGroupType.rulesCount(group, {}, ctx)).toBe(0);
+      expect(await RuleGroupType.rulesCount(group, {}, ctx)).toBe(0);
     });
 
-    it('returns correct count of rules in group', () => {
+    it('returns correct count of rules in group', async () => {
       ctx.engine.createGroup({ id: 'cnt-g', name: 'Counted' });
       ctx.engine.registerRule(createTestRule({ id: 'c1', group: 'cnt-g' }));
       ctx.engine.registerRule(createTestRule({ id: 'c2', group: 'cnt-g' }));
       ctx.engine.registerRule(createTestRule({ id: 'c3', group: 'cnt-g' }));
       const group = ctx.engine.getGroup('cnt-g')!;
 
-      expect(RuleGroupType.rulesCount(group, {}, ctx)).toBe(3);
+      expect(await RuleGroupType.rulesCount(group, {}, ctx)).toBe(3);
     });
   });
 });

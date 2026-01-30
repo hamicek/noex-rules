@@ -1,6 +1,5 @@
 import type { GraphQLContext } from '../context.js';
 import type { RuleGroup, RuleGroupInput } from '../../../types/group.js';
-import type { Rule } from '../../../types/rule.js';
 import { NotFoundError, ConflictError } from '../../middleware/error-handler.js';
 
 interface CreateGroupInput {
@@ -77,10 +76,12 @@ export const groupResolvers = {
   },
 
   RuleGroup: {
-    rules: (group: RuleGroup, _: unknown, ctx: GraphQLContext): Rule[] =>
-      ctx.engine.getGroupRules(group.id),
+    rules: (group: RuleGroup, _: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.groupRulesLoader.load(group.id),
 
-    rulesCount: (group: RuleGroup, _: unknown, ctx: GraphQLContext): number =>
-      ctx.engine.getGroupRules(group.id).length,
+    rulesCount: async (group: RuleGroup, _: unknown, ctx: GraphQLContext) => {
+      const rules = await ctx.loaders.groupRulesLoader.load(group.id);
+      return rules.length;
+    },
   },
 };
