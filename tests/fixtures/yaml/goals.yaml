@@ -1,0 +1,10 @@
+queries:
+  - type: fact
+    key: "customer:123:tier"
+    value: "vip"
+  - type: fact
+    key: "sensor:temp"
+    value: 100
+    operator: gte
+  - type: event
+    topic: "order.completed"

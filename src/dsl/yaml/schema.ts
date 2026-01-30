@@ -24,6 +24,7 @@ import type {
 } from '../../types/temporal.js';
 import type { TimerConfig } from '../../types/timer.js';
 import type { DataRequirement } from '../../types/lookup.js';
+import type { Goal, FactGoal, EventGoal } from '../../types/backward.js';
 import { DslError } from '../helpers/errors.js';
 import {
   DURATION_RE,
@@ -37,6 +38,8 @@ import {
   COMPARISONS,
   UNARY_OPERATORS as UNARY_OPERATOR_VALUES,
   BASELINE_COMPARISONS as BASELINE_COMPARISON_VALUES,
+  GOAL_TYPES as GOAL_TYPE_VALUES,
+  GOAL_OPERATORS as GOAL_OPERATOR_VALUES,
 } from '../../validation/constants.js';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +59,9 @@ const BASELINE_COMPARISONS_MSG = BASELINE_COMPARISON_VALUES.join(', ');
 const ACTION_TYPES: ReadonlySet<string> = new Set(ACTION_TYPE_VALUES);
 const ACTION_TYPES_MSG = ACTION_TYPE_VALUES.join(', ');
 const LOG_LEVELS: ReadonlySet<string> = new Set(LOG_LEVEL_VALUES);
+const GOAL_TYPES: ReadonlySet<string> = new Set(GOAL_TYPE_VALUES);
+const GOAL_OPERATORS: ReadonlySet<string> = new Set(GOAL_OPERATOR_VALUES);
+const GOAL_OPERATORS_MSG = GOAL_OPERATOR_VALUES.join(', ');
 
 // ---------------------------------------------------------------------------
 // Error
@@ -737,4 +743,71 @@ export function validateRule(obj: unknown, path: string = 'rule'): RuleInput {
   }
 
   return rule;
+}
+
+// ---------------------------------------------------------------------------
+// Goal (backward chaining)
+// ---------------------------------------------------------------------------
+
+function validateFactGoal(o: Record<string, unknown>, path: string): FactGoal {
+  const goal: FactGoal = {
+    type: 'fact',
+    key: requireString(requireField(o, 'key', path), `${path}.key`),
+  };
+
+  const value = get(o, 'value');
+  if (value !== undefined) {
+    goal.value = value;
+  }
+
+  const operator = get(o, 'operator');
+  if (operator !== undefined) {
+    const op = requireString(operator, `${path}.operator`);
+    if (!GOAL_OPERATORS.has(op)) {
+      throw new YamlValidationError(
+        `invalid goal operator "${op}". Expected: ${GOAL_OPERATORS_MSG}`,
+        `${path}.operator`,
+      );
+    }
+    goal.operator = op as NonNullable<FactGoal['operator']>;
+  }
+
+  return goal;
+}
+
+function validateEventGoal(o: Record<string, unknown>, path: string): EventGoal {
+  return {
+    type: 'event',
+    topic: requireString(requireField(o, 'topic', path), `${path}.topic`),
+  };
+}
+
+/**
+ * Validates a raw object (typically from a YAML parser) and returns a
+ * type-safe backward chaining `Goal`.
+ *
+ * @param obj  - The raw parsed object.
+ * @param path - Dot-notated path prefix for error messages (default `"goal"`).
+ * @returns A validated `Goal` object.
+ * @throws {YamlValidationError} On any validation error.
+ */
+export function validateGoal(obj: unknown, path: string = 'goal'): Goal {
+  const o = requireObject(obj, path);
+  const type = requireString(requireField(o, 'type', path), `${path}.type`);
+
+  if (!GOAL_TYPES.has(type)) {
+    throw new YamlValidationError(
+      `invalid goal type "${type}". Expected: fact, event`,
+      `${path}.type`,
+    );
+  }
+
+  switch (type) {
+    case 'fact':
+      return validateFactGoal(o, path);
+    case 'event':
+      return validateEventGoal(o, path);
+    default:
+      throw new YamlValidationError(`unknown goal type "${type}"`, `${path}.type`);
+  }
 }

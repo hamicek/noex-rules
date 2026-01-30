@@ -49,9 +49,10 @@ export type { SetTimerOptions } from './action/index.js';
 export { rule, parseRuleTemplate, ParseError } from './tagged/index.js';
 
 // YAML loader
-export { loadRulesFromYAML, loadRulesFromFile, YamlLoadError, validateRule, YamlValidationError } from './yaml/index.js';
+export { loadRulesFromYAML, loadRulesFromFile, YamlLoadError, validateRule, validateGoal, YamlValidationError } from './yaml/index.js';
 export { loadTemplateFromYAML, loadTemplateFromFile, isTemplateYAML } from './yaml/index.js';
 export { loadGroupsFromYAML, loadGroupsFromFile } from './yaml/index.js';
+export { loadGoalsFromYAML, loadGoalsFromFile } from './yaml/index.js';
 
 // Template
 export { RuleTemplate, TemplateBuilder } from './template/index.js';

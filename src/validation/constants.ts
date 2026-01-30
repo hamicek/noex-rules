@@ -51,6 +51,12 @@ export type Comparison = (typeof COMPARISONS)[number];
 export const UNARY_OPERATORS = ['exists', 'not_exists'] as const;
 export type UnaryOperator = (typeof UNARY_OPERATORS)[number];
 
+export const GOAL_TYPES = ['fact', 'event'] as const;
+export type GoalType = (typeof GOAL_TYPES)[number];
+
+export const GOAL_OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte'] as const;
+export type GoalOperator = (typeof GOAL_OPERATORS)[number];
+
 /** Matches a duration string with unit: `<digits><unit>` where unit is ms|s|m|h|d|w|y. */
 export const DURATION_RE = /^\d+(ms|s|m|h|d|w|y)$/;
 
