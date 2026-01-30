@@ -13,6 +13,7 @@ import { fetchAuditEntries } from '../../api/queries/audit';
 import { useAuditStream } from '../../hooks/useAuditStream';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState } from '../common/EmptyState';
+import { ErrorState } from '../common/ErrorState';
 import {
   AuditFilters,
   type AuditFilterValues,
@@ -59,7 +60,7 @@ export function AuditTable() {
     return input;
   }, [filters, page]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['audit', queryInput],
     queryFn: () => fetchAuditEntries(queryInput),
     refetchInterval: POLLING_INTERVALS.audit,
@@ -164,6 +165,12 @@ export function AuditTable() {
 
       {isLoading ? (
         <LoadingState message="Loading audit entries..." />
+      ) : isError ? (
+        <ErrorState
+          title="Failed to load audit log"
+          message="Could not fetch audit entries from the server. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
       ) : !data || data.entries.length === 0 ? (
         <EmptyState
           title="No audit entries found"

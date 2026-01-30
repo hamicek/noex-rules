@@ -7,6 +7,7 @@ import { fetchFacts, deleteFact } from '../../api/queries/facts';
 import { SearchInput } from '../common/SearchInput';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState } from '../common/EmptyState';
+import { ErrorState } from '../common/ErrorState';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   formatRelativeTime,
@@ -28,7 +29,7 @@ export function FactTable() {
   const [editTarget, setEditTarget] = useState<Fact | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data: facts, isLoading } = useQuery({
+  const { data: facts, isLoading, isError, refetch } = useQuery({
     queryKey: ['facts'],
     queryFn: fetchFacts,
     refetchInterval: POLLING_INTERVALS.facts,
@@ -89,6 +90,16 @@ export function FactTable() {
 
   if (isLoading) {
     return <LoadingState message="Loading facts..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load facts"
+        message="Could not fetch facts from the server. Check your connection and try again."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   return (

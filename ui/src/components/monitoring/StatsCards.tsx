@@ -10,6 +10,7 @@ import type { ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { useStats } from '../../hooks/useEngineStats';
 import { formatNumber, formatMs } from '../../lib/formatters';
+import { ErrorState } from '../common/ErrorState';
 
 interface StatCardProps {
   icon: ReactNode;
@@ -43,7 +44,31 @@ function StatCard({ icon, label, value, iconBg, iconColor }: StatCardProps) {
 }
 
 export function StatsCards() {
-  const { data: stats } = useStats();
+  const { data: stats, isLoading, isError, refetch } = useStats();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-[76px] animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load stats"
+        message="Could not fetch engine statistics."
+        onRetry={() => refetch()}
+        className="py-8"
+      />
+    );
+  }
 
   const cards = [
     {

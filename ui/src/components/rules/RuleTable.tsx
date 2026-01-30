@@ -8,6 +8,7 @@ import { RuleStatusBadge } from './RuleStatusBadge';
 import { SearchInput } from '../common/SearchInput';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState } from '../common/EmptyState';
+import { ErrorState } from '../common/ErrorState';
 import { formatRelativeTime } from '../../lib/formatters';
 import {
   TRIGGER_TYPE_LABELS,
@@ -25,7 +26,7 @@ export function RuleTable() {
   const [sortField, setSortField] = useState<SortField>('priority');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  const { data: rules, isLoading } = useQuery({
+  const { data: rules, isLoading, isError, refetch } = useQuery({
     queryKey: ['rules'],
     queryFn: fetchRules,
     refetchInterval: POLLING_INTERVALS.rules,
@@ -99,6 +100,16 @@ export function RuleTable() {
 
   if (isLoading) {
     return <LoadingState message="Loading rules..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load rules"
+        message="Could not fetch rules from the server. Check your connection and try again."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   return (

@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { KeyboardShortcutsDialog } from './components/common/KeyboardShortcutsDialog';
 import { useHotkeys, type HotkeyBinding } from './hooks/useHotkeys';
 import { DashboardPage } from './pages/DashboardPage';
@@ -75,7 +76,9 @@ function RootLayout() {
           onShortcutsOpen={openShortcuts}
         />
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
       <KeyboardShortcutsDialog open={shortcutsOpen} onClose={closeShortcuts} />

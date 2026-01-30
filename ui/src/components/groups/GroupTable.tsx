@@ -15,6 +15,7 @@ import { RuleStatusBadge } from '../rules/RuleStatusBadge';
 import { SearchInput } from '../common/SearchInput';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState } from '../common/EmptyState';
+import { ErrorState } from '../common/ErrorState';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { formatRelativeTime } from '../../lib/formatters';
 import { POLLING_INTERVALS } from '../../lib/constants';
@@ -33,7 +34,7 @@ export function GroupTable() {
   const [editTarget, setEditTarget] = useState<RuleGroup | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data: groups, isLoading } = useQuery({
+  const { data: groups, isLoading, isError, refetch } = useQuery({
     queryKey: ['groups'],
     queryFn: fetchGroups,
     refetchInterval: POLLING_INTERVALS.groups,
@@ -148,6 +149,16 @@ export function GroupTable() {
 
   if (isLoading) {
     return <LoadingState message="Loading groups..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load groups"
+        message="Could not fetch groups from the server. Check your connection and try again."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   return (

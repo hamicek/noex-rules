@@ -7,6 +7,7 @@ import { fetchTimers, cancelTimer, createTimer } from '../../api/queries/timers'
 import { SearchInput } from '../common/SearchInput';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState } from '../common/EmptyState';
+import { ErrorState } from '../common/ErrorState';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   formatCountdown,
@@ -35,7 +36,7 @@ export function TimerTable() {
     return () => clearInterval(interval);
   }, []);
 
-  const { data: timers, isLoading } = useQuery({
+  const { data: timers, isLoading, isError, refetch } = useQuery({
     queryKey: ['timers'],
     queryFn: fetchTimers,
     refetchInterval: POLLING_INTERVALS.timers,
@@ -105,6 +106,16 @@ export function TimerTable() {
 
   if (isLoading) {
     return <LoadingState message="Loading timers..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load timers"
+        message="Could not fetch timers from the server. Check your connection and try again."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   return (
