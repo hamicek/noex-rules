@@ -36,6 +36,7 @@ import {
   AGGREGATE_FUNCTIONS as AGGREGATE_FN_VALUES,
   COMPARISONS,
   UNARY_OPERATORS as UNARY_OPERATOR_VALUES,
+  BASELINE_COMPARISONS as BASELINE_COMPARISON_VALUES,
 } from '../../validation/constants.js';
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,8 @@ const CONDITION_SOURCE_TYPES: ReadonlySet<string> = new Set(CONDITION_SOURCE_TYP
 const CONDITION_OPERATORS: ReadonlySet<string> = new Set(CONDITION_OPERATOR_VALUES);
 const CONDITION_OPERATORS_MSG = CONDITION_OPERATOR_VALUES.join(', ');
 const UNARY_OPERATORS: ReadonlySet<string> = new Set(UNARY_OPERATOR_VALUES);
+const BASELINE_COMPARISONS: ReadonlySet<string> = new Set(BASELINE_COMPARISON_VALUES);
+const BASELINE_COMPARISONS_MSG = BASELINE_COMPARISON_VALUES.join(', ');
 const ACTION_TYPES: ReadonlySet<string> = new Set(ACTION_TYPE_VALUES);
 const ACTION_TYPES_MSG = ACTION_TYPE_VALUES.join(', ');
 const LOG_LEVELS: ReadonlySet<string> = new Set(LOG_LEVEL_VALUES);
@@ -376,7 +379,7 @@ function validateConditionSource(obj: unknown, path: string): RuleCondition['sou
 
   if (!CONDITION_SOURCE_TYPES.has(type)) {
     throw new YamlValidationError(
-      `invalid source type "${type}". Expected: event, fact, context, lookup`,
+      `invalid source type "${type}". Expected: event, fact, context, lookup, baseline`,
       `${path}.type`,
     );
   }
@@ -396,6 +399,34 @@ function validateConditionSource(obj: unknown, path: string): RuleCondition['sou
       if (has(o, 'field')) {
         (source as { type: 'lookup'; name: string; field?: string }).field =
           requireString(get(o, 'field'), `${path}.field`);
+      }
+      return source;
+    }
+    case 'baseline': {
+      const comparison = requireString(
+        requireField(o, 'comparison', path),
+        `${path}.comparison`,
+      );
+      if (!BASELINE_COMPARISONS.has(comparison)) {
+        throw new YamlValidationError(
+          `invalid baseline comparison "${comparison}". Expected: ${BASELINE_COMPARISONS_MSG}`,
+          `${path}.comparison`,
+        );
+      }
+      const source: RuleCondition['source'] = {
+        type: 'baseline',
+        metric: requireString(requireField(o, 'metric', path), `${path}.metric`),
+        comparison: comparison as import('../../types/baseline.js').BaselineComparison,
+      };
+      if (has(o, 'sensitivity')) {
+        const sensitivity = requireNumber(get(o, 'sensitivity'), `${path}.sensitivity`);
+        if (sensitivity <= 0) {
+          throw new YamlValidationError(
+            `sensitivity must be a positive number, got ${sensitivity}`,
+            `${path}.sensitivity`,
+          );
+        }
+        (source as { type: 'baseline'; metric: string; comparison: string; sensitivity?: number }).sensitivity = sensitivity;
       }
       return source;
     }
