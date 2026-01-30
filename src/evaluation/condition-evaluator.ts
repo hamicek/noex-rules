@@ -88,6 +88,8 @@ export class ConditionEvaluator {
         return { type: 'event', field: source.field };
       case 'context':
         return { type: 'context', key: source.key };
+      case 'lookup':
+        return { type: 'lookup', name: source.name, ...(source.field !== undefined && { field: source.field }) };
     }
   }
 

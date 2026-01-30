@@ -130,6 +130,8 @@ export class PrettyFormatter implements OutputFormatter {
         return `event.${this.color(source.field, 'green')}`;
       case 'context':
         return `ctx.${this.color(source.key, 'green')}`;
+      case 'lookup':
+        return `lookup(${this.color(source.name, 'green')}${source.field ? '.' + this.color(source.field, 'green') : ''})`;
     }
   }
 

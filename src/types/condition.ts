@@ -2,9 +2,10 @@
 export interface RuleCondition {
   // Co kontrolujeme
   source:
-    | { type: 'fact'; pattern: string }         // Hodnota faktu
-    | { type: 'event'; field: string }          // Pole z triggering eventu
-    | { type: 'context'; key: string };         // Kontext (proměnné)
+    | { type: 'fact'; pattern: string }                    // Hodnota faktu
+    | { type: 'event'; field: string }                     // Pole z triggering eventu
+    | { type: 'context'; key: string }                     // Kontext (proměnné)
+    | { type: 'lookup'; name: string; field?: string };    // Výsledek externího lookupu
 
   // Operátor
   operator:

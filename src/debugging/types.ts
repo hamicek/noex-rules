@@ -78,10 +78,11 @@ export interface ConditionEvaluationResult {
 
   /** The source being evaluated */
   source: {
-    type: 'fact' | 'event' | 'context';
+    type: 'fact' | 'event' | 'context' | 'lookup';
     pattern?: string;
     field?: string;
     key?: string;
+    name?: string;
   };
 
   /** The operator used for comparison */
