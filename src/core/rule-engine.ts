@@ -60,7 +60,7 @@ export class RuleEngine {
   private readonly dataResolver: DataResolver;
   private readonly auditLog: AuditLogService | null;
   private readonly versionStore: RuleVersionStore | null;
-  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry' | 'hotReload' | 'versioning' | 'baseline'>>;
+  private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry' | 'hotReload' | 'versioning' | 'baseline' | 'backwardChaining'>>;
   private readonly services: Map<string, unknown>;
   private readonly validator: RuleInputValidator;
 

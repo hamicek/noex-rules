@@ -1,6 +1,7 @@
 import type { StorageAdapter } from '@hamicek/noex';
 import type { AuditStats } from '../audit/types.js';
 import type { BaselineConfig } from './baseline.js';
+import type { BackwardChainingConfig } from './backward.js';
 import type { HotReloadConfig } from '../core/hot-reload/types.js';
 import type { MetricsConfig, OpenTelemetryConfig } from '../observability/types.js';
 import type { VersioningConfig, VersioningStats } from '../versioning/types.js';
@@ -19,6 +20,7 @@ export * from './rule.js';
 export * from './group.js';
 export * from './lookup.js';
 export * from './baseline.js';
+export * from './backward.js';
 
 /** Unified input - společný vstup do enginu */
 export type EngineInput =
@@ -126,4 +128,5 @@ export interface RuleEngineConfig {
   hotReload?: HotReloadConfig;    // Hot-reload pravidel (opt-in)
   versioning?: VersioningConfig;  // Verzování pravidel (opt-in)
   baseline?: BaselineConfig;      // Baseline detekce anomálií (opt-in)
+  backwardChaining?: BackwardChainingConfig;  // Backward chaining query (opt-in)
 }
