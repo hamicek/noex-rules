@@ -195,6 +195,7 @@ export class SourceExpr implements ConditionBuilder {
         src.type === 'event' ? `event("${src.field}")`
         : src.type === 'fact' ? `fact("${src.pattern}")`
         : src.type === 'lookup' ? `lookup("${src.name}")`
+        : src.type === 'baseline' ? `baseline("${src.metric}")`
         : `context("${src.key}")`;
       throw new DslValidationError(
         `Condition on ${hint}: operator not specified. Use .eq(), .gte(), etc.`,
