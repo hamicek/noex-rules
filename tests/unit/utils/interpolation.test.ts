@@ -16,6 +16,7 @@ function createContext(overrides: Partial<{
   facts: Map<string, { value: unknown }>;
   matchedEvents: Array<{ data: Record<string, unknown> }>;
   variables: Map<string, unknown>;
+  lookups: Map<string, unknown>;
 }> = {}): InterpolationContext {
   const facts = overrides.facts ?? new Map();
   return {
@@ -28,6 +29,7 @@ function createContext(overrides: Partial<{
     },
     matchedEvents: overrides.matchedEvents,
     variables: overrides.variables ?? new Map(),
+    lookups: overrides.lookups,
   };
 }
 
@@ -115,6 +117,21 @@ describe('interpolate', () => {
     });
     expect(interpolate('${event.a}${event.b}', ctx)).toBe('XY');
   });
+
+  it('replaces lookup references', () => {
+    const lookups = new Map<string, unknown>([
+      ['credit', 750],
+      ['fraud', { riskLevel: 'low' }],
+    ]);
+    const ctx = createContext({ lookups });
+    expect(interpolate('score:${lookup.credit}', ctx)).toBe('score:750');
+    expect(interpolate('risk:${lookup.fraud.riskLevel}', ctx)).toBe('risk:low');
+  });
+
+  it('replaces missing lookup with empty string', () => {
+    const ctx = createContext({ lookups: new Map() });
+    expect(interpolate('score:${lookup.missing}', ctx)).toBe('score:');
+  });
 });
 
 describe('resolve', () => {
@@ -144,6 +161,16 @@ describe('resolve', () => {
   it('returns undefined for missing ref paths', () => {
     const ctx = createContext();
     expect(resolve({ ref: 'event.missing.path' }, ctx)).toBe(undefined);
+  });
+
+  it('resolves lookup ref values', () => {
+    const lookups = new Map<string, unknown>([
+      ['credit', 800],
+      ['profile', { tier: 'gold' }],
+    ]);
+    const ctx = createContext({ lookups });
+    expect(resolve({ ref: 'lookup.credit' }, ctx)).toBe(800);
+    expect(resolve({ ref: 'lookup.profile.tier' }, ctx)).toBe('gold');
   });
 });
 
@@ -294,6 +321,71 @@ describe('resolveRef', () => {
     });
   });
 
+  describe('lookup source', () => {
+    it('resolves lookup.name references', () => {
+      const lookups = new Map<string, unknown>([
+        ['credit', 750],
+        ['fraud', { riskLevel: 'low', score: 0.1 }],
+      ]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup.credit', ctx)).toBe(750);
+      expect(resolveRef('lookup.fraud', ctx)).toEqual({ riskLevel: 'low', score: 0.1 });
+    });
+
+    it('resolves nested paths in lookup values', () => {
+      const lookups = new Map<string, unknown>([
+        ['fraud', { riskLevel: 'low', details: { provider: 'acme', confidence: 0.95 } }],
+      ]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup.fraud.riskLevel', ctx)).toBe('low');
+      expect(resolveRef('lookup.fraud.details.provider', ctx)).toBe('acme');
+      expect(resolveRef('lookup.fraud.details.confidence', ctx)).toBe(0.95);
+    });
+
+    it('returns undefined for missing lookup name', () => {
+      const lookups = new Map<string, unknown>([
+        ['credit', 700],
+      ]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup.nonexistent', ctx)).toBe(undefined);
+    });
+
+    it('returns undefined for lookup without name', () => {
+      const lookups = new Map<string, unknown>([['credit', 700]]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup', ctx)).toBe(undefined);
+    });
+
+    it('returns undefined when lookups map is not set', () => {
+      const ctx = createContext();
+      expect(resolveRef('lookup.credit', ctx)).toBe(undefined);
+    });
+
+    it('returns undefined for missing nested field in lookup result', () => {
+      const lookups = new Map<string, unknown>([
+        ['data', { existing: 'value' }],
+      ]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup.data.nonexistent', ctx)).toBe(undefined);
+    });
+
+    it('handles lookup values of various types', () => {
+      const lookups = new Map<string, unknown>([
+        ['num', 42],
+        ['str', 'hello'],
+        ['bool', true],
+        ['arr', [1, 2, 3]],
+        ['nil', null],
+      ]);
+      const ctx = createContext({ lookups });
+      expect(resolveRef('lookup.num', ctx)).toBe(42);
+      expect(resolveRef('lookup.str', ctx)).toBe('hello');
+      expect(resolveRef('lookup.bool', ctx)).toBe(true);
+      expect(resolveRef('lookup.arr', ctx)).toEqual([1, 2, 3]);
+      expect(resolveRef('lookup.nil', ctx)).toBe(null);
+    });
+  });
+
   describe('unknown source', () => {
     it('throws error for unknown reference source', () => {
       const ctx = createContext();
@@ -386,6 +478,56 @@ describe('resolveObject', () => {
       eventVal: 100,
       factVal: 'active',
       varVal: 2,
+    });
+  });
+
+  it('resolves lookup refs in object', () => {
+    const lookups = new Map<string, unknown>([
+      ['credit', 750],
+      ['fraud', { riskLevel: 'low', score: 0.2 }],
+    ]);
+    const ctx = createContext({ lookups });
+    const input = {
+      score: { ref: 'lookup.credit' },
+      risk: { ref: 'lookup.fraud.riskLevel' },
+      fraudScore: { ref: 'lookup.fraud.score' },
+    };
+    expect(resolveObject(input, ctx)).toEqual({
+      score: 750,
+      risk: 'low',
+      fraudScore: 0.2,
+    });
+  });
+
+  it('resolves all source types including lookup', () => {
+    const facts = new Map<string, { value: unknown }>([
+      ['status', { value: 'active' }],
+    ]);
+    const variables = new Map<string, unknown>([
+      ['counter', 3],
+    ]);
+    const lookups = new Map<string, unknown>([
+      ['rating', 4.5],
+    ]);
+    const ctx = createContext({
+      triggerData: { userId: 'U1' },
+      facts,
+      variables,
+      lookups,
+    });
+    const input = {
+      user: { ref: 'event.userId' },
+      status: { ref: 'fact.status' },
+      count: { ref: 'var.counter' },
+      rating: { ref: 'lookup.rating' },
+      literal: 'static',
+    };
+    expect(resolveObject(input, ctx)).toEqual({
+      user: 'U1',
+      status: 'active',
+      count: 3,
+      rating: 4.5,
+      literal: 'static',
     });
   });
 });

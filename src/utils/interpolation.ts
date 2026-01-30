@@ -13,6 +13,7 @@ export interface InterpolationContext {
   };
   matchedEvents?: Array<{ data: Record<string, unknown> }>;
   variables: Map<string, unknown>;
+  lookups?: Map<string, unknown>;
 }
 
 /**
@@ -75,6 +76,14 @@ export function resolveRef(ref: string, ctx: InterpolationContext): unknown {
       if (indexStr === undefined) return undefined;
       const index = parseInt(indexStr, 10);
       root = ctx.matchedEvents?.[index]?.data;
+      path = path.slice(1);
+      break;
+    }
+
+    case 'lookup': {
+      const lookupName = path[0];
+      if (lookupName === undefined) return undefined;
+      root = ctx.lookups?.get(lookupName);
       path = path.slice(1);
       break;
     }
