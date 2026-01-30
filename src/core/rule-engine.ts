@@ -1052,10 +1052,29 @@ export class RuleEngine {
         this.conditionEvaluator,
         this.factStore,
         this.backwardChainingConfig,
+        this.traceCollector,
       );
     }
 
-    return this.backwardChainer.evaluate(resolved);
+    this.auditLog?.record('backward_query_started', {
+      goalType: resolved.type,
+      ...(resolved.type === 'fact'
+        ? { key: resolved.key, value: resolved.value, operator: resolved.operator }
+        : { topic: resolved.topic }),
+    });
+
+    const result = this.backwardChainer.evaluate(resolved);
+
+    this.auditLog?.record('backward_query_completed', {
+      goalType: resolved.type,
+      achievable: result.achievable,
+      exploredRules: result.exploredRules,
+      maxDepthReached: result.maxDepthReached,
+    }, {
+      durationMs: result.durationMs,
+    });
+
+    return result;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

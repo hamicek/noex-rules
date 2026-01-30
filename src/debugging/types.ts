@@ -16,7 +16,9 @@ export type TraceEntryType =
   | 'timer_set'
   | 'timer_cancelled'
   | 'timer_expired'
-  | 'lookup_resolved';
+  | 'lookup_resolved'
+  | 'backward_goal_evaluated'
+  | 'backward_rule_explored';
 
 /** A single trace entry recording an engine activity */
 export interface DebugTraceEntry {

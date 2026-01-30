@@ -14,6 +14,7 @@ import type {
   BackwardChainingConfig,
 } from '../types/backward.js';
 import type { ConditionEvaluationResult } from '../debugging/types.js';
+import type { TraceCollector } from '../debugging/trace-collector.js';
 
 const DEFAULT_MAX_DEPTH = 10;
 const DEFAULT_MAX_EXPLORED_RULES = 100;
@@ -44,6 +45,7 @@ export class BackwardChainer {
     private readonly conditionEvaluator: ConditionEvaluator,
     private readonly factStore: FactStore,
     config: BackwardChainingConfig = {},
+    private readonly traceCollector?: TraceCollector,
   ) {
     this.maxDepth = config.maxDepth ?? DEFAULT_MAX_DEPTH;
     this.maxExploredRules = config.maxExploredRules ?? DEFAULT_MAX_EXPLORED_RULES;
@@ -84,13 +86,17 @@ export class BackwardChainer {
   ): ProofNode {
     if (depth >= this.maxDepth) {
       state.maxDepthReached = true;
-      return { type: 'unachievable', reason: 'max_depth', details: `Reached depth ${depth}` };
+      const proof: ProofNode = { type: 'unachievable', reason: 'max_depth', details: `Reached depth ${depth}` };
+      this.traceGoalEvaluated(goal, depth, proof);
+      return proof;
     }
 
     // Base case — fact already exists and satisfies the goal.
     const existingFact = this.factStore.get(goal.key);
     if (existingFact !== undefined && this.matchesFactGoal(goal, existingFact.value)) {
-      return { type: 'fact_exists', key: goal.key, currentValue: existingFact.value, satisfied: true };
+      const proof: ProofNode = { type: 'fact_exists', key: goal.key, currentValue: existingFact.value, satisfied: true };
+      this.traceGoalEvaluated(goal, depth, proof);
+      return proof;
     }
 
     // Find rules whose actions produce this fact.
@@ -98,12 +104,18 @@ export class BackwardChainer {
 
     if (rules.length === 0) {
       if (existingFact !== undefined) {
-        return { type: 'fact_exists', key: goal.key, currentValue: existingFact.value, satisfied: false };
+        const proof: ProofNode = { type: 'fact_exists', key: goal.key, currentValue: existingFact.value, satisfied: false };
+        this.traceGoalEvaluated(goal, depth, proof);
+        return proof;
       }
-      return { type: 'unachievable', reason: 'no_rules' };
+      const proof: ProofNode = { type: 'unachievable', reason: 'no_rules' };
+      this.traceGoalEvaluated(goal, depth, proof);
+      return proof;
     }
 
-    return this.tryRules(rules, visited, depth, state, (rule) => `rule:${rule.id}+fact:${goal.key}`);
+    const proof = this.tryRules(rules, visited, depth, state, (rule) => `rule:${rule.id}+fact:${goal.key}`);
+    this.traceGoalEvaluated(goal, depth, proof);
+    return proof;
   }
 
   // -------------------------------------------------------------------
@@ -118,16 +130,22 @@ export class BackwardChainer {
   ): ProofNode {
     if (depth >= this.maxDepth) {
       state.maxDepthReached = true;
-      return { type: 'unachievable', reason: 'max_depth', details: `Reached depth ${depth}` };
+      const proof: ProofNode = { type: 'unachievable', reason: 'max_depth', details: `Reached depth ${depth}` };
+      this.traceGoalEvaluated(goal, depth, proof);
+      return proof;
     }
 
     const rules = this.ruleManager.getByEventAction(goal.topic);
 
     if (rules.length === 0) {
-      return { type: 'unachievable', reason: 'no_rules' };
+      const proof: ProofNode = { type: 'unachievable', reason: 'no_rules' };
+      this.traceGoalEvaluated(goal, depth, proof);
+      return proof;
     }
 
-    return this.tryRules(rules, visited, depth, state, (rule) => `rule:${rule.id}+event:${goal.topic}`);
+    const proof = this.tryRules(rules, visited, depth, state, (rule) => `rule:${rule.id}+event:${goal.topic}`);
+    this.traceGoalEvaluated(goal, depth, proof);
+    return proof;
   }
 
   // -------------------------------------------------------------------
@@ -161,6 +179,8 @@ export class BackwardChainer {
       const proof = this.evaluateRuleConditions(rule, visited, depth, state);
 
       visited.delete(key);
+
+      this.traceRuleExplored(rule, depth, proof);
 
       if (proof.satisfied) {
         return proof;
@@ -267,6 +287,32 @@ export class BackwardChainer {
       conditions: conditionProofs,
       children,
     };
+  }
+
+  // -------------------------------------------------------------------
+  // Tracing
+  // -------------------------------------------------------------------
+
+  private traceGoalEvaluated(goal: Goal, depth: number, proof: ProofNode): void {
+    this.traceCollector?.record('backward_goal_evaluated', {
+      goalType: goal.type,
+      ...(goal.type === 'fact' ? { key: goal.key, value: goal.value, operator: goal.operator } : { topic: goal.topic }),
+      depth,
+      satisfied: isProofSatisfied(proof),
+      proofType: proof.type,
+    });
+  }
+
+  private traceRuleExplored(rule: Rule, depth: number, proof: RuleProofNode): void {
+    this.traceCollector?.record('backward_rule_explored', {
+      satisfied: proof.satisfied,
+      conditionsCount: proof.conditions.length,
+      childrenCount: proof.children.length,
+      depth,
+    }, {
+      ruleId: rule.id,
+      ruleName: rule.name,
+    });
   }
 
   // -------------------------------------------------------------------

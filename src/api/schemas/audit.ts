@@ -37,7 +37,9 @@ const auditEventTypeEnum = [
   'hot_reload_failed',
   'baseline_registered',
   'baseline_recalculated',
-  'baseline_anomaly_detected'
+  'baseline_anomaly_detected',
+  'backward_query_started',
+  'backward_query_completed'
 ] as const;
 
 export const auditEntrySchema = {

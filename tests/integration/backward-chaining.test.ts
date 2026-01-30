@@ -9,6 +9,7 @@ import type {
   UnachievableNode,
 } from '../../src/types/backward';
 import { factGoal, eventGoal } from '../../src/dsl/query';
+import { MemoryAdapter } from '@hamicek/noex';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -556,6 +557,258 @@ describe('Backward Chaining — RuleEngine Integration', () => {
       });
 
       expect(result.achievable).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Audit log integration
+  // -------------------------------------------------------------------------
+
+  describe('audit log integration', () => {
+    it('records backward_query_started and backward_query_completed for fact goal', async () => {
+      const adapter = new MemoryAdapter();
+      engine = await RuleEngine.start({
+        name: 'bc-audit-fact',
+        audit: { adapter, flushIntervalMs: 0 },
+      });
+
+      await engine.setFact('status', 'active');
+
+      engine.query({ type: 'fact', key: 'status', value: 'active' });
+
+      const auditLog = engine.getAuditLog()!;
+
+      const started = auditLog.query({ types: ['backward_query_started'] });
+      expect(started.totalCount).toBe(1);
+      expect(started.entries[0]!.details).toMatchObject({
+        goalType: 'fact',
+        key: 'status',
+        value: 'active',
+      });
+
+      const completed = auditLog.query({ types: ['backward_query_completed'] });
+      expect(completed.totalCount).toBe(1);
+      expect(completed.entries[0]!.details).toMatchObject({
+        goalType: 'fact',
+        achievable: true,
+        exploredRules: 0,
+        maxDepthReached: false,
+      });
+      expect(completed.entries[0]!.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('records backward_query_started and backward_query_completed for event goal', async () => {
+      const adapter = new MemoryAdapter();
+      engine = await RuleEngine.start({
+        name: 'bc-audit-event',
+        audit: { adapter, flushIntervalMs: 0 },
+      });
+
+      engine.registerRule(rule({
+        id: 'emit-test',
+        actions: [{ type: 'emit_event', topic: 'order.done', data: {} }],
+      }));
+
+      engine.query({ type: 'event', topic: 'order.done' });
+
+      const auditLog = engine.getAuditLog()!;
+
+      const started = auditLog.query({ types: ['backward_query_started'] });
+      expect(started.totalCount).toBe(1);
+      expect(started.entries[0]!.details).toMatchObject({
+        goalType: 'event',
+        topic: 'order.done',
+      });
+
+      const completed = auditLog.query({ types: ['backward_query_completed'] });
+      expect(completed.totalCount).toBe(1);
+      expect(completed.entries[0]!.details).toMatchObject({
+        goalType: 'event',
+        achievable: true,
+        exploredRules: 1,
+      });
+    });
+
+    it('records completed with achievable=false for unachievable goal', async () => {
+      const adapter = new MemoryAdapter();
+      engine = await RuleEngine.start({
+        name: 'bc-audit-fail',
+        audit: { adapter, flushIntervalMs: 0 },
+      });
+
+      engine.query({ type: 'fact', key: 'nonexistent' });
+
+      const auditLog = engine.getAuditLog()!;
+      const completed = auditLog.query({ types: ['backward_query_completed'] });
+
+      expect(completed.totalCount).toBe(1);
+      expect(completed.entries[0]!.details).toMatchObject({
+        achievable: false,
+        exploredRules: 0,
+      });
+    });
+
+    it('records multiple queries independently', async () => {
+      const adapter = new MemoryAdapter();
+      engine = await RuleEngine.start({
+        name: 'bc-audit-multi',
+        audit: { adapter, flushIntervalMs: 0 },
+      });
+
+      await engine.setFact('x', 1);
+
+      engine.query({ type: 'fact', key: 'x' });
+      engine.query({ type: 'fact', key: 'y' });
+
+      const auditLog = engine.getAuditLog()!;
+      const started = auditLog.query({ types: ['backward_query_started'] });
+      const completed = auditLog.query({ types: ['backward_query_completed'] });
+
+      expect(started.totalCount).toBe(2);
+      expect(completed.totalCount).toBe(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Tracing integration
+  // -------------------------------------------------------------------------
+
+  describe('tracing integration', () => {
+    it('records backward_goal_evaluated trace entries', async () => {
+      engine = await RuleEngine.start({
+        name: 'bc-trace-goal',
+        tracing: { enabled: true },
+      });
+
+      await engine.setFact('user:tier', 'gold');
+
+      engine.query({ type: 'fact', key: 'user:tier' });
+
+      const traces = engine.getTraceCollector().getByType('backward_goal_evaluated');
+      expect(traces.length).toBeGreaterThanOrEqual(1);
+
+      const goalTrace = traces.find(t => t.details.key === 'user:tier');
+      expect(goalTrace).toBeDefined();
+      expect(goalTrace!.details).toMatchObject({
+        goalType: 'fact',
+        key: 'user:tier',
+        depth: 0,
+        satisfied: true,
+        proofType: 'fact_exists',
+      });
+    });
+
+    it('records backward_rule_explored trace entries', async () => {
+      engine = await RuleEngine.start({
+        name: 'bc-trace-rule',
+        tracing: { enabled: true },
+      });
+
+      engine.registerRule(rule({
+        id: 'produce-target',
+        name: 'Produce Target',
+        actions: [{ type: 'set_fact', key: 'target:fact', value: 42 }],
+      }));
+
+      engine.query({ type: 'fact', key: 'target:fact' });
+
+      const traces = engine.getTraceCollector().getByType('backward_rule_explored');
+      expect(traces.length).toBeGreaterThanOrEqual(1);
+
+      const ruleTrace = traces.find(t => t.ruleId === 'produce-target');
+      expect(ruleTrace).toBeDefined();
+      expect(ruleTrace!.ruleId).toBe('produce-target');
+      expect(ruleTrace!.ruleName).toBe('Produce Target');
+      expect(ruleTrace!.details).toMatchObject({
+        satisfied: true,
+        conditionsCount: 0,
+        childrenCount: 0,
+        depth: 0,
+      });
+    });
+
+    it('records traces for recursive chains', async () => {
+      engine = await RuleEngine.start({
+        name: 'bc-trace-chain',
+        tracing: { enabled: true },
+      });
+
+      await engine.setFact('customer:active', true);
+
+      engine.registerRule(rule({
+        id: 'earn-points',
+        name: 'Earn Points',
+        conditions: [
+          { source: { type: 'fact', pattern: 'customer:active' }, operator: 'eq', value: true },
+        ],
+        actions: [{ type: 'set_fact', key: 'loyalty:points', value: 500 }],
+      }));
+
+      engine.registerRule(rule({
+        id: 'vip-upgrade',
+        name: 'VIP Upgrade',
+        conditions: [
+          { source: { type: 'fact', pattern: 'loyalty:points' }, operator: 'exists', value: true },
+        ],
+        actions: [{ type: 'set_fact', key: 'customer:tier', value: 'vip' }],
+      }));
+
+      engine.query({ type: 'fact', key: 'customer:tier' });
+
+      const goalTraces = engine.getTraceCollector().getByType('backward_goal_evaluated');
+      const ruleTraces = engine.getTraceCollector().getByType('backward_rule_explored');
+
+      // customer:tier (depth 0) + loyalty:points sub-goal (depth 1)
+      // customer:active is not a sub-goal because it exists and satisfies the condition directly
+      expect(goalTraces.length).toBe(2);
+
+      // Two rules explored
+      expect(ruleTraces.length).toBe(2);
+
+      const earnPointsTrace = ruleTraces.find(t => t.ruleId === 'earn-points');
+      const vipUpgradeTrace = ruleTraces.find(t => t.ruleId === 'vip-upgrade');
+
+      expect(earnPointsTrace).toBeDefined();
+      expect(vipUpgradeTrace).toBeDefined();
+      expect(earnPointsTrace!.details.depth).toBe(1);
+      expect(vipUpgradeTrace!.details.depth).toBe(0);
+    });
+
+    it('does not record traces when tracing is disabled', async () => {
+      engine = await RuleEngine.start({
+        name: 'bc-trace-disabled',
+      });
+
+      await engine.setFact('x', 1);
+
+      engine.query({ type: 'fact', key: 'x' });
+
+      const goalTraces = engine.getTraceCollector().getByType('backward_goal_evaluated');
+      expect(goalTraces).toHaveLength(0);
+    });
+
+    it('records event goal traces', async () => {
+      engine = await RuleEngine.start({
+        name: 'bc-trace-event',
+        tracing: { enabled: true },
+      });
+
+      engine.registerRule(rule({
+        id: 'emit-order',
+        actions: [{ type: 'emit_event', topic: 'order.completed', data: {} }],
+      }));
+
+      engine.query({ type: 'event', topic: 'order.completed' });
+
+      const goalTraces = engine.getTraceCollector().getByType('backward_goal_evaluated');
+      const eventGoalTrace = goalTraces.find(t => t.details.goalType === 'event');
+
+      expect(eventGoalTrace).toBeDefined();
+      expect(eventGoalTrace!.details).toMatchObject({
+        goalType: 'event',
+        topic: 'order.completed',
+        satisfied: true,
+      });
     });
   });
 

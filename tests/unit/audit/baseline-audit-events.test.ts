@@ -283,6 +283,7 @@ describe('Baseline audit event types', () => {
         'engine_started', 'engine_stopped',
         'hot_reload_started', 'hot_reload_completed', 'hot_reload_failed',
         'baseline_registered', 'baseline_recalculated', 'baseline_anomaly_detected',
+        'backward_query_started', 'backward_query_completed',
       ];
 
       for (const type of allTypes) {

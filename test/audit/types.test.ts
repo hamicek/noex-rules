@@ -55,8 +55,8 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.hot_reload_failed).toBe('system');
     });
 
-    it('covers exactly 25 event types', () => {
-      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(25);
+    it('covers exactly 27 event types', () => {
+      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(27);
     });
 
     it('maps to exactly 5 categories', () => {

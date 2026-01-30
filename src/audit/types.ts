@@ -39,7 +39,9 @@ export type AuditEventType =
   | 'hot_reload_failed'
   | 'baseline_registered'
   | 'baseline_recalculated'
-  | 'baseline_anomaly_detected';
+  | 'baseline_anomaly_detected'
+  | 'backward_query_started'
+  | 'backward_query_completed';
 
 /** Mapping from event type to its category */
 export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
@@ -68,6 +70,8 @@ export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
   baseline_registered: 'system',
   baseline_recalculated: 'system',
   baseline_anomaly_detected: 'rule_execution',
+  backward_query_started: 'system',
+  backward_query_completed: 'system',
 };
 
 /** A single audit log entry */
