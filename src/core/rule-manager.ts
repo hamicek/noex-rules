@@ -1,5 +1,6 @@
 import type { Rule, RuleInput } from '../types/rule.js';
 import type { RuleGroup, RuleGroupInput } from '../types/group.js';
+import type { RuleAction } from '../types/action.js';
 import type { RulePersistence } from '../persistence/rule-persistence.js';
 import { matchesTopic, matchesFactPattern, matchesTimerPattern } from '../utils/pattern-matcher.js';
 
@@ -24,6 +25,12 @@ export class RuleManager {
   private wildcardFactPatterns: Map<string, Set<string>> = new Map();
   private wildcardEventTopics: Map<string, Set<string>> = new Map();
   private wildcardTimerNames: Map<string, Set<string>> = new Map();
+
+  // Reverse index — pravidla podle akcí (co produkují)
+  private exactFactActions: Map<string, Set<string>> = new Map();
+  private templateFactActions: Map<string, Set<string>> = new Map();
+  private exactEventActions: Map<string, Set<string>> = new Map();
+  private templateEventActions: Map<string, Set<string>> = new Map();
 
   private byTags: Map<string, Set<string>> = new Map();
   private groups: Map<string, RuleGroup> = new Map();
@@ -202,6 +209,70 @@ export class RuleManager {
   }
 
   /**
+   * Vrátí pravidla, jejichž akce nastavují fakt s daným klíčem (set_fact).
+   * Používá se pro backward chaining — hledání pravidel produkujících cílový fakt.
+   */
+  getByFactAction(key: string): Rule[] {
+    const results: Rule[] = [];
+    const seen = new Set<string>();
+
+    const exactRuleIds = this.exactFactActions.get(key);
+    if (exactRuleIds) {
+      for (const id of exactRuleIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const rule = this.rules.get(id);
+        if (rule && this.isRuleActive(rule)) results.push(rule);
+      }
+    }
+
+    for (const [pattern, ruleIds] of this.templateFactActions) {
+      if (matchesFactPattern(key, pattern)) {
+        for (const id of ruleIds) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const rule = this.rules.get(id);
+          if (rule && this.isRuleActive(rule)) results.push(rule);
+        }
+      }
+    }
+
+    return results.sort((a, b) => b.priority - a.priority);
+  }
+
+  /**
+   * Vrátí pravidla, jejichž akce emitují event s daným topikem (emit_event).
+   * Používá se pro backward chaining — hledání pravidel produkujících cílový event.
+   */
+  getByEventAction(topic: string): Rule[] {
+    const results: Rule[] = [];
+    const seen = new Set<string>();
+
+    const exactRuleIds = this.exactEventActions.get(topic);
+    if (exactRuleIds) {
+      for (const id of exactRuleIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const rule = this.rules.get(id);
+        if (rule && this.isRuleActive(rule)) results.push(rule);
+      }
+    }
+
+    for (const [pattern, ruleIds] of this.templateEventActions) {
+      if (matchesTopic(topic, pattern)) {
+        for (const id of ruleIds) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const rule = this.rules.get(id);
+          if (rule && this.isRuleActive(rule)) results.push(rule);
+        }
+      }
+    }
+
+    return results.sort((a, b) => b.priority - a.priority);
+  }
+
+  /**
    * Vrátí všechna temporální pravidla.
    */
   getTemporalRules(): Rule[] {
@@ -249,6 +320,8 @@ export class RuleManager {
         break;
     }
 
+    this.indexActions(rule.id, rule.actions);
+
     for (const tag of rule.tags) {
       this.addToIndex(this.byTags, tag, rule.id);
     }
@@ -283,6 +356,8 @@ export class RuleManager {
         break;
     }
 
+    this.unindexActions(rule.id, rule.actions);
+
     for (const tag of rule.tags) {
       this.removeFromIndex(this.byTags, tag, rule.id);
     }
@@ -306,6 +381,72 @@ export class RuleManager {
         index.delete(key);
       }
     }
+  }
+
+  /**
+   * Indexuje akce pravidla do reverse indexů.
+   * Rekurzivně prochází i vnořené conditional akce.
+   */
+  private indexActions(ruleId: string, actions: RuleAction[] | undefined): void {
+    if (!actions) return;
+    for (const action of actions) {
+      switch (action.type) {
+        case 'set_fact': {
+          const normalized = this.normalizeActionKey(action.key);
+          const index = normalized.includes('*') ? this.templateFactActions : this.exactFactActions;
+          this.addToIndex(index, normalized, ruleId);
+          break;
+        }
+        case 'emit_event': {
+          const normalized = this.normalizeActionKey(action.topic);
+          const index = normalized.includes('*') ? this.templateEventActions : this.exactEventActions;
+          this.addToIndex(index, normalized, ruleId);
+          break;
+        }
+        case 'conditional':
+          this.indexActions(ruleId, action.then);
+          if (action.else) {
+            this.indexActions(ruleId, action.else);
+          }
+          break;
+      }
+    }
+  }
+
+  /**
+   * Odstraní akce pravidla z reverse indexů.
+   */
+  private unindexActions(ruleId: string, actions: RuleAction[] | undefined): void {
+    if (!actions) return;
+    for (const action of actions) {
+      switch (action.type) {
+        case 'set_fact': {
+          const normalized = this.normalizeActionKey(action.key);
+          const index = normalized.includes('*') ? this.templateFactActions : this.exactFactActions;
+          this.removeFromIndex(index, normalized, ruleId);
+          break;
+        }
+        case 'emit_event': {
+          const normalized = this.normalizeActionKey(action.topic);
+          const index = normalized.includes('*') ? this.templateEventActions : this.exactEventActions;
+          this.removeFromIndex(index, normalized, ruleId);
+          break;
+        }
+        case 'conditional':
+          this.unindexActions(ruleId, action.then);
+          if (action.else) {
+            this.unindexActions(ruleId, action.else);
+          }
+          break;
+      }
+    }
+  }
+
+  /**
+   * Normalizuje klíč akce — šablonové výrazy `${...}` nahradí wildcardem `*`.
+   */
+  private normalizeActionKey(key: string): string {
+    return key.replace(/\$\{[^}]+\}/g, '*');
   }
 
   // --- Group management ---
