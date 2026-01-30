@@ -2,9 +2,11 @@ import type { StorageAdapter } from '@hamicek/noex';
 import type { AuditStats } from '../audit/types.js';
 import type { HotReloadConfig } from '../core/hot-reload/types.js';
 import type { MetricsConfig, OpenTelemetryConfig } from '../observability/types.js';
+import type { VersioningConfig, VersioningStats } from '../versioning/types.js';
 
 export type { HotReloadConfig } from '../core/hot-reload/types.js';
 export type { MetricsConfig, OpenTelemetryConfig } from '../observability/types.js';
+export type { VersioningConfig, VersioningStats } from '../versioning/types.js';
 
 export * from './fact.js';
 export * from './event.js';
@@ -50,6 +52,7 @@ export interface EngineStats {
   tracing?: TracingStats;
   profiling?: ProfilingStats;
   audit?: AuditStats;
+  versioning?: VersioningStats;
 }
 
 /** Konfigurace persistence */
@@ -113,4 +116,5 @@ export interface RuleEngineConfig {
   metrics?: MetricsConfig;        // Prometheus metriky (opt-in)
   opentelemetry?: OpenTelemetryConfig;  // OpenTelemetry tracing (opt-in)
   hotReload?: HotReloadConfig;    // Hot-reload pravidel (opt-in)
+  versioning?: VersioningConfig;  // Verzování pravidel (opt-in)
 }
