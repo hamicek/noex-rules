@@ -31,6 +31,7 @@ export const POLLING_INTERVALS = {
   groups: 30_000,
   facts: 30_000,
   timers: 10_000,
+  audit: 15_000,
 } as const;
 
 export const CONDITION_SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -76,3 +77,51 @@ export const LOG_LEVEL_LABELS: Record<string, string> = {
   warn: 'Warning',
   error: 'Error',
 };
+
+export const AUDIT_CATEGORY_LABELS: Record<string, string> = {
+  rule_management: 'Rule Management',
+  rule_execution: 'Rule Execution',
+  fact_change: 'Fact Change',
+  event_emitted: 'Event Emitted',
+  system: 'System',
+};
+
+export const AUDIT_CATEGORY_COLORS: Record<string, string> = {
+  rule_management: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  rule_execution: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  fact_change: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  event_emitted: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  system: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+};
+
+export const AUDIT_EVENT_TYPE_LABELS: Record<string, string> = {
+  rule_registered: 'Rule Registered',
+  rule_unregistered: 'Rule Unregistered',
+  rule_enabled: 'Rule Enabled',
+  rule_disabled: 'Rule Disabled',
+  rule_rolled_back: 'Rule Rolled Back',
+  rule_executed: 'Rule Executed',
+  rule_skipped: 'Rule Skipped',
+  rule_failed: 'Rule Failed',
+  group_created: 'Group Created',
+  group_updated: 'Group Updated',
+  group_deleted: 'Group Deleted',
+  group_enabled: 'Group Enabled',
+  group_disabled: 'Group Disabled',
+  fact_created: 'Fact Created',
+  fact_updated: 'Fact Updated',
+  fact_deleted: 'Fact Deleted',
+  event_emitted: 'Event Emitted',
+  engine_started: 'Engine Started',
+  engine_stopped: 'Engine Stopped',
+  hot_reload_started: 'Hot Reload Started',
+  hot_reload_completed: 'Hot Reload Completed',
+  hot_reload_failed: 'Hot Reload Failed',
+  baseline_registered: 'Baseline Registered',
+  baseline_recalculated: 'Baseline Recalculated',
+  baseline_anomaly_detected: 'Baseline Anomaly',
+  backward_query_started: 'Backward Query Started',
+  backward_query_completed: 'Backward Query Completed',
+};
+
+export const MAX_EVENT_STREAM_SIZE = 500;

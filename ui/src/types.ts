@@ -150,3 +150,86 @@ export interface RuleAction {
   thenActions?: RuleAction[];
   elseActions?: RuleAction[];
 }
+
+// --- Events ---
+
+export interface EngineEvent {
+  id: string;
+  topic: string;
+  data: unknown;
+  timestamp: number;
+  correlationId?: string;
+  causationId?: string;
+  source: string;
+}
+
+// --- Audit ---
+
+export type AuditCategory =
+  | 'rule_management'
+  | 'rule_execution'
+  | 'fact_change'
+  | 'event_emitted'
+  | 'system';
+
+export type AuditEventType =
+  | 'rule_registered'
+  | 'rule_unregistered'
+  | 'rule_enabled'
+  | 'rule_disabled'
+  | 'rule_rolled_back'
+  | 'rule_executed'
+  | 'rule_skipped'
+  | 'rule_failed'
+  | 'group_created'
+  | 'group_updated'
+  | 'group_deleted'
+  | 'group_enabled'
+  | 'group_disabled'
+  | 'fact_created'
+  | 'fact_updated'
+  | 'fact_deleted'
+  | 'event_emitted'
+  | 'engine_started'
+  | 'engine_stopped'
+  | 'hot_reload_started'
+  | 'hot_reload_completed'
+  | 'hot_reload_failed'
+  | 'baseline_registered'
+  | 'baseline_recalculated'
+  | 'baseline_anomaly_detected'
+  | 'backward_query_started'
+  | 'backward_query_completed';
+
+export interface AuditEntry {
+  id: string;
+  timestamp: number;
+  category: AuditCategory;
+  type: AuditEventType;
+  summary: string;
+  source: string;
+  ruleId?: string;
+  ruleName?: string;
+  correlationId?: string;
+  details: unknown;
+  durationMs?: number;
+}
+
+export interface AuditQueryResult {
+  entries: AuditEntry[];
+  totalCount: number;
+  queryTimeMs: number;
+  hasMore: boolean;
+}
+
+export interface AuditQueryInput {
+  category?: AuditCategory;
+  types?: AuditEventType[];
+  ruleId?: string;
+  source?: string;
+  correlationId?: string;
+  from?: number;
+  to?: number;
+  limit?: number;
+  offset?: number;
+}
