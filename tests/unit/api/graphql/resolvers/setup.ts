@@ -1,14 +1,24 @@
+import { MemoryAdapter } from '@hamicek/noex';
 import { RuleEngine } from '../../../../../src/core/rule-engine';
 import type { GraphQLContext } from '../../../../../src/api/graphql/context';
-import type { RuleInput } from '../../../../../src/types/rule';
+import type { RuleInput, RuleEngineConfig } from '../../../../../src/types';
 import { WebhookManager } from '../../../../../src/api/notifications/webhook-manager';
 import { SSEManager } from '../../../../../src/api/notifications/sse-manager';
 
-export async function createTestContext(): Promise<GraphQLContext> {
-  const engine = await RuleEngine.start({ name: 'graphql-test' });
+export async function createTestContext(
+  configOverrides?: Partial<RuleEngineConfig>,
+): Promise<GraphQLContext> {
+  const engine = await RuleEngine.start({ name: 'graphql-test', ...configOverrides });
   const webhookManager = new WebhookManager();
   const sseManager = new SSEManager();
   return { engine, webhookManager, sseManager };
+}
+
+export async function createTestContextWithSubsystems(): Promise<GraphQLContext> {
+  return createTestContext({
+    versioning: { adapter: new MemoryAdapter() },
+    audit: { adapter: new MemoryAdapter(), flushIntervalMs: 0 },
+  });
 }
 
 export async function teardownContext(ctx: GraphQLContext): Promise<void> {

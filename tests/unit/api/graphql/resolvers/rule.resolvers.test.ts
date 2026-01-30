@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ruleResolvers } from '../../../../../src/api/graphql/resolvers/rule.resolvers';
 import { NotFoundError, ConflictError } from '../../../../../src/api/middleware/error-handler';
 import type { GraphQLContext } from '../../../../../src/api/graphql/context';
-import { createTestContext, teardownContext, createTestRule } from './setup';
+import { createTestContext, createTestContextWithSubsystems, teardownContext, createTestRule } from './setup';
 
 const { Query, Mutation, Rule: RuleType } = ruleResolvers;
 
@@ -191,21 +191,114 @@ describe('ruleResolvers', () => {
     });
   });
 
-  describe('Rule.group (stub)', () => {
-    it('returns null (deferred to field resolvers)', () => {
-      expect(RuleType.group()).toBeNull();
+  describe('Rule.group', () => {
+    it('returns null when rule has no group', () => {
+      ctx.engine.registerRule(createTestRule({ id: 'no-grp' }));
+      const rule = ctx.engine.getRule('no-grp')!;
+
+      expect(RuleType.group(rule, {}, ctx)).toBeNull();
+    });
+
+    it('resolves group object when rule belongs to a group', () => {
+      ctx.engine.createGroup({ id: 'g1', name: 'Group One' });
+      ctx.engine.registerRule(createTestRule({ id: 'grp-rule', group: 'g1' }));
+      const rule = ctx.engine.getRule('grp-rule')!;
+
+      const group = RuleType.group(rule, {}, ctx);
+      expect(group).not.toBeNull();
+      expect(group!.id).toBe('g1');
+      expect(group!.name).toBe('Group One');
+    });
+
+    it('returns null when group reference is stale (group deleted)', () => {
+      ctx.engine.createGroup({ id: 'g-del', name: 'Deleted' });
+      ctx.engine.registerRule(createTestRule({ id: 'stale', group: 'g-del' }));
+      ctx.engine.deleteGroup('g-del');
+      const rule = ctx.engine.getRule('stale')!;
+
+      expect(RuleType.group(rule, {}, ctx)).toBeNull();
     });
   });
 
-  describe('Rule.versions (stub)', () => {
-    it('returns null (deferred to field resolvers)', () => {
-      expect(RuleType.versions()).toBeNull();
+  describe('Rule.versions', () => {
+    it('returns null when versioning is not configured', () => {
+      ctx.engine.registerRule(createTestRule({ id: 'no-ver' }));
+      const rule = ctx.engine.getRule('no-ver')!;
+
+      expect(RuleType.versions(rule, {}, ctx)).toBeNull();
+    });
+
+    it('returns version history when versioning is configured', async () => {
+      const vCtx = await createTestContextWithSubsystems();
+      try {
+        vCtx.engine.registerRule(createTestRule({ id: 'ver-rule' }));
+        vCtx.engine.updateRule('ver-rule', { name: 'Updated Name' });
+        const rule = vCtx.engine.getRule('ver-rule')!;
+
+        const result = RuleType.versions(rule, {}, vCtx);
+        expect(result).not.toBeNull();
+        expect(result!.entries.length).toBeGreaterThanOrEqual(2);
+        expect(result!.totalVersions).toBeGreaterThanOrEqual(2);
+        expect(typeof result!.hasMore).toBe('boolean');
+      } finally {
+        await vCtx.engine.stop();
+      }
+    });
+
+    it('respects limit and offset arguments', async () => {
+      const vCtx = await createTestContextWithSubsystems();
+      try {
+        vCtx.engine.registerRule(createTestRule({ id: 'paged' }));
+        vCtx.engine.updateRule('paged', { name: 'V2' });
+        vCtx.engine.updateRule('paged', { name: 'V3' });
+        const rule = vCtx.engine.getRule('paged')!;
+
+        const page = RuleType.versions(rule, { limit: 1, offset: 0 }, vCtx);
+        expect(page).not.toBeNull();
+        expect(page!.entries).toHaveLength(1);
+        expect(page!.hasMore).toBe(true);
+      } finally {
+        await vCtx.engine.stop();
+      }
     });
   });
 
-  describe('Rule.auditEntries (stub)', () => {
-    it('returns empty array (deferred to field resolvers)', () => {
-      expect(RuleType.auditEntries()).toEqual([]);
+  describe('Rule.auditEntries', () => {
+    it('returns empty array when audit is not configured', () => {
+      ctx.engine.registerRule(createTestRule({ id: 'no-audit' }));
+      const rule = ctx.engine.getRule('no-audit')!;
+
+      expect(RuleType.auditEntries(rule, {}, ctx)).toEqual([]);
+    });
+
+    it('returns audit entries for the rule', async () => {
+      const aCtx = await createTestContextWithSubsystems();
+      try {
+        aCtx.engine.registerRule(createTestRule({ id: 'audited' }));
+        aCtx.engine.updateRule('audited', { name: 'Changed' });
+        const rule = aCtx.engine.getRule('audited')!;
+
+        const entries = RuleType.auditEntries(rule, {}, aCtx);
+        expect(entries.length).toBeGreaterThanOrEqual(1);
+        expect(entries.every(e => e.ruleId === 'audited')).toBe(true);
+      } finally {
+        await aCtx.engine.stop();
+      }
+    });
+
+    it('respects limit argument', async () => {
+      const aCtx = await createTestContextWithSubsystems();
+      try {
+        aCtx.engine.registerRule(createTestRule({ id: 'ltd' }));
+        aCtx.engine.updateRule('ltd', { name: 'V2' });
+        aCtx.engine.updateRule('ltd', { name: 'V3' });
+        const rule = aCtx.engine.getRule('ltd')!;
+
+        const entries = RuleType.auditEntries(rule, { limit: 1 }, aCtx);
+        expect(entries).toHaveLength(1);
+      } finally {
+        await aCtx.engine.stop();
+      }
     });
   });
 });

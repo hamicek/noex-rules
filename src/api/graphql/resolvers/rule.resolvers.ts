@@ -1,5 +1,8 @@
 import type { GraphQLContext } from '../context.js';
 import type { Rule, RuleInput } from '../../../types/rule.js';
+import type { RuleVersionQueryResult } from '../../../versioning/types.js';
+import type { AuditEntry } from '../../../audit/types.js';
+import type { RuleGroup } from '../../../types/group.js';
 import { NotFoundError, ConflictError } from '../../middleware/error-handler.js';
 
 interface CreateRuleInput {
@@ -106,11 +109,31 @@ export const ruleResolvers = {
   Rule: {
     // Map TS Rule.group (string) → GraphQL Rule.groupId (String)
     groupId: (rule: Rule): string | null => rule.group ?? null,
-    // Prevent auto-resolution of group field (string → RuleGroup);
-    // full resolution deferred to field resolvers (step 5)
-    group: (): null => null,
-    // Deferred to field resolvers (step 5)
-    versions: (): null => null,
-    auditEntries: (): [] => [],
+
+    group: (rule: Rule, _: unknown, ctx: GraphQLContext): RuleGroup | null =>
+      rule.group ? ctx.engine.getGroup(rule.group) ?? null : null,
+
+    versions: (
+      rule: Rule,
+      args: { limit?: number; offset?: number },
+      ctx: GraphQLContext,
+    ): RuleVersionQueryResult | null => {
+      const store = ctx.engine.getVersionStore();
+      if (!store) return null;
+      return ctx.engine.getRuleVersions(rule.id, {
+        limit: args.limit ?? 10,
+        offset: args.offset ?? 0,
+      });
+    },
+
+    auditEntries: (
+      rule: Rule,
+      args: { limit?: number },
+      ctx: GraphQLContext,
+    ): AuditEntry[] => {
+      const log = ctx.engine.getAuditLog();
+      if (!log) return [];
+      return log.query({ ruleId: rule.id, limit: args.limit ?? 10 }).entries;
+    },
   },
 };
