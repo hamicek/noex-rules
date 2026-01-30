@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
   LayoutDashboard,
@@ -16,26 +16,32 @@ import {
 import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/rules', icon: BookOpen, label: 'Rules' },
-  { to: '/groups', icon: FolderTree, label: 'Groups' },
-  { to: '/facts', icon: Database, label: 'Facts' },
-  { to: '/events', icon: Radio, label: 'Events' },
-  { to: '/timers', icon: Clock, label: 'Timers' },
-  { to: '/audit', icon: ScrollText, label: 'Audit Log' },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: 'g d' },
+  { to: '/rules', icon: BookOpen, label: 'Rules', shortcut: 'g r' },
+  { to: '/groups', icon: FolderTree, label: 'Groups', shortcut: 'g g' },
+  { to: '/facts', icon: Database, label: 'Facts', shortcut: 'g f' },
+  { to: '/events', icon: Radio, label: 'Events', shortcut: 'g e' },
+  { to: '/timers', icon: Clock, label: 'Timers', shortcut: 'g t' },
+  { to: '/audit', icon: ScrollText, label: 'Audit Log', shortcut: 'g a' },
 ] as const;
 
 const BOTTOM_ITEMS = [
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/settings', icon: Settings, label: 'Settings', shortcut: 'g s' },
 ] as const;
 
 export interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+  collapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
@@ -70,7 +76,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               title={isCollapsed ? item.label : undefined}
             >
               <item.icon className="h-4.5 w-4.5 shrink-0" />
-              {!isCollapsed && <span>{item.label}</span>}
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1">{item.label}</span>
+                  <ShortcutHint keys={item.shortcut} />
+                </>
+              )}
             </Link>
           );
         })}
@@ -92,7 +103,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                 title={isCollapsed ? item.label : undefined}
               >
                 <item.icon className="h-4.5 w-4.5 shrink-0" />
-                {!isCollapsed && <span>{item.label}</span>}
+                {!isCollapsed && (
+                  <>
+                    <span className="flex-1">{item.label}</span>
+                    <ShortcutHint keys={item.shortcut} />
+                  </>
+                )}
               </Link>
             );
           })}
@@ -118,7 +134,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           )}
           <button
             type="button"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={onToggleCollapse}
             className={clsx(
               'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300',
               collapsed ? 'mx-auto' : 'ml-auto',
@@ -178,5 +194,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         </aside>
       </div>
     </>
+  );
+}
+
+function ShortcutHint({ keys }: { keys: string }) {
+  return (
+    <kbd className="hidden text-[10px] font-mono text-slate-400 lg:inline dark:text-slate-600">
+      {keys}
+    </kbd>
   );
 }

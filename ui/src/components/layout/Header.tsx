@@ -1,13 +1,14 @@
-import { Menu, Moon, Sun, Wifi, WifiOff } from 'lucide-react';
+import { Keyboard, Menu, Moon, Sun, Wifi, WifiOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useServerConnection } from '../../hooks/useServerConnection';
 import { useTheme } from '../../hooks/useTheme';
 
 export interface HeaderProps {
   onMenuOpen?: () => void;
+  onShortcutsOpen?: () => void;
 }
 
-export function Header({ onMenuOpen }: HeaderProps) {
+export function Header({ onMenuOpen, onShortcutsOpen }: HeaderProps) {
   const { status } = useServerConnection();
   const { theme, toggle } = useTheme();
 
@@ -43,6 +44,16 @@ export function Header({ onMenuOpen }: HeaderProps) {
           )}
           <span className="capitalize">{status}</span>
         </div>
+
+        <button
+          type="button"
+          onClick={onShortcutsOpen}
+          className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:inline-flex dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-4.5 w-4.5" />
+        </button>
 
         <button
           type="button"
