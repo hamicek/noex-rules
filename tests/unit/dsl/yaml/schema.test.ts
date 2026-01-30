@@ -506,6 +506,44 @@ describe('validateRule', () => {
       }))).toThrow(/invalid operator/);
     });
 
+    it('validates lookup source condition', () => {
+      const rule = validateRule(minimalRule({
+        conditions: [{
+          source: { type: 'lookup', name: 'credit' },
+          operator: 'gte',
+          value: 700,
+        }],
+      }));
+
+      expect(rule.conditions[0]!.source).toEqual({ type: 'lookup', name: 'credit' });
+    });
+
+    it('validates lookup source with field', () => {
+      const rule = validateRule(minimalRule({
+        conditions: [{
+          source: { type: 'lookup', name: 'fraud', field: 'riskLevel' },
+          operator: 'neq',
+          value: 'high',
+        }],
+      }));
+
+      expect(rule.conditions[0]!.source).toEqual({
+        type: 'lookup',
+        name: 'fraud',
+        field: 'riskLevel',
+      });
+    });
+
+    it('throws on lookup source missing name', () => {
+      expect(() => validateRule(minimalRule({
+        conditions: [{
+          source: { type: 'lookup' },
+          operator: 'eq',
+          value: 1,
+        }],
+      }))).toThrow(/missing required field "name"/);
+    });
+
     it('throws on invalid source type', () => {
       expect(() => validateRule(minimalRule({
         conditions: [{
@@ -711,6 +749,186 @@ describe('validateRule', () => {
       expect(() => validateRule(minimalRule({
         actions: [{ type: 'emit_event', data: {} }],
       }))).toThrow(/missing required field "topic"/);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Lookups parsing
+  // ---------------------------------------------------------------------------
+
+  describe('lookups', () => {
+    it('parses a single lookup with all fields', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'credit',
+          service: 'creditService',
+          method: 'getScore',
+          args: [{ ref: 'event.customerId' }],
+          cache: { ttl: '5m' },
+          onError: 'skip',
+        }],
+      }));
+
+      expect(rule.lookups).toEqual([{
+        name: 'credit',
+        service: 'creditService',
+        method: 'getScore',
+        args: [{ ref: 'event.customerId' }],
+        cache: { ttl: '5m' },
+        onError: 'skip',
+      }]);
+    });
+
+    it('parses multiple lookups', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [
+          { name: 'credit', service: 'creditService', method: 'getScore', args: [] },
+          { name: 'fraud', service: 'fraudService', method: 'checkRisk', args: [] },
+        ],
+      }));
+
+      expect(rule.lookups).toHaveLength(2);
+      expect(rule.lookups![0]!.name).toBe('credit');
+      expect(rule.lookups![1]!.name).toBe('fraud');
+    });
+
+    it('defaults args to empty array when omitted', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'simple',
+          service: 'svc',
+          method: 'get',
+        }],
+      }));
+
+      expect(rule.lookups![0]!.args).toEqual([]);
+    });
+
+    it('normalizes ${...} references in args', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'check',
+          service: 'svc',
+          method: 'run',
+          args: ['${event.userId}', 'literal', '${event.amount}'],
+        }],
+      }));
+
+      expect(rule.lookups![0]!.args).toEqual([
+        { ref: 'event.userId' },
+        'literal',
+        { ref: 'event.amount' },
+      ]);
+    });
+
+    it('parses cache with numeric TTL (milliseconds)', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'cached',
+          service: 'svc',
+          method: 'get',
+          cache: { ttl: 30000 },
+        }],
+      }));
+
+      expect(rule.lookups![0]!.cache).toEqual({ ttl: 30000 });
+    });
+
+    it('omits cache and onError when not present', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'bare',
+          service: 'svc',
+          method: 'get',
+        }],
+      }));
+
+      expect(rule.lookups![0]!.cache).toBeUndefined();
+      expect(rule.lookups![0]!.onError).toBeUndefined();
+    });
+
+    it('does not include lookups when not specified', () => {
+      const rule = validateRule(minimalRule());
+      expect(rule.lookups).toBeUndefined();
+    });
+
+    it('accepts onError "fail"', () => {
+      const rule = validateRule(minimalRule({
+        lookups: [{
+          name: 'strict',
+          service: 'svc',
+          method: 'get',
+          onError: 'fail',
+        }],
+      }));
+
+      expect(rule.lookups![0]!.onError).toBe('fail');
+    });
+
+    it('throws on duplicate lookup names', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [
+          { name: 'dup', service: 'a', method: 'get' },
+          { name: 'dup', service: 'b', method: 'check' },
+        ],
+      }))).toThrow(/duplicate lookup name "dup"/);
+    });
+
+    it('throws on missing lookup name', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{ service: 'svc', method: 'get' }],
+      }))).toThrow(/missing required field "name"/);
+    });
+
+    it('throws on missing lookup service', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{ name: 'x', method: 'get' }],
+      }))).toThrow(/missing required field "service"/);
+    });
+
+    it('throws on missing lookup method', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{ name: 'x', service: 'svc' }],
+      }))).toThrow(/missing required field "method"/);
+    });
+
+    it('throws on invalid onError strategy', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{
+          name: 'x',
+          service: 'svc',
+          method: 'get',
+          onError: 'retry',
+        }],
+      }))).toThrow(/invalid onError strategy "retry"/);
+    });
+
+    it('throws on invalid cache TTL', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{
+          name: 'x',
+          service: 'svc',
+          method: 'get',
+          cache: { ttl: 'invalid' },
+        }],
+      }))).toThrow(/must be a duration string/);
+    });
+
+    it('throws when lookups is not an array', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: 'not-array',
+      }))).toThrow(/must be an array/);
+    });
+
+    it('throws when args is not an array', () => {
+      expect(() => validateRule(minimalRule({
+        lookups: [{
+          name: 'x',
+          service: 'svc',
+          method: 'get',
+          args: 'not-array',
+        }],
+      }))).toThrow(/must be an array/);
     });
   });
 

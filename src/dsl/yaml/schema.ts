@@ -23,6 +23,7 @@ import type {
   AggregatePattern,
 } from '../../types/temporal.js';
 import type { TimerConfig } from '../../types/timer.js';
+import type { DataRequirement } from '../../types/lookup.js';
 import { DslError } from '../helpers/errors.js';
 import {
   DURATION_RE,
@@ -375,7 +376,7 @@ function validateConditionSource(obj: unknown, path: string): RuleCondition['sou
 
   if (!CONDITION_SOURCE_TYPES.has(type)) {
     throw new YamlValidationError(
-      `invalid source type "${type}". Expected: event, fact, context`,
+      `invalid source type "${type}". Expected: event, fact, context, lookup`,
       `${path}.type`,
     );
   }
@@ -387,6 +388,17 @@ function validateConditionSource(obj: unknown, path: string): RuleCondition['sou
       return { type: 'fact', pattern: requireString(requireField(o, 'pattern', path), `${path}.pattern`) };
     case 'context':
       return { type: 'context', key: requireString(requireField(o, 'key', path), `${path}.key`) };
+    case 'lookup': {
+      const source: RuleCondition['source'] = {
+        type: 'lookup',
+        name: requireString(requireField(o, 'name', path), `${path}.name`),
+      };
+      if (has(o, 'field')) {
+        (source as { type: 'lookup'; name: string; field?: string }).field =
+          requireString(get(o, 'field'), `${path}.field`);
+      }
+      return source;
+    }
     default:
       throw new YamlValidationError(`unknown source type "${type}"`, `${path}.type`);
   }
@@ -566,6 +578,67 @@ function validateAction(obj: unknown, path: string): RuleAction {
 }
 
 // ---------------------------------------------------------------------------
+// Lookups
+// ---------------------------------------------------------------------------
+
+const LOOKUP_ERROR_STRATEGIES: ReadonlySet<string> = new Set(['skip', 'fail']);
+
+function validateLookup(obj: unknown, path: string): DataRequirement {
+  const o = requireObject(obj, path);
+
+  const name = requireString(requireField(o, 'name', path), `${path}.name`);
+  const service = requireString(requireField(o, 'service', path), `${path}.service`);
+  const method = requireString(requireField(o, 'method', path), `${path}.method`);
+
+  const rawArgs = get(o, 'args') ?? [];
+  const args = requireArray(rawArgs, `${path}.args`).map(normalizeValue);
+
+  const result: DataRequirement = { name, service, method, args };
+
+  if (has(o, 'cache')) {
+    const cacheObj = requireObject(get(o, 'cache'), `${path}.cache`);
+    result.cache = {
+      ttl: requireDuration(requireField(cacheObj, 'ttl', `${path}.cache`), `${path}.cache.ttl`),
+    };
+  }
+
+  if (has(o, 'onError')) {
+    const strategy = requireString(get(o, 'onError'), `${path}.onError`);
+    if (!LOOKUP_ERROR_STRATEGIES.has(strategy)) {
+      throw new YamlValidationError(
+        `invalid onError strategy "${strategy}". Expected: skip, fail`,
+        `${path}.onError`,
+      );
+    }
+    result.onError = strategy as 'skip' | 'fail';
+  }
+
+  return result;
+}
+
+function validateLookups(arr: unknown, path: string): DataRequirement[] {
+  const items = requireArray(arr, path);
+  const names = new Set<string>();
+  const lookups: DataRequirement[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const lookup = validateLookup(items[i], `${path}[${i}]`);
+
+    if (names.has(lookup.name)) {
+      throw new YamlValidationError(
+        `duplicate lookup name "${lookup.name}"`,
+        `${path}[${i}].name`,
+      );
+    }
+
+    names.add(lookup.name);
+    lookups.push(lookup);
+  }
+
+  return lookups;
+}
+
+// ---------------------------------------------------------------------------
 // Rule
 // ---------------------------------------------------------------------------
 
@@ -626,6 +699,10 @@ export function validateRule(obj: unknown, path: string = 'rule'): RuleInput {
   const groupVal = get(o, 'group');
   if (groupVal !== undefined) {
     rule.group = requireString(groupVal, `${path}.group`);
+  }
+
+  if (has(o, 'lookups')) {
+    rule.lookups = validateLookups(get(o, 'lookups'), `${path}.lookups`);
   }
 
   return rule;
