@@ -93,34 +93,12 @@ export async function registerRulesRoutes(fastify: FastifyInstance): Promise<voi
     { schema: rulesSchemas.update },
     async (request): Promise<Rule> => {
       const { id } = request.params;
-      const existingRule = engine.getRule(id);
 
-      if (!existingRule) {
+      if (!engine.getRule(id)) {
         throw new NotFoundError('Rule', id);
       }
 
-      const body = request.body;
-
-      // Unregister old rule
-      engine.unregisterRule(id);
-
-      // Register updated rule
-      const description = body.description ?? existingRule.description;
-      const group = body.group ?? existingRule.group;
-      const input: RuleInput = {
-        id,
-        name: body.name ?? existingRule.name,
-        priority: body.priority ?? existingRule.priority,
-        enabled: body.enabled ?? existingRule.enabled,
-        tags: body.tags ?? existingRule.tags,
-        trigger: body.trigger ?? existingRule.trigger,
-        conditions: body.conditions ?? existingRule.conditions,
-        actions: body.actions ?? existingRule.actions,
-        ...(description !== undefined && { description }),
-        ...(group !== undefined && { group })
-      };
-
-      return engine.registerRule(input);
+      return engine.updateRule(id, request.body);
     }
   );
 
