@@ -1,0 +1,13 @@
+"""A fact stored in the engine's working memory."""
+type Fact {
+  """Hierarchical key, e.g. "customer:123:age"."""
+  key: String!
+  """Current value (any JSON-serializable type)."""
+  value: JSON!
+  """When the fact was last set (Unix ms)."""
+  timestamp: Timestamp!
+  """Component that set this fact."""
+  source: String!
+  """Optimistic locking version."""
+  version: Int!
+}

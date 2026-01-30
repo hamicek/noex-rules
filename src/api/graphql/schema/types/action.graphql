@@ -1,0 +1,84 @@
+"""Action type discriminator."""
+enum ActionType {
+  set_fact
+  delete_fact
+  emit_event
+  set_timer
+  cancel_timer
+  call_service
+  log
+  conditional
+}
+
+"""Log severity level."""
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+"""
+Action executed when a rule fires.
+
+Fields are populated based on the action `type`:
+- `set_fact`: key, value
+- `delete_fact`: key
+- `emit_event`: topic, data
+- `set_timer`: timer
+- `cancel_timer`: name
+- `call_service`: service, method, args
+- `log`: level, message
+- `conditional`: conditions, thenActions, elseActions
+"""
+type RuleAction {
+  type: ActionType!
+  """Fact key (set_fact, delete_fact)."""
+  key: String
+  """Value to set or reference (set_fact)."""
+  value: JSON
+  """Event topic (emit_event)."""
+  topic: String
+  """Event payload (emit_event)."""
+  data: JSON
+  """Timer configuration (set_timer)."""
+  timer: JSON
+  """Timer or service name (cancel_timer, call_service)."""
+  name: String
+  """External service identifier (call_service)."""
+  service: String
+  """Service method name (call_service)."""
+  method: String
+  """Service call arguments (call_service)."""
+  args: [JSON!]
+  """Log severity (log)."""
+  level: LogLevel
+  """Log message template (log)."""
+  message: String
+  """Branch conditions (conditional)."""
+  conditions: [RuleCondition!]
+  """Actions when conditions are met (conditional)."""
+  thenActions: [RuleAction!]
+  """Actions when conditions are not met (conditional)."""
+  elseActions: [RuleAction!]
+}
+
+# --- Inputs ---
+
+input RuleActionInput {
+  type: ActionType!
+  key: String
+  value: JSON
+  topic: String
+  data: JSON
+  timer: JSON
+  name: String
+  service: String
+  method: String
+  args: [JSON!]
+  level: LogLevel
+  message: String
+  conditions: [RuleConditionInput!]
+  thenActions: [RuleActionInput!]
+  elseActions: [RuleActionInput!]
+}

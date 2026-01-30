@@ -1,0 +1,89 @@
+"""High-level category of an auditable operation."""
+enum AuditCategory {
+  rule_management
+  rule_execution
+  fact_change
+  event_emitted
+  system
+}
+
+"""Specific audit event type."""
+enum AuditEventType {
+  rule_registered
+  rule_unregistered
+  rule_enabled
+  rule_disabled
+  rule_rolled_back
+  rule_executed
+  rule_skipped
+  rule_failed
+  group_created
+  group_updated
+  group_deleted
+  group_enabled
+  group_disabled
+  fact_created
+  fact_updated
+  fact_deleted
+  event_emitted
+  engine_started
+  engine_stopped
+  hot_reload_started
+  hot_reload_completed
+  hot_reload_failed
+  baseline_registered
+  baseline_recalculated
+  baseline_anomaly_detected
+  backward_query_started
+  backward_query_completed
+}
+
+"""A single audit log entry."""
+type AuditEntry {
+  id: ID!
+  """When the event occurred (Unix ms)."""
+  timestamp: Timestamp!
+  category: AuditCategory!
+  type: AuditEventType!
+  """Human-readable summary."""
+  summary: String!
+  """Source component, e.g. "rule-engine", "api"."""
+  source: String!
+  """Related rule ID, if applicable."""
+  ruleId: String
+  """Related rule name, if applicable."""
+  ruleName: String
+  """Correlation ID linking related operations."""
+  correlationId: String
+  """Additional context data."""
+  details: JSON!
+  """Operation duration in milliseconds, if applicable."""
+  durationMs: Float
+}
+
+"""Paginated audit query result."""
+type AuditQueryResult {
+  entries: [AuditEntry!]!
+  """Total entries matching the filter (before pagination)."""
+  totalCount: Int!
+  """Query execution time in milliseconds."""
+  queryTimeMs: Float!
+  """Whether more entries exist beyond the current page."""
+  hasMore: Boolean!
+}
+
+# --- Inputs ---
+
+input AuditQueryInput {
+  category: AuditCategory
+  types: [AuditEventType!]
+  ruleId: String
+  source: String
+  correlationId: String
+  """Include entries after this timestamp (Unix ms, inclusive)."""
+  from: Timestamp
+  """Include entries before this timestamp (Unix ms, inclusive)."""
+  to: Timestamp
+  limit: Int = 100
+  offset: Int = 0
+}

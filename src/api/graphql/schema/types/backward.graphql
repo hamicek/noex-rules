@@ -1,0 +1,114 @@
+"""Goal type discriminator for backward chaining queries."""
+enum GoalType {
+  fact
+  event
+}
+
+"""Comparison operator for fact goals."""
+enum GoalOperator {
+  eq
+  neq
+  gt
+  gte
+  lt
+  lte
+}
+
+"""Reason why a goal is unachievable."""
+enum UnachievableReason {
+  no_rules
+  cycle_detected
+  max_depth
+  all_paths_failed
+}
+
+# --- Output types ---
+
+"""A fact-based goal in the proof tree."""
+type FactGoal {
+  type: GoalType!
+  """Fact key pattern."""
+  key: String!
+  """Expected value (null = existence check only)."""
+  value: JSON
+  """Comparison operator (default: eq)."""
+  operator: GoalOperator
+}
+
+"""An event-based goal in the proof tree."""
+type EventGoal {
+  type: GoalType!
+  """Event topic."""
+  topic: String!
+}
+
+"""Goal that was queried (union of fact and event goals)."""
+union Goal = FactGoal | EventGoal
+
+"""Proof node: fact already exists in the store."""
+type FactExistsNode {
+  type: String!
+  key: String!
+  currentValue: JSON
+  satisfied: Boolean!
+}
+
+"""Proof node: condition evaluation within a rule proof."""
+type ConditionProofNode {
+  """Human-readable description of the data source."""
+  source: String!
+  operator: String!
+  expectedValue: JSON
+  actualValue: JSON
+  satisfied: Boolean!
+}
+
+"""Proof node: rule in the backward chaining proof tree."""
+type RuleProofNode {
+  type: String!
+  ruleId: String!
+  ruleName: String!
+  satisfied: Boolean!
+  conditions: [ConditionProofNode!]!
+  """Recursive sub-goal proof nodes."""
+  children: [ProofNode!]!
+}
+
+"""Proof node: goal is unachievable."""
+type UnachievableNode {
+  type: String!
+  reason: UnachievableReason!
+  details: String
+}
+
+"""Node in the backward chaining proof tree."""
+union ProofNode = FactExistsNode | RuleProofNode | UnachievableNode
+
+"""Result of a backward chaining query."""
+type QueryResult {
+  goal: Goal!
+  """Whether the goal is achievable from current state."""
+  achievable: Boolean!
+  """Proof tree demonstrating achievability or failure."""
+  proof: ProofNode!
+  """Number of rules explored during the query."""
+  exploredRules: Int!
+  """Whether the maximum search depth was reached."""
+  maxDepthReached: Boolean!
+  """Query execution time in milliseconds."""
+  durationMs: Float!
+}
+
+# --- Inputs ---
+
+input GoalInput {
+  type: GoalType!
+  """Fact key pattern (type: fact)."""
+  key: String
+  """Expected value (type: fact, optional — omit for existence check)."""
+  value: JSON
+  """Comparison operator (type: fact, default: eq)."""
+  operator: GoalOperator
+  """Event topic (type: event)."""
+  topic: String
+}

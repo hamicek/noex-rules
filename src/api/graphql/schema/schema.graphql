@@ -1,0 +1,118 @@
+type Query {
+  # --- Rules ---
+  """List all registered rules."""
+  rules: [Rule!]!
+  """Get a single rule by ID (null if not found)."""
+  rule(id: ID!): Rule
+
+  # --- Groups ---
+  """List all rule groups."""
+  groups: [RuleGroup!]!
+  """Get a single group by ID (null if not found)."""
+  group(id: ID!): RuleGroup
+
+  # --- Facts ---
+  """List all facts in working memory."""
+  facts: [Fact!]!
+  """Get a single fact by key (null if not found)."""
+  fact(key: String!): Fact
+  """Query facts matching a glob pattern."""
+  factsQuery(pattern: String!): [Fact!]!
+
+  # --- Timers ---
+  """List all active timers."""
+  timers: [Timer!]!
+  """Get a single timer by name (null if not found)."""
+  timer(name: String!): Timer
+
+  # --- Audit ---
+  """Query audit log entries with optional filters and pagination."""
+  auditEntries(query: AuditQueryInput): AuditQueryResult!
+
+  # --- Versions ---
+  """Query version history for a rule."""
+  ruleVersions(ruleId: ID!, query: RuleVersionQueryInput): RuleVersionQueryResult!
+  """Get a specific version snapshot of a rule."""
+  ruleVersion(ruleId: ID!, version: Int!): RuleVersionEntry
+  """Compare two versions of a rule field-by-field."""
+  ruleVersionDiff(ruleId: ID!, fromVersion: Int!, toVersion: Int!): RuleVersionDiff
+
+  # --- Backward Chaining ---
+  """Execute a backward chaining query to determine goal achievability."""
+  query(goal: GoalInput!): QueryResult!
+
+  # --- Engine ---
+  """Health check endpoint."""
+  health: HealthResponse!
+  """Aggregate engine statistics."""
+  stats: EngineStats!
+  """Current tracing subsystem status."""
+  tracingStatus: TracingStatus!
+}
+
+type Mutation {
+  # --- Rules ---
+  """Register a new rule."""
+  createRule(input: CreateRuleInput!): Rule!
+  """Update an existing rule (partial update)."""
+  updateRule(id: ID!, input: UpdateRuleInput!): Rule!
+  """Delete a rule by ID."""
+  deleteRule(id: ID!): Boolean!
+  """Enable a disabled rule."""
+  enableRule(id: ID!): Rule!
+  """Disable a rule (stops it from firing)."""
+  disableRule(id: ID!): Rule!
+  """Rollback a rule to a previous version."""
+  rollbackRule(id: ID!, version: Int!): Rule!
+
+  # --- Groups ---
+  """Create a new rule group."""
+  createGroup(input: CreateGroupInput!): RuleGroup!
+  """Update an existing group (partial update)."""
+  updateGroup(id: ID!, input: UpdateGroupInput!): RuleGroup!
+  """Delete a group by ID."""
+  deleteGroup(id: ID!): Boolean!
+  """Enable a disabled group (and its rules)."""
+  enableGroup(id: ID!): RuleGroup!
+  """Disable a group (and its rules)."""
+  disableGroup(id: ID!): RuleGroup!
+
+  # --- Facts ---
+  """Set a fact value (creates or updates)."""
+  setFact(key: String!, value: JSON!): Fact!
+  """Delete a fact by key."""
+  deleteFact(key: String!): Boolean!
+
+  # --- Events ---
+  """Emit an event into the engine."""
+  emitEvent(input: EmitEventInput!): Event!
+  """Emit a correlated event with tracking IDs."""
+  emitCorrelatedEvent(input: EmitCorrelatedEventInput!): Event!
+
+  # --- Timers ---
+  """Create a new timer."""
+  createTimer(input: CreateTimerInput!): Timer!
+  """Cancel an active timer by name."""
+  cancelTimer(name: String!): Boolean!
+
+  # --- Debug ---
+  """Enable debug tracing."""
+  enableTracing: TracingStatus!
+  """Disable debug tracing."""
+  disableTracing: TracingStatus!
+}
+
+type Subscription {
+  """
+  Subscribe to engine events matching the given topic patterns.
+  Patterns support wildcards, e.g. "order.*", "*".
+  """
+  engineEvent(patterns: [String!] = ["*"]): EngineEventPayload!
+
+  """Subscribe to real-time audit log entries with optional filters."""
+  auditEvent(
+    categories: [AuditCategory!]
+    types: [AuditEventType!]
+    ruleIds: [String!]
+  ): AuditEntry!
+}

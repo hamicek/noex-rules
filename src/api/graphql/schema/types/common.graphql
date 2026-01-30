@@ -1,0 +1,11 @@
+"""Arbitrary JSON value for dynamic/polymorphic data."""
+scalar JSON
+
+"""Unix timestamp in milliseconds."""
+scalar Timestamp
+
+"""Sort order for paginated queries."""
+enum SortOrder {
+  asc
+  desc
+}

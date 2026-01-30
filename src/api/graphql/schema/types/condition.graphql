@@ -1,0 +1,80 @@
+"""Condition source discriminator."""
+enum ConditionSourceType {
+  fact
+  event
+  context
+  lookup
+  baseline
+}
+
+"""Comparison operator for condition evaluation."""
+enum ConditionOperator {
+  eq
+  neq
+  gt
+  gte
+  lt
+  lte
+  in
+  not_in
+  contains
+  not_contains
+  matches
+  exists
+  not_exists
+}
+
+"""Baseline anomaly comparison mode."""
+enum BaselineComparison {
+  above
+  below
+  outside
+  above_percentile
+  below_percentile
+}
+
+"""Data source for a rule condition."""
+type ConditionSource {
+  type: ConditionSourceType!
+  """Fact key glob pattern (source type: fact)."""
+  pattern: String
+  """Event data field path (source type: event) or lookup result field (source type: lookup)."""
+  field: String
+  """Context variable key (source type: context)."""
+  key: String
+  """Registered lookup name (source type: lookup)."""
+  name: String
+  """Baseline metric name (source type: baseline)."""
+  metric: String
+  """Baseline comparison mode (source type: baseline)."""
+  comparison: BaselineComparison
+  """Sensitivity threshold in standard deviations (source type: baseline)."""
+  sensitivity: Float
+}
+
+"""Condition that must be satisfied for a rule to fire."""
+type RuleCondition {
+  source: ConditionSource!
+  operator: ConditionOperator!
+  """Expected value (literal or { ref } reference)."""
+  value: JSON
+}
+
+# --- Inputs ---
+
+input ConditionSourceInput {
+  type: ConditionSourceType!
+  pattern: String
+  field: String
+  key: String
+  name: String
+  metric: String
+  comparison: BaselineComparison
+  sensitivity: Float
+}
+
+input RuleConditionInput {
+  source: ConditionSourceInput!
+  operator: ConditionOperator!
+  value: JSON
+}

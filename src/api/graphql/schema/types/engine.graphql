@@ -1,0 +1,107 @@
+"""Engine health status."""
+enum HealthStatus {
+  ok
+  degraded
+  error
+}
+
+"""Engine identity information."""
+type EngineInfo {
+  name: String!
+  running: Boolean!
+}
+
+"""Health check response."""
+type HealthResponse {
+  status: HealthStatus!
+  """Current server timestamp (Unix ms)."""
+  timestamp: Timestamp!
+  """Server uptime in seconds."""
+  uptime: Float!
+  """API version string."""
+  version: String!
+  engine: EngineInfo!
+}
+
+# --- Engine statistics sub-types ---
+
+"""Tracing subsystem statistics."""
+type TracingStats {
+  enabled: Boolean!
+  entriesCount: Int!
+  maxEntries: Int!
+}
+
+"""Rule profiling statistics for the slowest rule."""
+type SlowestRuleStats {
+  ruleId: String!
+  ruleName: String!
+  avgTimeMs: Float!
+}
+
+"""Rule profiling statistics for the most triggered rule."""
+type HottestRuleStats {
+  ruleId: String!
+  ruleName: String!
+  triggerCount: Int!
+}
+
+"""Profiling subsystem statistics."""
+type ProfilingStats {
+  totalRulesProfiled: Int!
+  totalTriggers: Int!
+  totalExecutions: Int!
+  totalTimeMs: Float!
+  avgRuleTimeMs: Float!
+  slowestRule: SlowestRuleStats
+  hottestRule: HottestRuleStats
+}
+
+"""Entry count per audit category."""
+type AuditCategoryCount {
+  category: AuditCategory!
+  count: Int!
+}
+
+"""Audit log service statistics."""
+type AuditLogStats {
+  totalEntries: Int!
+  memoryEntries: Int!
+  oldestEntry: Timestamp
+  newestEntry: Timestamp
+  entriesByCategory: [AuditCategoryCount!]!
+  subscribersCount: Int!
+}
+
+"""Rule versioning service statistics."""
+type VersioningServiceStats {
+  trackedRules: Int!
+  totalVersions: Int!
+  dirtyRules: Int!
+  oldestEntry: Timestamp
+  newestEntry: Timestamp
+}
+
+"""Baseline anomaly detection statistics."""
+type BaselineServiceStats {
+  metricsCount: Int!
+  totalRecalculations: Int!
+  anomaliesDetected: Int!
+}
+
+"""Aggregate engine statistics."""
+type EngineStats {
+  rulesCount: Int!
+  factsCount: Int!
+  timersCount: Int!
+  eventsProcessed: Int!
+  rulesExecuted: Int!
+  avgProcessingTimeMs: Float!
+  """Current server timestamp (Unix ms)."""
+  timestamp: Timestamp!
+  tracing: TracingStats
+  profiling: ProfilingStats
+  audit: AuditLogStats
+  versioning: VersioningServiceStats
+  baseline: BaselineServiceStats
+}

@@ -1,0 +1,41 @@
+"""An event emitted or received by the engine."""
+type Event {
+  id: ID!
+  """Event topic, e.g. "order.created"."""
+  topic: String!
+  """Event payload."""
+  data: JSON!
+  """When the event occurred (Unix ms)."""
+  timestamp: Timestamp!
+  """Correlation ID linking related events."""
+  correlationId: String
+  """ID of the event that caused this one."""
+  causationId: String
+  """Origin component."""
+  source: String!
+}
+
+"""Payload delivered by the engineEvent subscription."""
+type EngineEventPayload {
+  id: ID!
+  topic: String!
+  data: JSON!
+  timestamp: Timestamp!
+  correlationId: String
+  causationId: String
+  source: String!
+}
+
+# --- Inputs ---
+
+input EmitEventInput {
+  topic: String!
+  data: JSON
+}
+
+input EmitCorrelatedEventInput {
+  topic: String!
+  data: JSON
+  correlationId: String!
+  causationId: String
+}

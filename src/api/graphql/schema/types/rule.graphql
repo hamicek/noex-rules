@@ -1,0 +1,136 @@
+"""Rule trigger type discriminator."""
+enum TriggerType {
+  fact
+  event
+  timer
+  temporal
+}
+
+"""Strategy when an external data lookup fails."""
+enum LookupErrorStrategy {
+  skip
+  fail
+}
+
+"""
+Trigger that activates a rule.
+
+Fields are populated based on trigger `type`:
+- `fact`: pattern (glob matching fact keys)
+- `event`: topic (event topic string)
+- `timer`: name (timer name)
+- `temporal`: temporalPattern (complex temporal pattern)
+"""
+type RuleTrigger {
+  type: TriggerType!
+  """Fact key glob pattern (type: fact)."""
+  pattern: String
+  """Event topic (type: event)."""
+  topic: String
+  """Timer name (type: timer)."""
+  name: String
+  """Temporal pattern configuration (type: temporal)."""
+  temporalPattern: TemporalPattern
+}
+
+"""Cache configuration for external data lookups."""
+type LookupCacheConfig {
+  """Time-to-live as duration string, e.g. "5m", "1h"."""
+  ttl: String!
+}
+
+"""Declaration of external data needed before rule evaluation."""
+type DataRequirement {
+  """Unique lookup name (used as key to access result in conditions)."""
+  name: String!
+  """Registered external service name."""
+  service: String!
+  """Method to invoke on the service."""
+  method: String!
+  """Arguments for the service call (may contain { ref } references)."""
+  args: [JSON!]!
+  """Optional response caching."""
+  cache: LookupCacheConfig
+  """Behavior on lookup failure."""
+  onError: LookupErrorStrategy
+}
+
+"""
+Rule definition with full nested data.
+
+Field resolvers provide `group`, `versions`, and `auditEntries`
+without additional REST calls.
+"""
+type Rule {
+  id: ID!
+  name: String!
+  description: String
+  priority: Int!
+  enabled: Boolean!
+  version: Int!
+  tags: [String!]!
+  """Resolved rule group (field resolver)."""
+  group: RuleGroup
+  """Raw group ID foreign key."""
+  groupId: String
+  trigger: RuleTrigger!
+  conditions: [RuleCondition!]!
+  actions: [RuleAction!]!
+  lookups: [DataRequirement!]
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  """Version history (field resolver with pagination)."""
+  versions(limit: Int = 10, offset: Int = 0): RuleVersionQueryResult
+  """Recent audit log entries for this rule (field resolver)."""
+  auditEntries(limit: Int = 10): [AuditEntry!]!
+}
+
+# --- Inputs ---
+
+input RuleTriggerInput {
+  type: TriggerType!
+  pattern: String
+  topic: String
+  name: String
+  temporalPattern: TemporalPatternInput
+}
+
+input LookupCacheConfigInput {
+  ttl: String!
+}
+
+input DataRequirementInput {
+  name: String!
+  service: String!
+  method: String!
+  args: [JSON!]!
+  cache: LookupCacheConfigInput
+  onError: LookupErrorStrategy
+}
+
+input CreateRuleInput {
+  id: ID!
+  name: String!
+  description: String
+  priority: Int = 0
+  enabled: Boolean = true
+  tags: [String!] = []
+  group: String
+  trigger: RuleTriggerInput!
+  conditions: [RuleConditionInput!] = []
+  actions: [RuleActionInput!]!
+  lookups: [DataRequirementInput!]
+}
+
+input UpdateRuleInput {
+  name: String
+  description: String
+  priority: Int
+  enabled: Boolean
+  tags: [String!]
+  group: String
+  trigger: RuleTriggerInput
+  conditions: [RuleConditionInput!]
+  actions: [RuleActionInput!]
+  lookups: [DataRequirementInput!]
+}

@@ -1,0 +1,70 @@
+"""Type of change that created a version entry."""
+enum RuleChangeType {
+  registered
+  updated
+  enabled
+  disabled
+  unregistered
+  rolled_back
+}
+
+"""A snapshot of a rule at a specific version."""
+type RuleVersionEntry {
+  """Sequential version number (1-based)."""
+  version: Int!
+  """Full rule snapshot at this version."""
+  ruleSnapshot: Rule!
+  """When this version was created (Unix ms)."""
+  timestamp: Timestamp!
+  """Type of change that produced this version."""
+  changeType: RuleChangeType!
+  """Previous global version before rollback (only for rolled_back)."""
+  rolledBackFrom: Int
+  """Human-readable change description."""
+  description: String
+}
+
+"""Paginated version history result."""
+type RuleVersionQueryResult {
+  entries: [RuleVersionEntry!]!
+  """Total version count for this rule (before filtering)."""
+  totalVersions: Int!
+  """Whether more entries exist beyond the current page."""
+  hasMore: Boolean!
+}
+
+"""A single field-level change between two rule versions."""
+type RuleFieldChange {
+  """Changed field path, e.g. "name", "trigger.type"."""
+  field: String!
+  """Value in the older version."""
+  oldValue: JSON
+  """Value in the newer version."""
+  newValue: JSON
+}
+
+"""Diff between two versions of a rule."""
+type RuleVersionDiff {
+  ruleId: ID!
+  fromVersion: Int!
+  toVersion: Int!
+  changes: [RuleFieldChange!]!
+}
+
+# --- Inputs ---
+
+input RuleVersionQueryInput {
+  limit: Int = 50
+  offset: Int = 0
+  order: SortOrder = desc
+  """Minimum version number (inclusive)."""
+  fromVersion: Int
+  """Maximum version number (inclusive)."""
+  toVersion: Int
+  """Filter by change types."""
+  changeTypes: [RuleChangeType!]
+  """Include entries after this timestamp (Unix ms, inclusive)."""
+  from: Timestamp
+  """Include entries before this timestamp (Unix ms, inclusive)."""
+  to: Timestamp
+}

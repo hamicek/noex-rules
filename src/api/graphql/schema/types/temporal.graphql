@@ -1,0 +1,109 @@
+"""Temporal pattern type discriminator."""
+enum TemporalPatternType {
+  sequence
+  absence
+  count
+  aggregate
+}
+
+"""Threshold comparison mode for count/aggregate patterns."""
+enum ThresholdComparison {
+  gte
+  lte
+  eq
+}
+
+"""Aggregation function for aggregate patterns."""
+enum AggregateFunction {
+  sum
+  avg
+  min
+  max
+  count
+}
+
+"""Matcher for events within temporal patterns."""
+type EventMatcher {
+  """Event topic (supports wildcards)."""
+  topic: String!
+  """Filter on event data fields."""
+  filter: JSON
+  """Alias for referencing matched event in actions."""
+  as: String
+}
+
+"""
+Temporal pattern combining events over time.
+
+Fields are populated based on pattern `type`:
+- `sequence`: events, within, groupBy, strict
+- `absence`: after, expected, within, groupBy
+- `count`: event, threshold, comparison, window, groupBy, sliding
+- `aggregate`: event, field, function, threshold, comparison, window, groupBy
+"""
+type TemporalPattern {
+  type: TemporalPatternType!
+
+  # --- sequence ---
+  """Ordered list of expected events (sequence)."""
+  events: [EventMatcher!]
+  """Disallow interleaving events between sequence steps (sequence)."""
+  strict: Boolean
+
+  # --- sequence, absence ---
+  """Time window as duration string, e.g. "5m", "1h" (sequence, absence)."""
+  within: String
+
+  # --- absence ---
+  """Trigger event that starts the absence window (absence)."""
+  after: EventMatcher
+  """Expected follow-up event (absence)."""
+  expected: EventMatcher
+
+  # --- count, aggregate ---
+  """Event to match (count, aggregate)."""
+  event: EventMatcher
+  """Numeric threshold value (count, aggregate)."""
+  threshold: Float
+  """Threshold comparison mode (count, aggregate)."""
+  comparison: ThresholdComparison
+  """Time window as duration string (count, aggregate)."""
+  window: String
+  """Use sliding window instead of tumbling (count)."""
+  sliding: Boolean
+
+  # --- aggregate ---
+  """Event data field to aggregate (aggregate)."""
+  field: String
+  """Aggregation function (aggregate)."""
+  function: AggregateFunction
+
+  # --- shared ---
+  """Group events by this data field for per-group evaluation."""
+  groupBy: String
+}
+
+# --- Inputs ---
+
+input EventMatcherInput {
+  topic: String!
+  filter: JSON
+  as: String
+}
+
+input TemporalPatternInput {
+  type: TemporalPatternType!
+  events: [EventMatcherInput!]
+  strict: Boolean
+  within: String
+  after: EventMatcherInput
+  expected: EventMatcherInput
+  event: EventMatcherInput
+  threshold: Float
+  comparison: ThresholdComparison
+  window: String
+  sliding: Boolean
+  field: String
+  function: AggregateFunction
+  groupBy: String
+}

@@ -1,0 +1,51 @@
+"""Expiration action configuration on a timer."""
+type TimerExpireConfig {
+  """Event topic emitted on expiration."""
+  topic: String!
+  """Event payload emitted on expiration."""
+  data: JSON!
+}
+
+"""Repeat configuration for recurring timers."""
+type TimerRepeatConfig {
+  """Repeat interval in milliseconds."""
+  interval: Int!
+  """Maximum number of repetitions (null = unlimited)."""
+  maxCount: Int
+}
+
+"""A scheduled timer in the engine."""
+type Timer {
+  id: ID!
+  """Logical timer name for cancel/lookup."""
+  name: String!
+  """When the timer expires (Unix ms)."""
+  expiresAt: Timestamp!
+  """Action to perform on expiration."""
+  onExpire: TimerExpireConfig!
+  """Optional repeat configuration."""
+  repeat: TimerRepeatConfig
+  """Correlation ID linking to originating context."""
+  correlationId: String
+}
+
+# --- Inputs ---
+
+input TimerExpireInput {
+  topic: String!
+  data: JSON
+}
+
+input TimerRepeatInput {
+  """Repeat interval as duration string, e.g. "5m", "1h"."""
+  interval: String!
+  maxCount: Int
+}
+
+input CreateTimerInput {
+  name: String!
+  """Duration as string ("15m", "24h", "7d") or numeric ms string."""
+  duration: String!
+  onExpire: TimerExpireInput!
+  repeat: TimerRepeatInput
+}

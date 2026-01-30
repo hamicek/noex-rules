@@ -1,0 +1,28 @@
+"""A group of rules sharing a common lifecycle."""
+type RuleGroup {
+  id: ID!
+  name: String!
+  description: String
+  enabled: Boolean!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  """Rules belonging to this group (field resolver)."""
+  rules: [Rule!]!
+  """Number of rules in this group."""
+  rulesCount: Int!
+}
+
+# --- Inputs ---
+
+input CreateGroupInput {
+  id: ID!
+  name: String!
+  description: String
+  enabled: Boolean = true
+}
+
+input UpdateGroupInput {
+  name: String
+  description: String
+  enabled: Boolean
+}

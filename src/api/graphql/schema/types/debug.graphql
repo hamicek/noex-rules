@@ -1,0 +1,6 @@
+"""Current state of the debug tracing subsystem."""
+type TracingStatus {
+  enabled: Boolean!
+  entriesCount: Int!
+  maxEntries: Int!
+}
