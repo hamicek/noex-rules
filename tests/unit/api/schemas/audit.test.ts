@@ -25,6 +25,7 @@ const ALL_EVENT_TYPES: AuditEventType[] = [
   'rule_unregistered',
   'rule_enabled',
   'rule_disabled',
+  'rule_rolled_back',
   'rule_executed',
   'rule_skipped',
   'rule_failed',

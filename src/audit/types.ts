@@ -19,6 +19,7 @@ export type AuditEventType =
   | 'rule_unregistered'
   | 'rule_enabled'
   | 'rule_disabled'
+  | 'rule_rolled_back'
   | 'rule_executed'
   | 'rule_skipped'
   | 'rule_failed'
@@ -43,6 +44,7 @@ export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
   rule_unregistered: 'rule_management',
   rule_enabled: 'rule_management',
   rule_disabled: 'rule_management',
+  rule_rolled_back: 'rule_management',
   rule_executed: 'rule_execution',
   rule_skipped: 'rule_execution',
   rule_failed: 'rule_execution',

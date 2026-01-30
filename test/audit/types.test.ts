@@ -18,6 +18,7 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.rule_unregistered).toBe('rule_management');
       expect(AUDIT_EVENT_CATEGORIES.rule_enabled).toBe('rule_management');
       expect(AUDIT_EVENT_CATEGORIES.rule_disabled).toBe('rule_management');
+      expect(AUDIT_EVENT_CATEGORIES.rule_rolled_back).toBe('rule_management');
     });
 
     it('maps all group management events to rule_management', () => {
@@ -54,8 +55,8 @@ describe('Audit types', () => {
       expect(AUDIT_EVENT_CATEGORIES.hot_reload_failed).toBe('system');
     });
 
-    it('covers exactly 21 event types', () => {
-      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(21);
+    it('covers exactly 22 event types', () => {
+      expect(Object.keys(AUDIT_EVENT_CATEGORIES)).toHaveLength(22);
     });
 
     it('maps to exactly 5 categories', () => {
