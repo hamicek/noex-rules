@@ -1,3 +1,5 @@
+import type { BaselineComparison } from './baseline.js';
+
 /** Podmínka pravidla */
 export interface RuleCondition {
   // Co kontrolujeme
@@ -5,7 +7,8 @@ export interface RuleCondition {
     | { type: 'fact'; pattern: string }                    // Hodnota faktu
     | { type: 'event'; field: string }                     // Pole z triggering eventu
     | { type: 'context'; key: string }                     // Kontext (proměnné)
-    | { type: 'lookup'; name: string; field?: string };    // Výsledek externího lookupu
+    | { type: 'lookup'; name: string; field?: string }     // Výsledek externího lookupu
+    | { type: 'baseline'; metric: string; comparison: BaselineComparison; sensitivity?: number }; // Detekce anomálie
 
   // Operátor
   operator:

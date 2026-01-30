@@ -207,6 +207,10 @@ export class BaselineStore {
     );
   }
 
+  getMetricConfig(name: string): BaselineMetricConfig | undefined {
+    return this.metrics.get(name);
+  }
+
   getMetrics(): BaselineMetricConfig[] {
     return [...this.metrics.values()];
   }

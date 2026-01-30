@@ -7,6 +7,7 @@
 import {
   CONDITION_OPERATORS,
   CONDITION_SOURCE_TYPES,
+  BASELINE_COMPARISONS,
   UNARY_OPERATORS,
 } from '../constants.js';
 import type { IssueCollector } from '../types.js';
@@ -126,6 +127,34 @@ function validateConditionSource(
       }
       if (hasProperty(source, 'field') && typeof source['field'] !== 'string') {
         collector.addError(`${path}.field`, 'Lookup source field must be a string');
+      }
+      break;
+    case 'baseline':
+      if (!hasProperty(source, 'metric')) {
+        collector.addError(`${path}.metric`, 'Baseline source must have a "metric" field');
+      } else if (typeof source['metric'] !== 'string') {
+        collector.addError(`${path}.metric`, 'Baseline source metric must be a string');
+      } else if (source['metric'].trim() === '') {
+        collector.addError(`${path}.metric`, 'Baseline source metric cannot be empty');
+      }
+      if (!hasProperty(source, 'comparison')) {
+        collector.addError(`${path}.comparison`, 'Baseline source must have a "comparison" field');
+      } else if (typeof source['comparison'] !== 'string') {
+        collector.addError(`${path}.comparison`, 'Baseline source comparison must be a string');
+      } else if (!(BASELINE_COMPARISONS as readonly string[]).includes(source['comparison'])) {
+        collector.addError(
+          `${path}.comparison`,
+          `Invalid baseline comparison: ${source['comparison']}. Valid comparisons: ${BASELINE_COMPARISONS.join(', ')}`,
+        );
+      }
+      if (hasProperty(source, 'sensitivity')) {
+        const sensitivity = source['sensitivity'];
+        if (typeof sensitivity !== 'number' || !Number.isFinite(sensitivity) || sensitivity <= 0) {
+          collector.addError(
+            `${path}.sensitivity`,
+            'Baseline source sensitivity must be a positive number',
+          );
+        }
       }
       break;
   }

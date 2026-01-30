@@ -4,6 +4,7 @@ import type { Event } from '../types/event.js';
 import { evaluateCondition } from '../utils/operators.js';
 import { getNestedValue, matchesFactPattern } from '../utils/pattern-matcher.js';
 import type { FactStore } from '../core/fact-store.js';
+import type { BaselineStore } from '../baseline/baseline-store.js';
 import { interpolate, type InterpolationContext } from '../utils/interpolation.js';
 import type { ConditionEvaluationCallback, ConditionEvaluationResult } from '../debugging/types.js';
 
@@ -15,6 +16,7 @@ export interface EvaluationContext {
   facts: FactStore;
   variables: Map<string, unknown>;
   lookups?: Map<string, unknown>;
+  baselineStore?: BaselineStore;
 }
 
 /** Options for condition evaluation with optional tracing */
@@ -91,6 +93,8 @@ export class ConditionEvaluator {
         return { type: 'context', key: source.key };
       case 'lookup':
         return { type: 'lookup', name: source.name, ...(source.field !== undefined && { field: source.field }) };
+      case 'baseline':
+        return { type: 'baseline', metric: source.metric };
     }
   }
 
@@ -119,6 +123,22 @@ export class ConditionEvaluator {
           return getNestedValue(result, source.field);
         }
         return result;
+      }
+
+      case 'baseline': {
+        const store = context.baselineStore;
+        if (!store) return undefined;
+        const metricConfig = store.getMetricConfig(source.metric);
+        if (!metricConfig) return undefined;
+        const currentValue = getNestedValue(context.trigger.data, metricConfig.field);
+        if (typeof currentValue !== 'number') return undefined;
+        const anomaly = store.checkAnomaly(
+          source.metric,
+          currentValue,
+          source.comparison,
+          source.sensitivity,
+        );
+        return anomaly?.isAnomaly;
       }
     }
   }
@@ -152,6 +172,17 @@ export class ConditionEvaluator {
           const lookupResult = context.lookups?.get(lookupName);
           if (path.length <= 1) return lookupResult;
           return getNestedValue(lookupResult, path.slice(1).join('.'));
+        }
+
+        case 'baseline': {
+          const store = context.baselineStore;
+          if (!store) return undefined;
+          const metricName = path[0];
+          if (metricName === undefined) return undefined;
+          const stats = store.getBaseline(metricName);
+          if (!stats) return undefined;
+          if (path.length <= 1) return stats;
+          return getNestedValue(stats as unknown as Record<string, unknown>, path.slice(1).join('.'));
         }
       }
     }

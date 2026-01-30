@@ -20,8 +20,17 @@ export const CONDITION_OPERATORS = [
 ] as const;
 export type ConditionOperator = (typeof CONDITION_OPERATORS)[number];
 
-export const CONDITION_SOURCE_TYPES = ['event', 'fact', 'context', 'lookup'] as const;
+export const CONDITION_SOURCE_TYPES = ['event', 'fact', 'context', 'lookup', 'baseline'] as const;
 export type ConditionSourceType = (typeof CONDITION_SOURCE_TYPES)[number];
+
+export const BASELINE_COMPARISONS = ['above', 'below', 'outside', 'above_percentile', 'below_percentile'] as const;
+export type BaselineComparisonConst = (typeof BASELINE_COMPARISONS)[number];
+
+export const BASELINE_METHODS = ['moving_average', 'ewma', 'zscore', 'percentile'] as const;
+export type BaselineMethodConst = (typeof BASELINE_METHODS)[number];
+
+export const SEASONAL_PERIODS = ['hourly', 'daily', 'weekly', 'none'] as const;
+export type SeasonalPeriodConst = (typeof SEASONAL_PERIODS)[number];
 
 export const ACTION_TYPES = [
   'set_fact', 'delete_fact', 'emit_event',
