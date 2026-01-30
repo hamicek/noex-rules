@@ -31,5 +31,8 @@ export * from './versioning/index.js';
 // Baseline
 export * from './baseline/index.js';
 
+// Backward chaining
+export * from './backward/index.js';
+
 // Hlavní RuleEngine class
 export { RuleEngine } from './core/rule-engine.js';

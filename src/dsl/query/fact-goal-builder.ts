@@ -22,7 +22,6 @@ export class FactGoalBuilder implements GoalBuilder {
   private readonly key: string;
   private goalValue?: unknown;
   private goalOperator?: FactGoal['operator'];
-  private hasValue = false;
 
   constructor(key: string) {
     this.key = key;
@@ -93,7 +92,7 @@ export class FactGoalBuilder implements GoalBuilder {
   build(): FactGoal {
     const goal: FactGoal = { type: 'fact', key: this.key };
 
-    if (this.hasValue) {
+    if (this.goalOperator !== undefined) {
       goal.value = this.goalValue;
       goal.operator = this.goalOperator;
     }
@@ -104,7 +103,6 @@ export class FactGoalBuilder implements GoalBuilder {
   private setValue(operator: FactGoal['operator'], value: unknown): void {
     this.goalOperator = operator;
     this.goalValue = value;
-    this.hasValue = true;
   }
 
   private requireNumber(value: unknown, method: string): void {
