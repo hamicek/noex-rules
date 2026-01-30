@@ -13,3 +13,4 @@ export * from './stream.js';
 export * from './debug.js';
 export * from './audit.js';
 export * from './metrics.js';
+export * from './versions.js';
