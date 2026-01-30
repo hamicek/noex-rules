@@ -22,7 +22,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/api/graphql/schema dist/api/graphql/",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
