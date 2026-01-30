@@ -14,6 +14,7 @@ export interface EvaluationContext {
   };
   facts: FactStore;
   variables: Map<string, unknown>;
+  lookups?: Map<string, unknown>;
 }
 
 /** Options for condition evaluation with optional tracing */
@@ -111,6 +112,14 @@ export class ConditionEvaluator {
 
       case 'context':
         return context.variables.get(source.key);
+
+      case 'lookup': {
+        const result = context.lookups?.get(source.name);
+        if (source.field) {
+          return getNestedValue(result, source.field);
+        }
+        return result;
+      }
     }
   }
 
@@ -136,6 +145,14 @@ export class ConditionEvaluator {
 
         case 'var':
           return context.variables.get(path[0] ?? '');
+
+        case 'lookup': {
+          const lookupName = path[0];
+          if (lookupName === undefined) return undefined;
+          const lookupResult = context.lookups?.get(lookupName);
+          if (path.length <= 1) return lookupResult;
+          return getNestedValue(lookupResult, path.slice(1).join('.'));
+        }
       }
     }
 

@@ -125,6 +125,96 @@ describe('ConditionEvaluator', () => {
       });
     });
 
+    describe('lookup source', () => {
+      it('evaluates condition using lookup value', () => {
+        context.lookups = new Map([['credit', 750]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'credit' },
+          operator: 'gte',
+          value: 700
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+
+      it('accesses nested field on lookup result', () => {
+        context.lookups = new Map([['fraud', { riskLevel: 'low', score: 0.2 }]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'fraud', field: 'riskLevel' },
+          operator: 'eq',
+          value: 'low'
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+
+      it('accesses deeply nested field on lookup result', () => {
+        context.lookups = new Map([['profile', { address: { city: 'Prague', country: 'CZ' } }]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'profile', field: 'address.city' },
+          operator: 'eq',
+          value: 'Prague'
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+
+      it('returns undefined for missing lookup name', () => {
+        context.lookups = new Map();
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'nonexistent' },
+          operator: 'exists',
+          value: null
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(false);
+      });
+
+      it('returns undefined when lookups map is not set on context', () => {
+        // context.lookups is undefined by default
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'credit' },
+          operator: 'exists',
+          value: null
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(false);
+      });
+
+      it('returns undefined for missing nested field on lookup result', () => {
+        context.lookups = new Map([['fraud', { riskLevel: 'low' }]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'fraud', field: 'nonexistent.deep' },
+          operator: 'not_exists',
+          value: null
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+
+      it('handles null lookup value', () => {
+        context.lookups = new Map([['result', null]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'result' },
+          operator: 'eq',
+          value: null
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+
+      it('handles complex lookup values with operators', () => {
+        context.lookups = new Map([['tags', ['vip', 'verified', 'premium']]]);
+        const condition: RuleCondition = {
+          source: { type: 'lookup', name: 'tags' },
+          operator: 'contains',
+          value: 'vip'
+        };
+
+        expect(evaluator.evaluate(condition, context)).toBe(true);
+      });
+    });
+
     describe('context source', () => {
       it('evaluates condition using context variable', () => {
         context.variables.set('threshold', 50);
@@ -227,6 +317,54 @@ describe('ConditionEvaluator', () => {
         source: { type: 'event', field: 'value' },
         operator: 'eq',
         value: { ref: 'fact.nonexistent' }
+      };
+
+      expect(evaluator.evaluate(condition, context)).toBe(false);
+    });
+
+    it('resolves lookup reference in compare value', () => {
+      context.lookups = new Map([['credit', 750]]);
+      context.trigger.data = { minScore: 700 };
+      const condition: RuleCondition = {
+        source: { type: 'event', field: 'minScore' },
+        operator: 'lte',
+        value: { ref: 'lookup.credit' }
+      };
+
+      expect(evaluator.evaluate(condition, context)).toBe(true);
+    });
+
+    it('resolves lookup reference with nested field in compare value', () => {
+      context.lookups = new Map([['fraud', { riskLevel: 'low', score: 0.1 }]]);
+      context.trigger.data = { threshold: 0.5 };
+      const condition: RuleCondition = {
+        source: { type: 'lookup', name: 'fraud', field: 'score' },
+        operator: 'lt',
+        value: { ref: 'lookup.fraud.score' }
+      };
+
+      // 0.1 < 0.1 is false (same value)
+      expect(evaluator.evaluate(condition, context)).toBe(false);
+    });
+
+    it('resolves lookup reference with deeply nested path', () => {
+      context.lookups = new Map([['profile', { address: { country: 'CZ' } }]]);
+      factStore.set('expected-country', 'CZ');
+      const condition: RuleCondition = {
+        source: { type: 'fact', pattern: 'expected-country' },
+        operator: 'eq',
+        value: { ref: 'lookup.profile.address.country' }
+      };
+
+      expect(evaluator.evaluate(condition, context)).toBe(true);
+    });
+
+    it('returns undefined for lookup reference when lookups not set', () => {
+      context.trigger.data = { value: 100 };
+      const condition: RuleCondition = {
+        source: { type: 'event', field: 'value' },
+        operator: 'eq',
+        value: { ref: 'lookup.missing' }
       };
 
       expect(evaluator.evaluate(condition, context)).toBe(false);
@@ -591,6 +729,45 @@ describe('ConditionEvaluator', () => {
       const traceResult = callback.mock.calls[0]![0];
       expect(traceResult.source).toEqual({ type: 'event', field: 'orderId' });
       expect(traceResult.actualValue).toBe('ORD-123');
+    });
+
+    it('correctly traces lookup source type', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      context.lookups = new Map([['credit', 750]]);
+      const condition: RuleCondition = {
+        source: { type: 'lookup', name: 'credit' },
+        operator: 'gte',
+        value: 700
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.source).toEqual({ type: 'lookup', name: 'credit' });
+      expect(traceResult.actualValue).toBe(750);
+      expect(traceResult.expectedValue).toBe(700);
+      expect(traceResult.result).toBe(true);
+    });
+
+    it('correctly traces lookup source with field', () => {
+      const callback = vi.fn<(result: ConditionEvaluationResult) => void>();
+      const options: EvaluationOptions = { onConditionEvaluated: callback };
+
+      context.lookups = new Map([['fraud', { riskLevel: 'high', score: 0.9 }]]);
+      const condition: RuleCondition = {
+        source: { type: 'lookup', name: 'fraud', field: 'riskLevel' },
+        operator: 'neq',
+        value: 'low'
+      };
+
+      evaluator.evaluate(condition, context, 0, options);
+
+      const traceResult = callback.mock.calls[0]![0];
+      expect(traceResult.source).toEqual({ type: 'lookup', name: 'fraud', field: 'riskLevel' });
+      expect(traceResult.actualValue).toBe('high');
+      expect(traceResult.result).toBe(true);
     });
 
     it('correctly traces context source type', () => {
