@@ -125,3 +125,37 @@ export const AUDIT_EVENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const MAX_EVENT_STREAM_SIZE = 500;
+
+export const CHANGE_TYPE_LABELS: Record<string, string> = {
+  registered: 'Registered',
+  updated: 'Updated',
+  enabled: 'Enabled',
+  disabled: 'Disabled',
+  unregistered: 'Unregistered',
+  rolled_back: 'Rolled Back',
+};
+
+export const CHANGE_TYPE_COLORS: Record<string, string> = {
+  registered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  updated: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  enabled: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  disabled: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  unregistered: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  rolled_back: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+};
+
+export const FLOW_NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  fact: { bg: 'bg-blue-50 dark:bg-blue-950/40', border: 'border-blue-300 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-300' },
+  event: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-300 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-300' },
+  timer: { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-300' },
+  temporal: { bg: 'bg-purple-50 dark:bg-purple-950/40', border: 'border-purple-300 dark:border-purple-700', text: 'text-purple-700 dark:text-purple-300' },
+  condition: { bg: 'bg-slate-50 dark:bg-slate-900/40', border: 'border-slate-300 dark:border-slate-700', text: 'text-slate-700 dark:text-slate-300' },
+  set_fact: { bg: 'bg-blue-50 dark:bg-blue-950/40', border: 'border-blue-300 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-300' },
+  delete_fact: { bg: 'bg-red-50 dark:bg-red-950/40', border: 'border-red-300 dark:border-red-700', text: 'text-red-700 dark:text-red-300' },
+  emit_event: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-300 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-300' },
+  set_timer: { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-300' },
+  cancel_timer: { bg: 'bg-orange-50 dark:bg-orange-950/40', border: 'border-orange-300 dark:border-orange-700', text: 'text-orange-700 dark:text-orange-300' },
+  call_service: { bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border-indigo-300 dark:border-indigo-700', text: 'text-indigo-700 dark:text-indigo-300' },
+  log: { bg: 'bg-slate-50 dark:bg-slate-900/40', border: 'border-slate-300 dark:border-slate-700', text: 'text-slate-700 dark:text-slate-300' },
+  conditional: { bg: 'bg-violet-50 dark:bg-violet-950/40', border: 'border-violet-300 dark:border-violet-700', text: 'text-violet-700 dark:text-violet-300' },
+};

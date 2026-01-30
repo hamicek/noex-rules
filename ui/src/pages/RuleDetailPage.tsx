@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FileText, Code, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Code, Workflow, History, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
 import { PageLayout } from '../components/layout/PageLayout';
 import { RuleForm } from '../components/rules/RuleForm';
 import { RuleYamlEditor } from '../components/rules/RuleYamlEditor';
+import { RuleFlowView } from '../components/rules/RuleFlowView';
+import { RuleVersionHistory } from '../components/rules/RuleVersionHistory';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
@@ -16,11 +18,13 @@ import {
   deleteRule,
 } from '../api/queries/rules';
 
-type TabId = 'form' | 'yaml';
+type TabId = 'form' | 'yaml' | 'flow' | 'history';
 
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: 'form', label: 'Form', icon: FileText },
   { id: 'yaml', label: 'YAML', icon: Code },
+  { id: 'flow', label: 'Flow', icon: Workflow },
+  { id: 'history', label: 'History', icon: History },
 ];
 
 export function RuleDetailPage() {
@@ -104,6 +108,38 @@ export function RuleDetailPage() {
     );
   }
 
+  function renderTabContent() {
+    switch (activeTab) {
+      case 'form':
+        return (
+          <RuleForm
+            rule={rule!}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+            isSubmitting={updateMutation.isPending}
+          />
+        );
+      case 'yaml':
+        return (
+          <RuleYamlEditor
+            rule={rule!}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+            isSubmitting={updateMutation.isPending}
+          />
+        );
+      case 'flow':
+        return <RuleFlowView rule={rule!} />;
+      case 'history':
+        return (
+          <RuleVersionHistory
+            ruleId={rule!.id}
+            currentVersion={rule!.version}
+          />
+        );
+    }
+  }
+
   return (
     <PageLayout
       title={rule.name}
@@ -151,21 +187,7 @@ export function RuleDetailPage() {
         </nav>
       </div>
 
-      {activeTab === 'form' ? (
-        <RuleForm
-          rule={rule}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-          isSubmitting={updateMutation.isPending}
-        />
-      ) : (
-        <RuleYamlEditor
-          rule={rule}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-          isSubmitting={updateMutation.isPending}
-        />
-      )}
+      {renderTabContent()}
 
       <ConfirmDialog
         open={showDeleteDialog}

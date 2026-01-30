@@ -233,3 +233,52 @@ export interface AuditQueryInput {
   limit?: number;
   offset?: number;
 }
+
+// --- Versions ---
+
+export type RuleChangeType =
+  | 'registered'
+  | 'updated'
+  | 'enabled'
+  | 'disabled'
+  | 'unregistered'
+  | 'rolled_back';
+
+export interface RuleVersionEntry {
+  version: number;
+  ruleSnapshot: Rule;
+  timestamp: number;
+  changeType: RuleChangeType;
+  rolledBackFrom?: number;
+  description?: string;
+}
+
+export interface RuleVersionQueryResult {
+  entries: RuleVersionEntry[];
+  totalVersions: number;
+  hasMore: boolean;
+}
+
+export interface RuleFieldChange {
+  field: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
+export interface RuleVersionDiff {
+  ruleId: string;
+  fromVersion: number;
+  toVersion: number;
+  changes: RuleFieldChange[];
+}
+
+export interface RuleVersionQueryInput {
+  limit?: number;
+  offset?: number;
+  order?: 'asc' | 'desc';
+  fromVersion?: number;
+  toVersion?: number;
+  changeTypes?: RuleChangeType[];
+  from?: number;
+  to?: number;
+}
