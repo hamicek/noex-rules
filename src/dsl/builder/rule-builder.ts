@@ -1,14 +1,17 @@
 import type { RuleCondition } from '../../types/condition.js';
 import type { RuleAction } from '../../types/action.js';
 import type { RuleTrigger, RuleInput } from '../../types/rule.js';
+import type { DataRequirement } from '../../types/lookup.js';
 import type {
   TriggerBuilder,
   ConditionBuilder,
   ActionBuilder,
+  LookupConfig,
   RuleBuildContext,
   BuiltRule,
 } from '../types.js';
 import { SourceExpr } from '../condition/operators.js';
+import { normalizeRefArgs } from '../helpers/ref.js';
 import { DslValidationError } from '../helpers/errors.js';
 
 /**
@@ -39,6 +42,7 @@ export class RuleBuilder {
       tags: [],
       conditions: [],
       actions: [],
+      lookups: [],
     };
   }
 
@@ -130,6 +134,60 @@ export class RuleBuilder {
       throw new DslValidationError('Group ID must be a non-empty string');
     }
     this.ctx.group = groupId;
+    return this;
+  }
+
+  /**
+   * Declares an external data lookup to be resolved before condition evaluation.
+   *
+   * Lookups are resolved in parallel after the trigger fires but before
+   * conditions are evaluated. Results are accessible via `lookup('name')`
+   * in conditions and `ref('lookup.name')` in actions.
+   *
+   * @param name - Unique name for this lookup (used to access the result).
+   * @param config - Lookup configuration (service, method, args, cache, onError).
+   * @returns `this` for chaining.
+   * @throws {DslValidationError} If `name` is empty, duplicated, or required
+   *   config fields are missing.
+   *
+   * @example
+   * ```typescript
+   * Rule.create('check-credit')
+   *   .when(onEvent('order.created'))
+   *   .lookup('credit', {
+   *     service: 'creditService',
+   *     method: 'getScore',
+   *     args: [ref('event.customerId')],
+   *     cache: { ttl: '5m' },
+   *   })
+   *   .if(lookup('credit').gte(700))
+   *   .then(emit('order.approved'))
+   *   .build();
+   * ```
+   */
+  lookup(name: string, config: LookupConfig): this {
+    if (!name || typeof name !== 'string') {
+      throw new DslValidationError('Lookup name must be a non-empty string');
+    }
+    if (!config.service || typeof config.service !== 'string') {
+      throw new DslValidationError(`Lookup "${name}": service must be a non-empty string`);
+    }
+    if (!config.method || typeof config.method !== 'string') {
+      throw new DslValidationError(`Lookup "${name}": method must be a non-empty string`);
+    }
+    if (this.ctx.lookups.some((l) => l.name === name)) {
+      throw new DslValidationError(`Lookup "${name}": duplicate lookup name`);
+    }
+
+    const requirement: DataRequirement = {
+      name,
+      service: config.service,
+      method: config.method,
+      args: normalizeRefArgs(config.args ?? []),
+      ...(config.cache && { cache: config.cache }),
+      ...(config.onError && { onError: config.onError }),
+    };
+    this.ctx.lookups.push(requirement);
     return this;
   }
 
@@ -227,6 +285,10 @@ export class RuleBuilder {
 
     if (this.ctx.group) {
       rule.group = this.ctx.group;
+    }
+
+    if (this.ctx.lookups.length > 0) {
+      rule.lookups = this.ctx.lookups;
     }
 
     return rule;

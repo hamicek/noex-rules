@@ -80,6 +80,7 @@ export type {
   ConditionBuilder,
   TriggerBuilder,
   ActionBuilder,
+  LookupConfig,
   BuiltRule,
   ValueOrRef,
 } from './types.js';

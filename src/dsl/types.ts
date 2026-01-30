@@ -1,6 +1,7 @@
 import type { RuleCondition } from '../types/condition.js';
 import type { RuleAction } from '../types/action.js';
 import type { RuleTrigger, RuleInput } from '../types/rule.js';
+import type { DataRequirement, LookupCacheConfig, LookupErrorStrategy } from '../types/lookup.js';
 
 /**
  * A dynamic reference to a runtime value resolved during rule evaluation.
@@ -65,6 +66,29 @@ export interface ActionBuilder {
 }
 
 /**
+ * Configuration object passed to {@link RuleBuilder.lookup}.
+ *
+ * Mirrors {@link DataRequirement} without the `name` field (provided
+ * as the first argument to the builder method).
+ */
+export interface LookupConfig {
+  /** Registered service name */
+  service: string;
+
+  /** Method name on the service */
+  method: string;
+
+  /** Arguments (may contain {@link Ref} values for runtime resolution) */
+  args?: unknown[];
+
+  /** Optional caching configuration */
+  cache?: LookupCacheConfig;
+
+  /** Behavior on error: 'skip' skips the rule, 'fail' throws. Default: 'skip' */
+  onError?: LookupErrorStrategy;
+}
+
+/**
  * Internal state accumulated by {@link RuleBuilder} during the build process.
  */
 export interface RuleBuildContext {
@@ -78,6 +102,7 @@ export interface RuleBuildContext {
   trigger?: RuleTrigger;
   conditions: RuleCondition[];
   actions: RuleAction[];
+  lookups: DataRequirement[];
 }
 
 /**
