@@ -37,13 +37,28 @@ function readSettings(): AppSettings {
   }
 }
 
+// Cached snapshot — useSyncExternalStore requires getSnapshot to return
+// the same reference between store updates. We read from localStorage on
+// every call but only allocate a new object when the data actually changed.
+let _snapshot: AppSettings = DEFAULTS;
+
 function writeSettings(next: AppSettings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  _snapshot = next;
   notify();
 }
 
 function getSnapshot(): AppSettings {
-  return readSettings();
+  const fresh = readSettings();
+  if (
+    fresh.defaultRuleView === _snapshot.defaultRuleView &&
+    fresh.pageSize === _snapshot.pageSize &&
+    fresh.notificationsEnabled === _snapshot.notificationsEnabled
+  ) {
+    return _snapshot;
+  }
+  _snapshot = fresh;
+  return _snapshot;
 }
 
 function getServerSnapshot(): AppSettings {
