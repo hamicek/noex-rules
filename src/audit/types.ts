@@ -36,7 +36,10 @@ export type AuditEventType =
   | 'engine_stopped'
   | 'hot_reload_started'
   | 'hot_reload_completed'
-  | 'hot_reload_failed';
+  | 'hot_reload_failed'
+  | 'baseline_registered'
+  | 'baseline_recalculated'
+  | 'baseline_anomaly_detected';
 
 /** Mapping from event type to its category */
 export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
@@ -62,6 +65,9 @@ export const AUDIT_EVENT_CATEGORIES: Record<AuditEventType, AuditCategory> = {
   hot_reload_started: 'system',
   hot_reload_completed: 'system',
   hot_reload_failed: 'system',
+  baseline_registered: 'system',
+  baseline_recalculated: 'system',
+  baseline_anomaly_detected: 'rule_execution',
 };
 
 /** A single audit log entry */

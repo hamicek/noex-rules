@@ -43,6 +43,9 @@ const ALL_EVENT_TYPES: AuditEventType[] = [
   'hot_reload_started',
   'hot_reload_completed',
   'hot_reload_failed',
+  'baseline_registered',
+  'baseline_recalculated',
+  'baseline_anomaly_detected',
 ];
 
 describe('Audit API schemas', () => {

@@ -34,7 +34,10 @@ const auditEventTypeEnum = [
   'engine_stopped',
   'hot_reload_started',
   'hot_reload_completed',
-  'hot_reload_failed'
+  'hot_reload_failed',
+  'baseline_registered',
+  'baseline_recalculated',
+  'baseline_anomaly_detected'
 ] as const;
 
 export const auditEntrySchema = {
