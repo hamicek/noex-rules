@@ -15,10 +15,10 @@ export function PageLayout({
 }: PageLayoutProps) {
   return (
     <div className="flex-1 overflow-auto">
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        <div className="mb-6 flex items-start justify-between">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+        <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <h1 className="text-lg font-semibold text-slate-900 sm:text-xl dark:text-slate-100">
               {title}
             </h1>
             {description && (

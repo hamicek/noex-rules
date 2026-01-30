@@ -162,7 +162,7 @@ export function SettingsPage() {
               <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Default rule detail view
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {RULE_VIEW_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -261,7 +261,7 @@ function SettingsSection({
 }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+      <div className="border-b border-slate-100 px-4 py-4 sm:px-6 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <span className="text-slate-500 dark:text-slate-400">{icon}</span>
           <div>
@@ -274,7 +274,7 @@ function SettingsSection({
           </div>
         </div>
       </div>
-      <div className="px-6 py-5">{children}</div>
+      <div className="px-4 py-4 sm:px-6 sm:py-5">{children}</div>
     </section>
   );
 }

@@ -88,9 +88,9 @@ export function EventStream() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-          <div className="max-h-[calc(100vh-320px)] overflow-auto">
-            <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
+            <table className="w-full min-w-[600px] text-left text-sm">
               <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
                 <tr>
                   <th className="w-8 px-2 py-3" />

@@ -181,8 +181,8 @@ export function GroupTable() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400">

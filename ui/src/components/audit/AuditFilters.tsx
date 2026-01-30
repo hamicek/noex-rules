@@ -54,7 +54,7 @@ export function AuditFilters({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:flex-wrap">
         <div className="min-w-[160px]">
           <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
             Category

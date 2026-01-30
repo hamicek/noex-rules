@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeft,
+  X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -28,41 +29,27 @@ const BOTTOM_ITEMS = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ] as const;
 
-export function Sidebar() {
+export interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
-  return (
-    <aside
-      className={clsx(
-        'flex h-screen flex-col border-r border-slate-200 bg-white transition-[width] duration-200 dark:border-slate-800 dark:bg-slate-900',
-        collapsed ? 'w-16' : 'w-56',
-      )}
-    >
-      <div className="flex h-14 items-center border-b border-slate-200 px-4 dark:border-slate-800">
-        {!collapsed && (
-          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            noex-rules
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className={clsx(
-            'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300',
-            collapsed ? 'mx-auto' : 'ml-auto',
-          )}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? (
-            <PanelLeft className="h-4 w-4" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
-          )}
-        </button>
-      </div>
+  // Close mobile sidebar on route change
+  const prevPathRef = useRef(currentPath);
+  useEffect(() => {
+    if (prevPathRef.current !== currentPath) {
+      prevPathRef.current = currentPath;
+      onMobileClose?.();
+    }
+  }, [currentPath, onMobileClose]);
 
+  function renderNavItems(isCollapsed: boolean) {
+    return (
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
         {NAV_ITEMS.map((item) => {
           const active =
@@ -78,12 +65,12 @@ export function Sidebar() {
                 active
                   ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200',
-                collapsed && 'justify-center px-0',
+                isCollapsed && 'justify-center px-0',
               )}
-              title={collapsed ? item.label : undefined}
+              title={isCollapsed ? item.label : undefined}
             >
               <item.icon className="h-4.5 w-4.5 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!isCollapsed && <span>{item.label}</span>}
             </Link>
           );
         })}
@@ -100,17 +87,96 @@ export function Sidebar() {
                   active
                     ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200',
-                  collapsed && 'justify-center px-0',
+                  isCollapsed && 'justify-center px-0',
                 )}
-                title={collapsed ? item.label : undefined}
+                title={isCollapsed ? item.label : undefined}
               >
                 <item.icon className="h-4.5 w-4.5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {!isCollapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
         </div>
       </nav>
-    </aside>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={clsx(
+          'hidden h-screen flex-col border-r border-slate-200 bg-white transition-[width] duration-200 md:flex dark:border-slate-800 dark:bg-slate-900',
+          collapsed ? 'w-16' : 'w-56',
+        )}
+      >
+        <div className="flex h-14 items-center border-b border-slate-200 px-4 dark:border-slate-800">
+          {!collapsed && (
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              noex-rules
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className={clsx(
+              'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300',
+              collapsed ? 'mx-auto' : 'ml-auto',
+            )}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <PanelLeft className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+
+        {renderNavItems(collapsed)}
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      <div
+        className={clsx(
+          'fixed inset-0 z-40 md:hidden',
+          mobileOpen ? '' : 'pointer-events-none',
+        )}
+      >
+        {/* Backdrop */}
+        <div
+          className={clsx(
+            'fixed inset-0 bg-slate-900/50 transition-opacity duration-200',
+            mobileOpen ? 'opacity-100' : 'opacity-0',
+          )}
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+
+        {/* Sidebar panel */}
+        <aside
+          className={clsx(
+            'relative flex h-full w-64 max-w-[calc(100%-3rem)] flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-in-out dark:border-slate-800 dark:bg-slate-900',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              noex-rules
+            </span>
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              aria-label="Close navigation"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {renderNavItems(false)}
+        </aside>
+      </div>
+    </>
   );
 }

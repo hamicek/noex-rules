@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -18,11 +19,14 @@ import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 function RootLayout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+      <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={closeMobileMenu} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Header onMenuOpen={() => setMobileMenuOpen(true)} />
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
           <Outlet />
         </main>

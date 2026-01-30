@@ -171,8 +171,8 @@ export function AuditTable() {
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table className="w-full min-w-[800px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
                 <tr>
                   <th className="w-8 px-2 py-3" />
@@ -238,13 +238,13 @@ function StreamBanner({
   const recent = entries.slice(0, 10);
 
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+    <div className="overflow-x-auto rounded-xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20">
       <div className="border-b border-emerald-200/50 px-4 py-2 dark:border-emerald-900/30">
         <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
           Real-time entries
         </span>
       </div>
-      <table className="w-full text-left text-sm">
+      <table className="w-full min-w-[800px] text-left text-sm">
         <tbody className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
           {recent.map((entry) => (
             <AuditRow
