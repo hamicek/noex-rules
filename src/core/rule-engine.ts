@@ -24,6 +24,8 @@ import { RuleVersionStore } from '../versioning/rule-version-store.js';
 import type { RuleVersionQuery, RuleVersionQueryResult, RuleVersionDiff, RuleVersionEntry } from '../versioning/types.js';
 import { MetricsCollector } from '../observability/metrics-collector.js';
 import { HotReloadWatcher } from './hot-reload/watcher.js';
+import { BaselineStore } from '../baseline/baseline-store.js';
+import type { BaselineStats } from '../types/baseline.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -77,6 +79,7 @@ export class RuleEngine {
   private profiler: Profiler | null = null;
   private metricsCollector: MetricsCollector | null = null;
   private hotReloadWatcher: HotReloadWatcher | null = null;
+  private baselineStore: BaselineStore | null = null;
 
   private constructor(
     factStore: FactStore,
@@ -185,6 +188,10 @@ export class RuleEngine {
 
     if (config.hotReload) {
       engine.hotReloadWatcher = await HotReloadWatcher.start(engine, config.hotReload);
+    }
+
+    if (config.baseline) {
+      engine.baselineStore = await BaselineStore.start(eventStore, factStore, timerManager, config.baseline);
     }
 
     engine.auditLog?.record('engine_started', {
@@ -879,6 +886,10 @@ export class RuleEngine {
       stats.versioning = this.versionStore.getStats();
     }
 
+    if (this.baselineStore) {
+      stats.baseline = this.baselineStore.getStats();
+    }
+
     return stats;
   }
 
@@ -979,6 +990,39 @@ export class RuleEngine {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //                            BASELINE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Vrátí BaselineStore pro přímý přístup k baseline datům.
+   * Vrací null pokud není baseline modul nakonfigurován.
+   */
+  getBaselineStore(): BaselineStore | null {
+    return this.baselineStore;
+  }
+
+  /**
+   * Vrátí baseline statistiky pro metriku.
+   * Vrací undefined pokud baseline modul není nakonfigurován nebo metrika neexistuje.
+   */
+  getBaseline(metricName: string, groupKey?: string): BaselineStats | undefined {
+    return this.baselineStore?.getBaseline(metricName, groupKey);
+  }
+
+  /**
+   * Vynucí přepočet baseline pro metriku.
+   *
+   * @throws {Error} Pokud baseline modul není nakonfigurován.
+   * @throws {Error} Pokud metrika neexistuje.
+   */
+  async recalculateBaseline(metricName: string, groupKey?: string): Promise<BaselineStats> {
+    if (!this.baselineStore) {
+      throw new Error('Baseline module is not configured');
+    }
+    return this.baselineStore.recalculate(metricName, groupKey);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //                            METRICS
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1012,6 +1056,12 @@ export class RuleEngine {
     if (this.hotReloadWatcher) {
       await this.hotReloadWatcher.stop();
       this.hotReloadWatcher = null;
+    }
+
+    // Zastavit baseline store
+    if (this.baselineStore) {
+      await this.baselineStore.stop();
+      this.baselineStore = null;
     }
 
     // Počkat na dokončení zpracování
@@ -1276,7 +1326,8 @@ export class RuleEngine {
           data: triggerData
         },
         facts: this.factStore,
-        variables: new Map()
+        variables: new Map(),
+        ...(this.baselineStore && { baselineStore: this.baselineStore }),
       };
 
       // Resolve external data lookups before condition evaluation

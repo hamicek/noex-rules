@@ -43,6 +43,8 @@ export class BaselineStore {
   private readonly metrics: Map<string, BaselineMetricConfig> = new Map();
   private readonly baselines: Map<string, BaselineStats> = new Map();
   private readonly intervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private totalRecalculations = 0;
+  private anomaliesDetected = 0;
 
   constructor(
     eventStore: EventStore,
@@ -160,6 +162,8 @@ export class BaselineStore {
     const factKey = this.buildFactKey(metricName, groupKey);
     this.factStore.set(factKey, stats, 'baseline');
 
+    this.totalRecalculations++;
+
     return stats;
   }
 
@@ -199,12 +203,18 @@ export class BaselineStore {
     if (!stats) return undefined;
     if (stats.sampleCount < this.cfg.minSamples) return undefined;
 
-    return checkAnomalyPure(
+    const result = checkAnomalyPure(
       value,
       stats,
       comparison,
       sensitivity ?? this.cfg.defaultSensitivity,
     );
+
+    if (result.isAnomaly) {
+      this.anomaliesDetected++;
+    }
+
+    return result;
   }
 
   getMetricConfig(name: string): BaselineMetricConfig | undefined {
@@ -217,6 +227,14 @@ export class BaselineStore {
 
   getAllBaselines(): Map<string, BaselineStats> {
     return new Map(this.baselines);
+  }
+
+  getStats(): { metricsCount: number; totalRecalculations: number; anomaliesDetected: number } {
+    return {
+      metricsCount: this.metrics.size,
+      totalRecalculations: this.totalRecalculations,
+      anomaliesDetected: this.anomaliesDetected,
+    };
   }
 
   // ---------------------------------------------------------------------------
