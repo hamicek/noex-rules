@@ -4,6 +4,9 @@ import { eventResolvers } from './event.resolvers.js';
 import { timerResolvers } from './timer.resolvers.js';
 import { groupResolvers } from './group.resolvers.js';
 import { engineResolvers } from './engine.resolvers.js';
+import { auditResolvers } from './audit.resolvers.js';
+import { versionResolvers } from './version.resolvers.js';
+import { backwardResolvers } from './backward.resolvers.js';
 
 /**
  * Sloučí pole resolver modulů do jednoho resolver mapu.
@@ -35,4 +38,7 @@ export const resolvers = mergeResolvers(
   timerResolvers,
   groupResolvers,
   engineResolvers,
+  auditResolvers,
+  versionResolvers,
+  backwardResolvers,
 );

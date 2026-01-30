@@ -17,6 +17,14 @@ describe('resolvers index (merge)', () => {
     expect(queryFields).toContain('health');
     expect(queryFields).toContain('stats');
     expect(queryFields).toContain('tracingStatus');
+    // Audit
+    expect(queryFields).toContain('auditEntries');
+    // Versions
+    expect(queryFields).toContain('ruleVersions');
+    expect(queryFields).toContain('ruleVersion');
+    expect(queryFields).toContain('ruleVersionDiff');
+    // Backward chaining
+    expect(queryFields).toContain('query');
   });
 
   it('has Mutation with all expected fields', () => {
@@ -40,6 +48,16 @@ describe('resolvers index (merge)', () => {
     expect(mutationFields).toContain('cancelTimer');
     expect(mutationFields).toContain('enableTracing');
     expect(mutationFields).toContain('disableTracing');
+    // Versions
+    expect(mutationFields).toContain('rollbackRule');
+  });
+
+  it('has union type resolvers', () => {
+    expect(resolvers['Goal']).toBeDefined();
+    expect(resolvers['Goal']!['__resolveType']).toBeTypeOf('function');
+
+    expect(resolvers['ProofNode']).toBeDefined();
+    expect(resolvers['ProofNode']!['__resolveType']).toBeTypeOf('function');
   });
 
   it('has Rule type resolvers', () => {
