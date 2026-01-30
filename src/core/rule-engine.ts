@@ -26,6 +26,8 @@ import { MetricsCollector } from '../observability/metrics-collector.js';
 import { HotReloadWatcher } from './hot-reload/watcher.js';
 import { BaselineStore } from '../baseline/baseline-store.js';
 import type { BaselineStats } from '../types/baseline.js';
+import { BackwardChainer } from '../backward/backward-chainer.js';
+import type { Goal, QueryResult, BackwardChainingConfig } from '../types/backward.js';
 
 type EventHandler = (event: Event, topic: string) => void | Promise<void>;
 type Unsubscribe = () => void;
@@ -80,6 +82,8 @@ export class RuleEngine {
   private metricsCollector: MetricsCollector | null = null;
   private hotReloadWatcher: HotReloadWatcher | null = null;
   private baselineStore: BaselineStore | null = null;
+  private backwardChainer: BackwardChainer | null = null;
+  private readonly backwardChainingConfig: BackwardChainingConfig | undefined;
 
   private constructor(
     factStore: FactStore,
@@ -108,6 +112,7 @@ export class RuleEngine {
     };
 
     this.services = new Map(Object.entries(this.config.services));
+    this.backwardChainingConfig = config.backwardChaining;
     this.lookupCache = new LookupCache();
     this.dataResolver = new DataResolver(this.services, this.lookupCache);
     this.validator = new RuleInputValidator();
@@ -1020,6 +1025,32 @@ export class RuleEngine {
       throw new Error('Baseline module is not configured');
     }
     return this.baselineStore.recalculate(metricName, groupKey);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                        BACKWARD CHAINING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Provede backward chaining query — zjistí, zda je daný cíl dosažitelný
+   * na základě aktuálních faktů a registrovaných pravidel.
+   *
+   * Backward chaining je read-only operace — nemodifikuje stav enginu.
+   * Výsledek obsahuje proof tree vysvětlující, proč je/není cíl dosažitelný.
+   */
+  query(goal: Goal): QueryResult {
+    this.ensureRunning();
+
+    if (!this.backwardChainer) {
+      this.backwardChainer = new BackwardChainer(
+        this.ruleManager,
+        this.conditionEvaluator,
+        this.factStore,
+        this.backwardChainingConfig,
+      );
+    }
+
+    return this.backwardChainer.evaluate(goal);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
