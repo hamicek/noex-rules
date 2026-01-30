@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { resolveConfig, resolveCorsConfig, type CorsConfig } from '../../../src/api/config';
+import {
+  resolveConfig,
+  resolveCorsConfig,
+  resolveGraphQLConfig,
+  type CorsConfig,
+  type GraphQLConfig,
+} from '../../../src/api/config';
 
 describe('Server Config', () => {
   describe('resolveConfig', () => {
@@ -72,6 +78,30 @@ describe('Server Config', () => {
       const config = resolveConfig({ cors: corsConfig });
 
       expect(config.cors).toEqual(corsConfig);
+    });
+
+    it('enables GraphQL by default', () => {
+      const config = resolveConfig();
+
+      expect(config.graphql).toBe(true);
+    });
+
+    it('allows disabling GraphQL', () => {
+      const config = resolveConfig({ graphql: false });
+
+      expect(config.graphql).toBe(false);
+    });
+
+    it('accepts detailed GraphQL configuration', () => {
+      const graphqlConfig: GraphQLConfig = {
+        graphiql: false,
+        path: '/gql',
+        subscriptions: false,
+      };
+
+      const config = resolveConfig({ graphql: graphqlConfig });
+
+      expect(config.graphql).toEqual(graphqlConfig);
     });
   });
 
@@ -207,6 +237,88 @@ describe('Server Config', () => {
       expect(result).not.toBe(false);
       if (result !== false) {
         expect(result.optionsSuccessStatus).toBe(200);
+      }
+    });
+  });
+
+  describe('resolveGraphQLConfig', () => {
+    it('returns false when GraphQL is disabled', () => {
+      const result = resolveGraphQLConfig(false);
+      expect(result).toBe(false);
+    });
+
+    it('returns default config when GraphQL is true', () => {
+      const result = resolveGraphQLConfig(true);
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.graphiql).toBe(true);
+        expect(result.path).toBe('/graphql');
+        expect(result.subscriptions).toBe(true);
+      }
+    });
+
+    it('returns default config when GraphQL is undefined', () => {
+      const result = resolveGraphQLConfig(undefined);
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.graphiql).toBe(true);
+        expect(result.path).toBe('/graphql');
+        expect(result.subscriptions).toBe(true);
+      }
+    });
+
+    it('merges partial config with defaults', () => {
+      const result = resolveGraphQLConfig({ graphiql: false });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.graphiql).toBe(false);
+        expect(result.path).toBe('/graphql');
+        expect(result.subscriptions).toBe(true);
+      }
+    });
+
+    it('allows custom path', () => {
+      const result = resolveGraphQLConfig({ path: '/gql' });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.path).toBe('/gql');
+      }
+    });
+
+    it('allows disabling subscriptions', () => {
+      const result = resolveGraphQLConfig({ subscriptions: false });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.subscriptions).toBe(false);
+      }
+    });
+
+    it('allows disabling graphiql', () => {
+      const result = resolveGraphQLConfig({ graphiql: false });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.graphiql).toBe(false);
+      }
+    });
+
+    it('allows full custom config', () => {
+      const result = resolveGraphQLConfig({
+        graphiql: false,
+        path: '/api/graphql',
+        subscriptions: false,
+      });
+
+      expect(result).not.toBe(false);
+      if (result !== false) {
+        expect(result.graphiql).toBe(false);
+        expect(result.path).toBe('/api/graphql');
+        expect(result.subscriptions).toBe(false);
       }
     });
   });

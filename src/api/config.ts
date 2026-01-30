@@ -80,6 +80,23 @@ export interface CorsConfig {
   optionsSuccessStatus?: number;
 }
 
+/**
+ * Konfigurace GraphQL API.
+ *
+ * GraphQL běží jako doplněk k REST API na stejném Fastify serveru.
+ * Endpoint je registrován na root úrovni (bez apiPrefix).
+ */
+export interface GraphQLConfig {
+  /** Zapnout GraphiQL IDE playground (výchozí: true) */
+  graphiql?: boolean;
+
+  /** Cesta k GraphQL endpointu (výchozí: '/graphql') */
+  path?: string;
+
+  /** Zapnout WebSocket subscriptions (výchozí: true) */
+  subscriptions?: boolean;
+}
+
 export interface ServerConfig {
   /** Port, na kterém server naslouchá (výchozí: 3000) */
   port: number;
@@ -106,6 +123,17 @@ export interface ServerConfig {
 
   /** Zapnout logování (výchozí: true) */
   logger: boolean;
+
+  /**
+   * GraphQL API konfigurace.
+   *
+   * - `true` - zapnout GraphQL s výchozími hodnotami
+   * - `false` - vypnout GraphQL
+   * - `GraphQLConfig` - detailní konfigurace
+   *
+   * Výchozí: true
+   */
+  graphql: boolean | GraphQLConfig;
 
   /** Dodatečné Fastify options */
   fastifyOptions: Omit<FastifyServerOptions, 'logger'> | undefined;
@@ -151,6 +179,34 @@ export function resolveCorsConfig(
   };
 }
 
+/** Výchozí GraphQL konfigurace */
+const DEFAULT_GRAPHQL_CONFIG: Required<GraphQLConfig> = {
+  graphiql: true,
+  path: '/graphql',
+  subscriptions: true,
+};
+
+/**
+ * Vyřeší GraphQL konfiguraci do úplného formátu.
+ */
+export function resolveGraphQLConfig(
+  input: boolean | GraphQLConfig | undefined
+): false | Required<GraphQLConfig> {
+  if (input === false) {
+    return false;
+  }
+
+  if (input === true || input === undefined) {
+    return { ...DEFAULT_GRAPHQL_CONFIG };
+  }
+
+  return {
+    graphiql: input.graphiql ?? DEFAULT_GRAPHQL_CONFIG.graphiql,
+    path: input.path ?? DEFAULT_GRAPHQL_CONFIG.path,
+    subscriptions: input.subscriptions ?? DEFAULT_GRAPHQL_CONFIG.subscriptions,
+  };
+}
+
 export function resolveConfig(input: ServerConfigInput = {}): ServerConfig {
   return {
     port: input.port ?? 3000,
@@ -159,6 +215,7 @@ export function resolveConfig(input: ServerConfigInput = {}): ServerConfig {
     cors: input.cors ?? true,
     swagger: input.swagger ?? true,
     logger: input.logger ?? true,
+    graphql: input.graphql ?? true,
     fastifyOptions: input.fastifyOptions
   };
 }

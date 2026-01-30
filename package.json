@@ -52,6 +52,8 @@
     "@hamicek/noex": "^0.1.0",
     "cac": "^6.7.14",
     "fastify": "^5.7.2",
+    "graphql": "^16.9.0",
+    "mercurius": "^15.0.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
