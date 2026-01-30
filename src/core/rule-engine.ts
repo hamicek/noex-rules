@@ -17,6 +17,8 @@ import { generateId } from '../utils/id-generator.js';
 import { TraceCollector } from '../debugging/trace-collector.js';
 import { Profiler } from '../debugging/profiler.js';
 import { AuditLogService } from '../audit/audit-log-service.js';
+import { RuleVersionStore } from '../versioning/rule-version-store.js';
+import type { RuleVersionQuery, RuleVersionQueryResult, RuleVersionDiff, RuleVersionEntry } from '../versioning/types.js';
 import { MetricsCollector } from '../observability/metrics-collector.js';
 import { HotReloadWatcher } from './hot-reload/watcher.js';
 
@@ -50,6 +52,7 @@ export class RuleEngine {
   private readonly actionExecutor: ActionExecutor;
   private readonly traceCollector: TraceCollector;
   private readonly auditLog: AuditLogService | null;
+  private readonly versionStore: RuleVersionStore | null;
   private readonly config: Required<Omit<RuleEngineConfig, 'persistence' | 'tracing' | 'timerPersistence' | 'audit' | 'metrics' | 'opentelemetry' | 'hotReload' | 'versioning'>>;
   private readonly services: Map<string, unknown>;
   private readonly validator: RuleInputValidator;
@@ -77,6 +80,7 @@ export class RuleEngine {
     ruleManager: RuleManager,
     traceCollector: TraceCollector,
     auditLog: AuditLogService | null,
+    versionStore: RuleVersionStore | null,
     config: RuleEngineConfig
   ) {
     this.factStore = factStore;
@@ -85,6 +89,7 @@ export class RuleEngine {
     this.ruleManager = ruleManager;
     this.traceCollector = traceCollector;
     this.auditLog = auditLog;
+    this.versionStore = versionStore;
     this.conditionEvaluator = new ConditionEvaluator();
 
     this.config = {
@@ -155,7 +160,12 @@ export class RuleEngine {
       });
     }
 
-    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, auditLog, config);
+    let versionStore: RuleVersionStore | null = null;
+    if (config.versioning) {
+      versionStore = await RuleVersionStore.start(config.versioning);
+    }
+
+    const engine = new RuleEngine(factStore, eventStore, timerManager, ruleManager, traceCollector, auditLog, versionStore, config);
     engine.running = true;
 
     if (config.metrics?.enabled) {
@@ -220,6 +230,8 @@ export class RuleEngine {
 
     const rule = this.ruleManager.register(input);
 
+    this.versionStore?.recordVersion(rule, 'registered');
+
     this.auditLog?.record('rule_registered', {
       trigger: rule.trigger,
       conditionsCount: rule.conditions.length,
@@ -241,6 +253,9 @@ export class RuleEngine {
     const removed = this.ruleManager.unregister(ruleId);
 
     if (removed) {
+      if (rule) {
+        this.versionStore?.recordVersion(rule, 'unregistered');
+      }
       this.auditLog?.record('rule_unregistered', {}, {
         ruleId,
         ...(rule?.name !== undefined && { ruleName: rule.name }),
@@ -259,6 +274,9 @@ export class RuleEngine {
 
     if (enabled) {
       const rule = this.ruleManager.get(ruleId);
+      if (rule) {
+        this.versionStore?.recordVersion(rule, 'enabled');
+      }
       this.auditLog?.record('rule_enabled', {}, {
         ruleId,
         ...(rule?.name !== undefined && { ruleName: rule.name }),
@@ -277,6 +295,9 @@ export class RuleEngine {
 
     if (disabled) {
       const rule = this.ruleManager.get(ruleId);
+      if (rule) {
+        this.versionStore?.recordVersion(rule, 'disabled');
+      }
       this.auditLog?.record('rule_disabled', {}, {
         ruleId,
         ...(rule?.name !== undefined && { ruleName: rule.name }),
@@ -284,6 +305,101 @@ export class RuleEngine {
     }
 
     return disabled;
+  }
+
+  /**
+   * Aktualizuje existující pravidlo sloučením s novými hodnotami.
+   *
+   * Na rozdíl od manuálního unregister + register vytváří jedinou
+   * verzovací položku typu 'updated'.
+   */
+  updateRule(ruleId: string, updates: Partial<RuleInput>): Rule {
+    this.ensureRunning();
+
+    const existingRule = this.ruleManager.get(ruleId);
+    if (!existingRule) {
+      throw new Error(`Rule '${ruleId}' not found`);
+    }
+
+    const { version: _v, createdAt: _c, updatedAt: _u, ...existingInput } = existingRule;
+    const input: RuleInput = {
+      ...existingInput,
+      ...updates,
+      id: ruleId,
+    };
+
+    const result = this.validator.validate(input);
+    if (!result.valid) {
+      throw new RuleValidationError('Rule validation failed', result.errors);
+    }
+
+    if (input.group) {
+      const group = this.ruleManager.getGroup(input.group);
+      if (!group) {
+        throw new RuleValidationError(
+          `Rule references non-existent group: "${input.group}"`,
+          [{ path: 'group', message: `Group "${input.group}" does not exist`, severity: 'error' }]
+        );
+      }
+    }
+
+    this.ruleManager.unregister(ruleId);
+    const newRule = this.ruleManager.register(input);
+
+    this.versionStore?.recordVersion(newRule, 'updated');
+
+    this.auditLog?.record('rule_registered', {
+      trigger: newRule.trigger,
+      conditionsCount: newRule.conditions.length,
+      actionsCount: newRule.actions.length,
+    }, {
+      ruleId: newRule.id,
+      ruleName: newRule.name,
+    });
+
+    return newRule;
+  }
+
+  /**
+   * Vrátí pravidlo na zadanou verzi z historie.
+   *
+   * Načte snapshot z historie verzí, odregistruje aktuální pravidlo
+   * a znovu ho zaregistruje ze snapshotu. Nové pravidlo dostane nové
+   * globální číslo verze.
+   */
+  rollbackRule(ruleId: string, targetVersion: number): Rule {
+    this.ensureRunning();
+
+    if (!this.versionStore) {
+      throw new Error('Rule versioning is not configured');
+    }
+
+    const entry = this.versionStore.getVersion(ruleId, targetVersion);
+    if (!entry) {
+      throw new Error(`Version ${targetVersion} not found for rule '${ruleId}'`);
+    }
+
+    const currentRule = this.ruleManager.get(ruleId);
+    if (currentRule) {
+      this.ruleManager.unregister(ruleId);
+    }
+
+    const { version: _v, createdAt: _c, updatedAt: _u, ...input } = entry.ruleSnapshot;
+    const newRule = this.ruleManager.register(input);
+
+    this.versionStore.recordVersion(newRule, 'rolled_back', {
+      ...(currentRule !== undefined && { rolledBackFrom: currentRule.version }),
+    });
+
+    this.auditLog?.record('rule_rolled_back', {
+      targetVersion,
+      previousVersion: currentRule?.version,
+    }, {
+      ruleId,
+      ruleName: newRule.name,
+    });
+
+    return newRule;
   }
 
   /**
@@ -438,6 +554,54 @@ export class RuleEngine {
    */
   getGroupRules(groupId: string): Rule[] {
     return this.ruleManager.getGroupRules(groupId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //                        VERZOVÁNÍ PRAVIDEL
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Dotaz na historii verzí pravidla s filtrováním a stránkováním.
+   *
+   * @throws {Error} Pokud verzování není nakonfigurováno.
+   */
+  getRuleVersions(ruleId: string, params?: Omit<RuleVersionQuery, 'ruleId'>): RuleVersionQueryResult {
+    if (!this.versionStore) {
+      throw new Error('Rule versioning is not configured');
+    }
+    return this.versionStore.query({ ...params, ruleId });
+  }
+
+  /**
+   * Vrátí konkrétní verzi pravidla, nebo undefined pokud neexistuje.
+   *
+   * @throws {Error} Pokud verzování není nakonfigurováno.
+   */
+  getRuleVersion(ruleId: string, version: number): RuleVersionEntry | undefined {
+    if (!this.versionStore) {
+      throw new Error('Rule versioning is not configured');
+    }
+    return this.versionStore.getVersion(ruleId, version);
+  }
+
+  /**
+   * Vrátí pole-level diff mezi dvěma verzemi pravidla.
+   *
+   * @throws {Error} Pokud verzování není nakonfigurováno.
+   */
+  diffRuleVersions(ruleId: string, fromVersion: number, toVersion: number): RuleVersionDiff | undefined {
+    if (!this.versionStore) {
+      throw new Error('Rule versioning is not configured');
+    }
+    return this.versionStore.diff(ruleId, fromVersion, toVersion);
+  }
+
+  /**
+   * Vrátí RuleVersionStore pro přímý přístup k verzovacím datům.
+   * Vrací null pokud není verzování nakonfigurováno.
+   */
+  getVersionStore(): RuleVersionStore | null {
+    return this.versionStore;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -704,6 +868,10 @@ export class RuleEngine {
       stats.audit = this.auditLog.getStats();
     }
 
+    if (this.versionStore) {
+      stats.versioning = this.versionStore.getStats();
+    }
+
     return stats;
   }
 
@@ -857,6 +1025,7 @@ export class RuleEngine {
       this.metricsCollector = null;
     }
 
+    await this.versionStore?.stop();
     await this.timerManager.stop();
     await this.auditLog?.stop();
     this.subscribers.clear();
