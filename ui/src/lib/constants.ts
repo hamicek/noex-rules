@@ -29,3 +29,47 @@ export const POLLING_INTERVALS = {
   stats: 5_000,
   rules: 30_000,
 } as const;
+
+export const CONDITION_SOURCE_TYPE_LABELS: Record<string, string> = {
+  fact: 'Fact',
+  event: 'Event',
+  context: 'Context',
+  lookup: 'Lookup',
+  baseline: 'Baseline',
+};
+
+export const CONDITION_OPERATOR_LABELS: Record<string, string> = {
+  eq: '=',
+  neq: '!=',
+  gt: '>',
+  gte: '>=',
+  lt: '<',
+  lte: '<=',
+  in: 'in',
+  not_in: 'not in',
+  contains: 'contains',
+  not_contains: 'not contains',
+  matches: 'matches',
+  exists: 'exists',
+  not_exists: 'not exists',
+};
+
+export const UNARY_OPERATORS = new Set(['exists', 'not_exists']);
+
+export const ACTION_TYPE_LABELS: Record<string, string> = {
+  set_fact: 'Set Fact',
+  delete_fact: 'Delete Fact',
+  emit_event: 'Emit Event',
+  set_timer: 'Set Timer',
+  cancel_timer: 'Cancel Timer',
+  call_service: 'Call Service',
+  log: 'Log',
+  conditional: 'Conditional',
+};
+
+export const LOG_LEVEL_LABELS: Record<string, string> = {
+  debug: 'Debug',
+  info: 'Info',
+  warn: 'Warning',
+  error: 'Error',
+};

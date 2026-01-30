@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { ArrowUpDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { fetchRules, enableRule, disableRule } from '../../api/queries/rules';
@@ -170,8 +171,12 @@ export function RuleTable() {
                   className="bg-white transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50"
                 >
                   <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                    <Link
+                      to="/rules/$ruleId"
+                      params={{ ruleId: rule.id }}
+                      className="group/link block"
+                    >
+                      <p className="font-medium text-slate-900 group-hover/link:text-primary-600 dark:text-slate-100 dark:group-hover/link:text-primary-400">
                         {rule.name}
                       </p>
                       {rule.description && (
@@ -179,7 +184,7 @@ export function RuleTable() {
                           {rule.description}
                         </p>
                       )}
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">
                     {rule.priority}

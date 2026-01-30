@@ -44,27 +44,80 @@ export interface RuleGroup {
   rulesCount: number;
 }
 
+export type TriggerType = 'fact' | 'event' | 'timer' | 'temporal';
+
 export interface RuleTrigger {
-  type: 'fact' | 'event' | 'timer' | 'temporal';
+  type: TriggerType;
   pattern?: string;
   topic?: string;
   name?: string;
 }
 
+export type ConditionSourceType =
+  | 'fact'
+  | 'event'
+  | 'context'
+  | 'lookup'
+  | 'baseline';
+
+export type ConditionOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'in'
+  | 'not_in'
+  | 'contains'
+  | 'not_contains'
+  | 'matches'
+  | 'exists'
+  | 'not_exists';
+
+export interface ConditionSource {
+  type: ConditionSourceType;
+  pattern?: string;
+  field?: string;
+  key?: string;
+  name?: string;
+  metric?: string;
+  comparison?: string;
+  sensitivity?: number;
+}
+
 export interface RuleCondition {
-  source: {
-    type: string;
-    pattern?: string;
-    field?: string;
-  };
-  operator: string;
+  source: ConditionSource;
+  operator: ConditionOperator;
   value?: unknown;
 }
 
+export type ActionType =
+  | 'set_fact'
+  | 'delete_fact'
+  | 'emit_event'
+  | 'set_timer'
+  | 'cancel_timer'
+  | 'call_service'
+  | 'log'
+  | 'conditional';
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
 export interface RuleAction {
-  type: string;
+  type: ActionType;
   key?: string;
   value?: unknown;
   topic?: string;
   data?: unknown;
+  timer?: unknown;
+  name?: string;
+  service?: string;
+  method?: string;
+  args?: unknown[];
+  level?: LogLevel;
+  message?: string;
+  conditions?: RuleCondition[];
+  thenActions?: RuleAction[];
+  elseActions?: RuleAction[];
 }

@@ -8,6 +8,8 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { RulesPage } from './pages/RulesPage';
+import { RuleDetailPage } from './pages/RuleDetailPage';
+import { RuleCreatePage } from './pages/RuleCreatePage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 
 function RootLayout() {
@@ -38,6 +40,18 @@ const rulesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rules',
   component: RulesPage,
+});
+
+const ruleDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rules/$ruleId',
+  component: RuleDetailPage,
+});
+
+const ruleCreateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rules/new',
+  component: RuleCreatePage,
 });
 
 const groupsRoute = createRoute({
@@ -79,6 +93,8 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   rulesRoute,
+  ruleCreateRoute,
+  ruleDetailRoute,
   groupsRoute,
   factsRoute,
   eventsRoute,
