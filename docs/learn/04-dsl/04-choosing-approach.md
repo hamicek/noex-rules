@@ -1,0 +1,519 @@
+# Choosing the Right Approach
+
+noex-rules supports four ways to define rules: raw objects, the fluent builder, tagged templates, and YAML. Each approach produces the same `RuleInput` type — the engine doesn't care how a rule was created. The choice is about developer experience, audience, and the complexity of your rules.
+
+## What You'll Learn
+
+- The trade-offs between all four rule definition approaches
+- A decision tree for picking the right one
+- How to mix approaches in the same engine
+- Migration strategies between approaches
+
+## Side-by-Side Comparison
+
+The same rule expressed in all four styles:
+
+### Raw Object
+
+```typescript
+engine.registerRule({
+  id: 'vip-order',
+  name: 'VIP Order Processing',
+  priority: 100,
+  enabled: true,
+  tags: ['orders', 'vip'],
+  trigger: { type: 'event', topic: 'order.created' },
+  conditions: [
+    {
+      source: { type: 'event', field: 'total' },
+      operator: 'gte',
+      value: 500,
+    },
+    {
+      source: { type: 'fact', pattern: 'customer:${event.customerId}:tier' },
+      operator: 'eq',
+      value: 'vip',
+    },
+  ],
+  actions: [
+    {
+      type: 'emit_event',
+      topic: 'order.priority',
+      data: { orderId: { ref: 'event.orderId' } },
+    },
+    {
+      type: 'set_fact',
+      key: 'order:${event.orderId}:priority',
+      value: 'high',
+    },
+  ],
+});
+```
+
+### Fluent Builder
+
+```typescript
+import {
+  Rule, onEvent, event, fact,
+  emit, setFact, ref,
+} from '@hamicek/noex-rules/dsl';
+
+engine.registerRule(
+  Rule.create('vip-order')
+    .name('VIP Order Processing')
+    .priority(100)
+    .tags('orders', 'vip')
+    .when(onEvent('order.created'))
+    .if(event('total').gte(500))
+    .and(fact('customer:${event.customerId}:tier').eq('vip'))
+    .then(emit('order.priority', { orderId: ref('event.orderId') }))
+    .also(setFact('order:${event.orderId}:priority', 'high'))
+    .build()
+);
+```
+
+### Tagged Template
+
+```typescript
+import { rule } from '@hamicek/noex-rules/dsl';
+
+engine.registerRule(rule`
+  id: vip-order
+  name: VIP Order Processing
+  priority: 100
+  tags: orders, vip
+
+  WHEN event order.created
+  IF event.total >= 500
+  AND fact.customer:vip == vip
+  THEN emit order.priority { orderId: event.orderId }
+  THEN setFact order:priority high
+`);
+```
+
+### YAML
+
+```yaml
+id: vip-order
+name: VIP Order Processing
+priority: 100
+tags:
+  - orders
+  - vip
+trigger:
+  type: event
+  topic: order.created
+conditions:
+  - source:
+      type: event
+      field: total
+    operator: gte
+    value: 500
+  - source:
+      type: fact
+      pattern: "customer:${event.customerId}:tier"
+    operator: eq
+    value: vip
+actions:
+  - type: emit_event
+    topic: order.priority
+    data:
+      orderId:
+        ref: event.orderId
+  - type: set_fact
+    key: "order:${event.orderId}:priority"
+    value: high
+```
+
+## Comparison Table
+
+| Feature | Raw Object | Fluent Builder | Tagged Template | YAML |
+|---------|:----------:|:--------------:|:---------------:|:----:|
+| TypeScript autocomplete | Partial | Full | None | None |
+| Compile-time validation | Partial | Full | None | None |
+| Runtime validation | On register | On `.build()` | On parse | On load |
+| Lines of code | Most | Medium | Fewest | Most |
+| Learning curve | Low | Medium | Low | Low |
+| All trigger types | Yes | Yes | Basic 3 | Yes |
+| Temporal patterns | Yes | Yes | No | Yes |
+| All action types | Yes | Yes | 5 of 7 | Yes |
+| Conditional actions | Yes | Yes | No | Yes |
+| Data requirements | Yes | Yes | No | Yes |
+| External file storage | No | No | No | Yes |
+| Non-developer friendly | No | No | No | Yes |
+| Dynamic (JS interpolation) | Yes | Yes | Yes | No |
+
+## Decision Tree
+
+```text
+  Start
+    │
+    ▼
+  Who writes the rules?
+    │
+    ├── Non-developers (product, ops, business)
+    │   └── YAML ──── External config files, editable without code changes
+    │
+    └── Developers
+        │
+        ▼
+        Need full feature set?
+        (timers, services, temporal patterns, lookups, conditional actions)
+          │
+          ├── Yes → Fluent Builder ──── Full type safety, all features
+          │
+          └── No (basic triggers, conditions, simple actions)
+              │
+              ▼
+              Priority?
+                │
+                ├── Readability / brevity
+                │   └── Tagged Template ──── Quick prototyping, inline rules
+                │
+                ├── Type safety
+                │   └── Fluent Builder ──── Compile-time checks
+                │
+                └── Programmatic generation
+                    └── Raw Objects ──── When rules are built from data
+```
+
+### Quick Guide
+
+| Scenario | Recommended |
+|----------|-------------|
+| Production TypeScript application | Fluent Builder |
+| Quick prototype or test rule | Tagged Template |
+| Config-driven / non-developer rules | YAML |
+| Rules generated by code (e.g., from database) | Raw Objects |
+| Rules with temporal patterns (CEP) | Fluent Builder |
+| Rules with external service calls | Fluent Builder |
+| Simple event → action rules | Tagged Template or YAML |
+| CI/CD-managed rule deployment | YAML |
+
+## Mixing Approaches
+
+Since all four approaches produce `RuleInput` objects, you can mix them freely in the same engine:
+
+```typescript
+import { RuleEngine } from '@hamicek/noex-rules';
+import {
+  Rule, onEvent, event, emit, setFact, ref, rule,
+  loadRulesFromFile,
+} from '@hamicek/noex-rules/dsl';
+
+async function main() {
+  const engine = await RuleEngine.start({ name: 'mixed' });
+
+  // Fluent builder — complex rule with timer and service
+  engine.registerRule(
+    Rule.create('payment-flow')
+      .priority(200)
+      .when(onEvent('order.created'))
+      .if(event('total').gt(0))
+      .then(setFact('order:${event.orderId}:status', 'pending'))
+      .build()
+  );
+
+  // Tagged template — simple notification rule
+  engine.registerRule(rule`
+    id: order-log
+    priority: 10
+    WHEN event order.created
+    THEN log info "New order received"
+  `);
+
+  // YAML — externally managed rules
+  const yamlRules = await loadRulesFromFile('./rules/discounts.yaml');
+  yamlRules.forEach(r => engine.registerRule(r));
+
+  // Raw object — programmatically generated
+  const dynamicRules = generateRulesFromDatabase();
+  dynamicRules.forEach(r => engine.registerRule(r));
+
+  await engine.stop();
+}
+```
+
+### Recommended Patterns
+
+A common architecture is:
+
+- **Core rules** (Fluent Builder): Complex workflow rules that use timers, services, and temporal patterns. Written by developers, version-controlled with the application.
+- **Configuration rules** (YAML): Business rules that change frequently. Stored in external files or a database. Loaded at startup and via hot-reload.
+- **Test/debug rules** (Tagged Template): Quick inline rules for testing, prototyping, or debugging specific scenarios.
+
+## Migration Between Approaches
+
+### Raw Objects → Fluent Builder
+
+The most common migration. Map each raw field to its builder equivalent:
+
+```text
+  Raw Object                     Fluent Builder
+  ──────────                     ──────────────
+  id: '...'                      Rule.create('...')
+  name: '...'                    .name('...')
+  priority: N                    .priority(N)
+  tags: [...]                    .tags(...)
+  trigger: { type: 'event' }     .when(onEvent('...'))
+  conditions: [{ source, op }]   .if(event('...').op(value))
+  actions: [{ type: 'emit' }]    .then(emit('...'))
+  —                              .build()
+```
+
+### Fluent Builder → YAML
+
+When you need to externalize rules. The `.build()` output is already a `RuleInput` — serialize it with YAML:
+
+```typescript
+import YAML from 'yaml';
+
+const rule = Rule.create('my-rule')
+  .when(onEvent('order.created'))
+  .then(emit('order.processed'))
+  .build();
+
+const yaml = YAML.stringify(rule);
+// Write to file or store in database
+```
+
+### Tagged Template → Fluent Builder
+
+When a prototyping rule needs features the tagged template doesn't support (timers, services, etc.). The conversion is straightforward — replace keywords with builder methods:
+
+```text
+  Tagged Template              Fluent Builder
+  ───────────────              ──────────────
+  id: my-rule                  Rule.create('my-rule')
+  WHEN event topic             .when(onEvent('topic'))
+  IF event.field >= value      .if(event('field').gte(value))
+  THEN emit topic { ... }      .then(emit('topic', { ... }))
+  —                            .build()
+```
+
+## Complete Working Example
+
+A rule system that uses all four approaches together:
+
+```typescript
+import { RuleEngine } from '@hamicek/noex-rules';
+import {
+  Rule, onEvent, onFact, event, fact,
+  emit, setFact, setTimer, log, ref, rule,
+  loadRulesFromYAML,
+} from '@hamicek/noex-rules/dsl';
+
+async function main() {
+  const engine = await RuleEngine.start({ name: 'multi-approach' });
+
+  // === Fluent Builder: complex workflow with timer ===
+  engine.registerRule(
+    Rule.create('order-init')
+      .name('Initialize Order')
+      .priority(200)
+      .tags('orders')
+      .when(onEvent('order.created'))
+      .if(event('total').gt(0))
+      .then(setFact('order:${event.orderId}:status', 'pending'))
+      .also(setTimer({
+        name: 'order-timeout:${event.orderId}',
+        duration: '30m',
+        onExpire: {
+          topic: 'order.expired',
+          data: { orderId: ref('event.orderId') },
+        },
+      }))
+      .build()
+  );
+
+  // === Tagged Template: simple audit rule ===
+  engine.registerRule(rule`
+    id: audit-log
+    priority: 5
+    tags: audit
+
+    WHEN event order.created
+    THEN log info "Audit: order created"
+  `);
+
+  // === YAML: business rules from config ===
+  const discountRules = loadRulesFromYAML(`
+    - id: bulk-discount
+      name: Bulk Discount
+      priority: 100
+      tags:
+        - pricing
+      trigger:
+        type: event
+        topic: order.created
+      conditions:
+        - source:
+            type: event
+            field: quantity
+          operator: gte
+          value: 100
+      actions:
+        - type: set_fact
+          key: "order:\${event.orderId}:discount"
+          value: 0.15
+        - type: log
+          level: info
+          message: "Bulk discount applied"
+
+    - id: loyalty-bonus
+      name: Loyalty Bonus
+      priority: 90
+      tags:
+        - pricing
+        - loyalty
+      trigger:
+        type: event
+        topic: order.created
+      conditions:
+        - source:
+            type: fact
+            pattern: "customer:\${event.customerId}:orders"
+          operator: gte
+          value: 10
+      actions:
+        - type: set_fact
+          key: "order:\${event.orderId}:loyaltyBonus"
+          value: 0.05
+  `);
+  discountRules.forEach(r => engine.registerRule(r));
+
+  // === Raw Object: generated from external config ===
+  engine.registerRule({
+    id: 'status-monitor',
+    name: 'Order Status Monitor',
+    priority: 10,
+    enabled: true,
+    tags: ['monitoring'],
+    trigger: { type: 'fact', pattern: 'order:*:status' },
+    conditions: [],
+    actions: [
+      {
+        type: 'log',
+        level: 'info',
+        message: 'Status changed: ${event.key} = ${event.value}',
+      },
+    ],
+  });
+
+  // --- Test ---
+  await engine.setFact('customer:C-1:orders', 12);
+
+  await engine.emit('order.created', {
+    orderId: 'ORD-1',
+    customerId: 'C-1',
+    total: 5000,
+    quantity: 150,
+  });
+
+  console.log('Status:', engine.getFact('order:ORD-1:status'));
+  // "pending"
+  console.log('Discount:', engine.getFact('order:ORD-1:discount'));
+  // 0.15
+  console.log('Loyalty:', engine.getFact('order:ORD-1:loyaltyBonus'));
+  // 0.05
+
+  await engine.stop();
+}
+
+main();
+```
+
+## Exercise
+
+You're building a notification system. Choose the most appropriate approach for each rule and implement it:
+
+1. **Welcome Email** — When `user.registered` fires, call `emailService.sendWelcome(email)`. (Hint: needs `callService`)
+2. **Login Alert** — When `auth.login` fires and the `country` isn't in `['CZ', 'SK']`, log a warning. (Hint: simple rule)
+3. **Configurable Threshold** — An operations team manages a rule that emits `alert.high_load` when `system.metrics` reports `cpu` > some threshold. The threshold changes frequently. (Hint: who manages it?)
+
+<details>
+<summary>Solution</summary>
+
+```typescript
+import {
+  Rule, onEvent, event,
+  emit, callService, log, ref, rule,
+  loadRulesFromYAML,
+} from '@hamicek/noex-rules/dsl';
+
+// 1. Welcome Email → Fluent Builder (needs callService)
+const welcomeEmail = Rule.create('welcome-email')
+  .name('Send Welcome Email')
+  .priority(100)
+  .tags('users', 'notifications')
+  .when(onEvent('user.registered'))
+  .then(callService('emailService')
+    .method('sendWelcome')
+    .args(ref('event.email'))
+  )
+  .build();
+
+// 2. Login Alert → Tagged Template (simple condition + log)
+const loginAlert = rule`
+  id: login-alert
+  name: Foreign Login Alert
+  priority: 80
+  tags: security
+
+  WHEN event auth.login
+  IF event.country not_in [CZ, SK]
+  THEN log warn "Login from unexpected country"
+`;
+
+// 3. Configurable Threshold → YAML (managed by ops team)
+const thresholdRules = loadRulesFromYAML(`
+  id: high-cpu-alert
+  name: High CPU Alert
+  priority: 200
+  tags:
+    - monitoring
+    - alerts
+  trigger:
+    type: event
+    topic: system.metrics
+  conditions:
+    - source:
+        type: event
+        field: cpu
+      operator: gt
+      value: 85
+  actions:
+    - type: emit_event
+      topic: alert.high_load
+      data:
+        cpu:
+          ref: event.cpu
+    - type: log
+      level: warn
+      message: "CPU at \${event.cpu}%"
+`);
+
+// Register all
+engine.registerRule(welcomeEmail);
+engine.registerRule(loginAlert);
+thresholdRules.forEach(r => engine.registerRule(r));
+```
+
+The choice is driven by requirements: callService needs the builder, a simple condition+log fits a tagged template, and an ops-managed threshold belongs in YAML where it can be changed without code deployment.
+
+</details>
+
+## Summary
+
+- All four approaches (raw objects, fluent builder, tagged templates, YAML) produce the same `RuleInput` type
+- **Fluent Builder**: best for production TypeScript — full type safety, all features, compile-time validation
+- **Tagged Template**: best for prototyping and simple rules — compact syntax, minimal imports
+- **YAML**: best for config-driven systems — external files, non-developer audiences, hot-reloadable
+- **Raw Objects**: best for programmatic rule generation — when rules come from a database or external source
+- Mix approaches freely in the same engine — the engine doesn't know or care how rules were created
+- Choose based on: who writes the rules, feature requirements, and whether rules need to live outside the codebase
+- Migration between approaches is straightforward because they all map to the same underlying type
+
+---
+
+Next: [What is CEP?](../05-cep/01-what-is-cep.md)
