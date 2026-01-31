@@ -1,18 +1,18 @@
-# Priorita a poradi provadeni
+# Priorita a pořadí provádění
 
-Kdyz vice pravidel odpovida stejnemu triggeru, engine musi rozhodnout, ktere vyhodnotit prvni. Slevove pravidlo, ktere nastavuje fakt, mozna musi bezet pred notifikacnim pravidlem, ktere ho cte. Validacni pravidlo by melo odmitnou neplatna data pred tim, nez je zpracuji navazujici pravidla. Pole `priority` vam dava explicitni kontrolu nad poradim vyhodnoceni a nastaveni soubehu enginu vam umoznuji ladit, jak se triggery siri pravidlovymi retezci.
+Když více pravidel odpovídá stejnému triggeru, engine musí rozhodnout, které vyhodnotit první. Slevové pravidlo, které nastavuje fakt, možná musí běžet před notifikačním pravidlem, které ho čte. Validační pravidlo by mělo odmítnout neplatná data před tím, než je zpracují navazující pravidla. Pole `priority` vám dává explicitní kontrolu nad pořadím vyhodnocení a nastavení souběhu enginu vám umožňují ladit, jak se triggery šíří pravidlovými řetězci.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak priorita ridi poradi vyhodnocovani pravidel
-- Jak funguje retezeni pravidel, kdyz akce spousti dalsi pravidla
-- Jak se vyhnout nekonecnym smyckam s `maxConcurrency`
-- Jak `debounceMs` shlukuje rychle zmeny faktu
-- Navrhove vzory pro predvidatelne vyhodnocovani pravidel
+- Jak priorita řídí pořadí vyhodnocování pravidel
+- Jak funguje řetězení pravidel, když akce spouští další pravidla
+- Jak se vyhnout nekonečným smyčkám s `maxConcurrency`
+- Jak `debounceMs` shlukuje rychlé změny faktů
+- Návrhové vzory pro předvídatelné vyhodnocování pravidel
 
 ## Priorita
 
-Kazde pravidlo ma pole `priority` — cislo, ktere urcuje poradi vyhodnoceni, kdyz vice pravidel odpovida stejnemu triggeru. **Vyssi priorita = vyhodnoceni drive**.
+Každé pravidlo má pole `priority` — číslo, které určuje pořadí vyhodnocení, když více pravidel odpovídá stejnému triggeru. **Vyšší priorita = vyhodnocení dříve**.
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -20,10 +20,10 @@ import { onEvent, setFact, emit, log, ref, event } from '@hamicek/noex-rules/dsl
 
 const engine = await RuleEngine.start();
 
-// Validace bezi prvni (priorita 100)
+// Validace běží první (priorita 100)
 engine.registerRule(
   Rule.create('validate-order')
-    .name('Validace objednavky')
+    .name('Validace objednávky')
     .priority(100)
     .when(onEvent('order.created'))
     .if(event('total').lte(0))
@@ -34,10 +34,10 @@ engine.registerRule(
     .build()
 );
 
-// Business logika bezi druha (priorita 50)
+// Business logika běží druhá (priorita 50)
 engine.registerRule(
   Rule.create('apply-discount')
-    .name('Aplikace vernostni slevy')
+    .name('Aplikace věrnostní slevy')
     .priority(50)
     .when(onEvent('order.created'))
     .if(fact('customer:${event.customerId}:tier').eq('gold'))
@@ -45,10 +45,10 @@ engine.registerRule(
     .build()
 );
 
-// Notifikace bezi posledni (priorita 10)
+// Notifikace běží poslední (priorita 10)
 engine.registerRule(
   Rule.create('notify-order')
-    .name('Email s potvrzenim objednavky')
+    .name('Email s potvrzením objednávky')
     .priority(10)
     .when(onEvent('order.created'))
     .then(callService('emailService', 'send', {
@@ -63,26 +63,26 @@ engine.registerRule(
 
 | Vlastnost | Hodnota |
 |-----------|---------|
-| **Typ** | Konecne cislo (`number`, bez `Infinity` nebo `NaN`) |
-| **Vychozi** | `0` |
-| **Smer** | Vyssi cislo = vyhodnoceni drive |
-| **Rozsah platnosti** | Per-trigger — priorita ma vyznam pouze mezi pravidly sdilejicimi stejny trigger |
-| **Shody** | Pravidla se stejnou prioritou nemaji zarucene poradi vuci sobe |
+| **Typ** | Konečné číslo (`number`, bez `Infinity` nebo `NaN`) |
+| **Výchozí** | `0` |
+| **Směr** | Vyšší číslo = vyhodnocení dříve |
+| **Rozsah platnosti** | Per-trigger — priorita má význam pouze mezi pravidly sdílejícími stejný trigger |
+| **Shody** | Pravidla se stejnou prioritou nemají zaručené pořadí vůči sobě |
 
 ### Rozsahy priorit
 
-Zadny vynuceny rozsah neexistuje, ale konzistentni konvence pomaha:
+Žádný vynucený rozsah neexistuje, ale konzistentní konvence pomáhá:
 
 ```text
   ┌────────────────┬───────────────────────────────────┐
-  │  Priorita      │  Typicke pouziti                  │
+  │  Priorita      │  Typické použití                  │
   ├────────────────┼───────────────────────────────────┤
-  │  100+          │  Validace, bezpecnostni kontroly  │
-  │  50-99         │  Jadro business logiky            │
-  │  10-49         │  Sekundarni efekty, vypocty       │
-  │  1-9           │  Notifikace, logovani             │
-  │  0 (vychozi)   │  Pravidla, kde poradi neni dulezite│
-  │  zaporna       │  Uklid, fallback handlery         │
+  │  100+          │  Validace, bezpečnostní kontroly  │
+  │  50-99         │  Jádro business logiky            │
+  │  10-49         │  Sekundární efekty, výpočty       │
+  │  1-9           │  Notifikace, logování             │
+  │  0 (výchozí)   │  Pravidla, kde pořadí není důležité│
+  │  záporná       │  Úklid, fallback handlery         │
   └────────────────┴───────────────────────────────────┘
 ```
 
@@ -90,22 +90,22 @@ Zadny vynuceny rozsah neexistuje, ale konzistentni konvence pomaha:
 
 ```typescript
 Rule.create('my-rule')
-  .priority(75)    // Musi byt konecne cislo
+  .priority(75)    // Musí být konečné číslo
   .when(/* ... */)
   .then(/* ... */)
   .build()
 ```
 
-Builder validuje hodnotu pri sestaveni:
+Builder validuje hodnotu při sestavení:
 
 ```typescript
 Rule.create('bad-priority')
-  .priority(Infinity)  // Vyhodi DslValidationError: Priority must be a finite number
+  .priority(Infinity)  // Vyhodí DslValidationError: Priority must be a finite number
 ```
 
-## Retezeni pravidel
+## Řetězení pravidel
 
-Kdyz akce pravidla emituje event, nastavi fakt nebo spusti casovac, dalsi pravidla, ktera odpovidaji novemu triggeru, se vyhodnoti. Toto je **retezeni pravidel** — zname take jako dopredne retezeni (forward chaining).
+Když akce pravidla emituje event, nastaví fakt nebo spustí časovač, další pravidla, která odpovídají novému triggeru, se vyhodnotí. Toto je **řetězení pravidel** — známé také jako dopředné řetězení (forward chaining).
 
 ```text
   Event: order.created
@@ -119,32 +119,32 @@ Kdyz akce pravidla emituje event, nastavi fakt nebo spusti casovac, dalsi pravid
        ▼
   ┌─────────────────────┐
   │ apply-discount       │  priorita: 50
-  │ akce: setFact()     │──→ zmena faktu spusti dalsi pravidla
+  │ akce: setFact()     │──→ změna faktu spustí další pravidla
   └─────────────────────┘
        │                        │
        ▼                        ▼
   ┌─────────────────────┐  ┌──────────────────────┐
-  │ notify-order         │  │ recalculate-total     │  spusteno
-  │ priorita: 10        │  │ fakt: order:*:discount │  zmenou faktu
+  │ notify-order         │  │ recalculate-total     │  spuštěno
+  │ priorita: 10        │  │ fakt: order:*:discount │  změnou faktu
   └─────────────────────┘  └──────────────────────┘
 ```
 
-Retezeni pravidel je mocne, ale vyzaduje opatrnost — retez akci muze spustit neomezenou kaskadu.
+Řetězení pravidel je mocné, ale vyžaduje opatrnost — řetěz akcí může spustit neomezenou kaskádu.
 
-## Rizeni soubehu a kaskad
+## Řízení souběhu a kaskád
 
-Konfigurace `RuleEngine.start()` poskytuje dva parametry pro spravu retezeni pravidel:
+Konfigurace `RuleEngine.start()` poskytuje dva parametry pro správu řetězení pravidel:
 
 ```typescript
 const engine = await RuleEngine.start({
-  maxConcurrency: 10,  // Max paralelnich vyhodnoceni pravidel (vychozi: 10)
-  debounceMs: 0,       // Debounce pro triggery ze zmen faktu (vychozi: 0)
+  maxConcurrency: 10,  // Max paralelních vyhodnocení pravidel (výchozí: 10)
+  debounceMs: 0,       // Debounce pro triggery ze změn faktů (výchozí: 0)
 });
 ```
 
 ### maxConcurrency
 
-Omezuje pocet vyhodnoceni pravidel, ktera mohou probihat soucasne. Toto zabranuje nekontrolovanym retezcum ve spotrebe neomezenych zdroju:
+Omezuje počet vyhodnocení pravidel, která mohou probíhat současně. Toto zabraňuje nekontrolovaným řetězcům ve spotřebě neomezených zdrojů:
 
 ```typescript
 const engine = await RuleEngine.start({
@@ -152,41 +152,41 @@ const engine = await RuleEngine.start({
 });
 ```
 
-Kdyz je limit dosazeny, dalsi zpracovani triggeru se zaradi do fronty a provede se po dokonceni drivejsich vyhodnoceni.
+Když je limit dosažený, další zpracování triggerů se zařadí do fronty a provede se po dokončení dřívějších vyhodnocení.
 
 ### debounceMs
 
-Kdyz akce pravidla zmeni fakt a dalsi pravidlo se spusti na tento vzor faktu, `debounceMs` ridi, jak rychle se kaskadovy trigger spusti. Hodnota `0` znamena okamzite vyhodnoceni:
+Když akce pravidla změní fakt a další pravidlo se spustí na tento vzor faktu, `debounceMs` řídí, jak rychle se kaskádový trigger spustí. Hodnota `0` znamená okamžité vyhodnocení:
 
 ```typescript
 const engine = await RuleEngine.start({
-  debounceMs: 50,  // Pockat 50ms pred vyhodnocenim kaskadovych triggeru faktu
+  debounceMs: 50,  // Počkat 50ms před vyhodnocením kaskádových triggerů faktů
 });
 ```
 
-Toto je uzitecne, kdyz se vice faktu meni v rychlem sledu — debounce je shlukne do mensiho poctu vyhodnoceni triggeru.
+Toto je užitečné, když se více faktů mění v rychlém sledu — debounce je shlukne do menšího počtu vyhodnocení triggerů.
 
-## Vyhybani se nekonecnym smyckam
+## Vyhýbání se nekonečným smyčkám
 
-Nejcastejsi uskaili retezeni pravidel je nekonecna smycka: Pravidlo A nastavi fakt, Pravidlo B se spusti na tento fakt a emituje event, Pravidlo A se spusti na tento event a nastavi fakt znovu.
+Nejčastější úskalí řetězení pravidel je nekonečná smyčka: Pravidlo A nastaví fakt, Pravidlo B se spustí na tento fakt a emituje event, Pravidlo A se spustí na tento event a nastaví fakt znovu.
 
 ```text
   ┌─────────┐  setFact()  ┌─────────┐  emit()  ┌─────────┐
-  │Pravidlo A│────────────▶│Pravidlo B│─────────▶│Pravidlo A│ ← smycka!
+  │Pravidlo A│────────────▶│Pravidlo B│─────────▶│Pravidlo A│ ← smyčka!
   └─────────┘             └─────────┘          └─────────┘
 ```
 
 ### Strategie prevence
 
-**1. Pouzijte podminky k preruseni cyklu**
+**1. Použijte podmínky k přerušení cyklu**
 
-Nejjednodussi pristup — pridejte podminku, ktera se stane nepravdivou po prvni iteraci:
+Nejjednodušší přístup — přidejte podmínku, která se stane nepravdivou po první iteraci:
 
 ```typescript
-// Pravidlo A: nastavit fakt pouze pokud jeste neni nastaven
+// Pravidlo A: nastavit fakt pouze pokud ještě není nastaven
 engine.registerRule(
   Rule.create('calculate-total')
-    .name('Vypocet celkove castky objednavky')
+    .name('Výpočet celkové částky objednávky')
     .when(onEvent('order.items_changed'))
     .if(fact('order:${event.orderId}:totalCalculated').neq(true))
     .then(
@@ -197,21 +197,21 @@ engine.registerRule(
 );
 ```
 
-**2. Pouzijte ruzne typy triggeru pro vyhnutise cyklum**
+**2. Použijte různé typy triggerů pro vyhnutí se cyklům**
 
-Strukturujte pravidla tak, aby pravidla spoustena fakty neprodukovala zmeny faktu, ktere spusti dalsi pravidla spoustena fakty:
+Strukturujte pravidla tak, aby pravidla spouštěná fakty neprodukovala změny faktů, které spustí další pravidla spouštěná fakty:
 
 ```text
-  Eventy  ──→  Pravidla  ──→  Fakta  ──→  Pravidla  ──→  Eventy (nebo sluzby)
-                                                           (zadne dalsi zmeny faktu)
+  Eventy  ──→  Pravidla  ──→  Fakta  ──→  Pravidla  ──→  Eventy (nebo služby)
+                                                           (žádné další změny faktů)
 ```
 
-**3. Pouzijte prioritu k vynuceni jednosmerneho toku**
+**3. Použijte prioritu k vynucení jednosměrného toku**
 
-Pravidla s vyssi prioritou produkuji data, pravidla s nizsi prioritou je konzumuji:
+Pravidla s vyšší prioritou produkují data, pravidla s nižší prioritou je konzumují:
 
 ```typescript
-// Vysoka priorita: produkuje fakta
+// Vysoká priorita: produkuje fakta
 engine.registerRule(
   Rule.create('enrich-order')
     .priority(80)
@@ -223,7 +223,7 @@ engine.registerRule(
     .build()
 );
 
-// Nizka priorita: konzumuje fakta, produkuje eventy (zadne dalsi zmeny faktu)
+// Nízká priorita: konzumuje fakta, produkuje eventy (žádné další změny faktů)
 engine.registerRule(
   Rule.create('route-order')
     .priority(20)
@@ -237,9 +237,9 @@ engine.registerRule(
 );
 ```
 
-## Kompletni priklad: Pipeline zpracovani objednavek
+## Kompletní příklad: Pipeline zpracování objednávek
 
-Tento priklad ukazuje vrstveny pipeline pravidel s explicitnimi urovnemi priorit:
+Tento příklad ukazuje vrstvený pipeline pravidel s explicitními úrovněmi priorit:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -253,11 +253,11 @@ const engine = await RuleEngine.start({
   debounceMs: 0,
 });
 
-// ── Uroven 1: Validace (priorita 100) ─────────────────────
+// ── Úroveň 1: Validace (priorita 100) ─────────────────────
 
 engine.registerRule(
   Rule.create('validate-order-amount')
-    .name('Validace castky objednavky')
+    .name('Validace částky objednávky')
     .priority(100)
     .tags('validation', 'orders')
     .when(onEvent('order.created'))
@@ -265,18 +265,18 @@ engine.registerRule(
     .then(
       emit('order.invalid', {
         orderId: ref('event.orderId'),
-        reason: 'Castka musi byt kladna',
+        reason: 'Částka musí být kladná',
       }),
-      log('warn', 'Neplatna objednavka ${event.orderId}: nezaporna castka'),
+      log('warn', 'Neplatná objednávka ${event.orderId}: nezáporná částka'),
     )
     .build()
 );
 
-// ── Uroven 2: Obohaceni (priorita 70) ─────────────────────
+// ── Úroveň 2: Obohacení (priorita 70) ─────────────────────
 
 engine.registerRule(
   Rule.create('classify-order')
-    .name('Klasifikace objednavky podle hodnoty')
+    .name('Klasifikace objednávky podle hodnoty')
     .priority(70)
     .tags('enrichment', 'orders')
     .when(onEvent('order.created'))
@@ -287,11 +287,11 @@ engine.registerRule(
     .build()
 );
 
-// ── Uroven 3: Business logika (priorita 50) ───────────────
+// ── Úroveň 3: Business logika (priorita 50) ───────────────
 
 engine.registerRule(
   Rule.create('premium-express')
-    .name('Premium objednavky dostanou expresni dopravu')
+    .name('Premium objednávky dostanou expresní dopravu')
     .priority(50)
     .tags('shipping', 'orders')
     .when(onFact('order:*:tier'))
@@ -303,11 +303,11 @@ engine.registerRule(
     .build()
 );
 
-// ── Uroven 4: Vedlejsi efekty (priorita 10) ───────────────
+// ── Úroveň 4: Vedlejší efekty (priorita 10) ───────────────
 
 engine.registerRule(
   Rule.create('order-confirmation')
-    .name('Odeslani potvrzeni objednavky')
+    .name('Odeslání potvrzení objednávky')
     .priority(10)
     .tags('notifications', 'orders')
     .when(onEvent('order.created'))
@@ -320,34 +320,34 @@ engine.registerRule(
     .build()
 );
 
-// ── Uroven 5: Monitoring (priorita -10) ────────────────────
+// ── Úroveň 5: Monitoring (priorita -10) ────────────────────
 
 engine.registerRule(
   Rule.create('log-order')
-    .name('Logovani vsech objednavek')
+    .name('Logování všech objednávek')
     .priority(-10)
     .tags('monitoring', 'orders')
     .when(onEvent('order.created'))
-    .then(log('info', 'Objednavka ${event.orderId} zpracovana (castka: ${event.total})'))
+    .then(log('info', 'Objednávka ${event.orderId} zpracována (částka: ${event.total})'))
     .build()
 );
 ```
 
-## Cviceni
+## Cvičení
 
-Mate tri pravidla, ktera zpracovavaji registraci uzivatele:
+Máte tři pravidla, která zpracovávají registraci uživatele:
 
-1. **Validace formatu emailu** — odmitnout neplatne emaily
-2. **Vytvoreni uvitaciho bonusu** — dat novym uzivatelum 100 bodu
-3. **Odeslani uvitaciho emailu** — odeslat potvrzovaci email pres externi sluzbu
+1. **Validace formátu emailu** — odmítnout neplatné emaily
+2. **Vytvoření uvítacího bonusu** — dát novým uživatelům 100 bodů
+3. **Odeslání uvítacího emailu** — odeslat potvrzovací email přes externí službu
 
-Uvitaci email by mel obsahovat castku bonusu. Navrhete prioritu a strukturu triggeru tak, aby:
-- Validace bezela prvni a mohla zabranit dalsimu zpracovani
-- Bonus byl nastaven jako fakt pred tim, nez ho emailove pravidlo precte
-- Nebyly mozne zadne nekonecne smycky
+Uvítací email by měl obsahovat částku bonusu. Navrhněte prioritu a strukturu triggerů tak, aby:
+- Validace běžela první a mohla zabránit dalšímu zpracování
+- Bonus byl nastaven jako fakt před tím, než ho emailové pravidlo přečte
+- Nebyly možné žádné nekonečné smyčky
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -355,10 +355,10 @@ import { onEvent, onFact, setFact, emit, ref, event, fact } from '@hamicek/noex-
 
 const engine = await RuleEngine.start();
 
-// Priorita 100: Validace — odmitnout spatne emaily, emitovat rejection event
+// Priorita 100: Validace — odmítnout špatné emaily, emitovat rejection event
 engine.registerRule(
   Rule.create('validate-email')
-    .name('Validace formatu emailu')
+    .name('Validace formátu emailu')
     .priority(100)
     .when(onEvent('user.registered'))
     .if(event('email').not_matches('^[^@]+@[^@]+\\.[^@]+$'))
@@ -369,10 +369,10 @@ engine.registerRule(
     .build()
 );
 
-// Priorita 50: Business logika — nastavit uvitaci bonus jako fakt
+// Priorita 50: Business logika — nastavit uvítací bonus jako fakt
 engine.registerRule(
   Rule.create('welcome-bonus')
-    .name('Vytvoreni uvitaciho bonusu')
+    .name('Vytvoření uvítacího bonusu')
     .priority(50)
     .when(onEvent('user.registered'))
     .if(event('email').matches('^[^@]+@[^@]+\\.[^@]+$'))
@@ -380,12 +380,12 @@ engine.registerRule(
     .build()
 );
 
-// Priorita 10: Notifikace — precte fakt bonusu, odesle email
-// Spusti se na fakt nastaveny pravidlem welcome-bonus, ne na puvodni event.
-// To zarucuje, ze bonus je nastaven pred odeslanim emailu.
+// Priorita 10: Notifikace — přečte fakt bonusu, odešle email
+// Spustí se na fakt nastavený pravidlem welcome-bonus, ne na původní event.
+// To zaručuje, že bonus je nastaven před odesláním emailu.
 engine.registerRule(
   Rule.create('welcome-email')
-    .name('Odeslani uvitaciho emailu')
+    .name('Odeslání uvítacího emailu')
     .priority(10)
     .when(onFact('user:*:bonusPoints'))
     .then(callService('emailService', 'send', {
@@ -397,24 +397,24 @@ engine.registerRule(
 );
 ```
 
-**Proc to funguje**:
-- Validace (100) bezi prvni na `user.registered` — pokud je email neplatny, rejection event se emituje, ale nespusti zadne z nasich dalsich pravidel
-- Uvitaci bonus (50) bezi druhy na `user.registered` — nastavi fakt
-- Uvitaci email (10) se spusti na **zmenu faktu**, ne na event — je zaruceno, ze bonus existuje
-- Zadne nekonecne smycky: eventy → fakta → volani sluzby (terminalni, zadne dalsi triggery)
+**Proč to funguje**:
+- Validace (100) běží první na `user.registered` — pokud je email neplatný, rejection event se emituje, ale nespustí žádné z našich dalších pravidel
+- Uvítací bonus (50) běží druhý na `user.registered` — nastaví fakt
+- Uvítací email (10) se spustí na **změnu faktu**, ne na event — je zaručeno, že bonus existuje
+- Žádné nekonečné smyčky: eventy → fakta → volání služby (terminální, žádné další triggery)
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **Priorita** je konecne cislo; vyssi hodnoty znamenaji drivejsi vyhodnoceni mezi pravidly sdilejicimi stejny trigger
-- Vychozi priorita je `0`; pouzivejte konzistentni rozsahy (100 pro validaci, 50 pro business logiku, 10 pro notifikace)
-- Pravidla se stejnou prioritou nemaji zarucene vzajemne poradi
-- **Retezeni pravidel** nastava, kdyz akce emituji eventy, nastavuji fakta nebo spousti casovace, ktere triggeruji dalsi pravidla
-- `maxConcurrency` omezuje paralelni vyhodnoceni pravidel (vychozi: 10) pro zabraneni vycerpani zdroju
-- `debounceMs` shlukuje rychle zmeny faktu pred spustenim zavislych pravidel
-- Zabranujte nekonecnym smyckam pomoci podminek, oddelenim typu triggeru nebo vynucenim jednosmerneho toku dat pres urovne priorit
+- **Priorita** je konečné číslo; vyšší hodnoty znamenají dřívější vyhodnocení mezi pravidly sdílejícími stejný trigger
+- Výchozí priorita je `0`; používejte konzistentní rozsahy (100 pro validaci, 50 pro business logiku, 10 pro notifikace)
+- Pravidla se stejnou prioritou nemají zaručené vzájemné pořadí
+- **Řetězení pravidel** nastává, když akce emitují eventy, nastavují fakta nebo spouští časovače, které triggerují další pravidla
+- `maxConcurrency` omezuje paralelní vyhodnocení pravidel (výchozí: 10) pro zabránění vyčerpání zdrojů
+- `debounceMs` shlukuje rychlé změny faktů před spuštěním závislých pravidel
+- Zabraňujte nekonečným smyčkám pomocí podmínek, oddělením typů triggerů nebo vynucením jednosměrného toku dat přes úrovně priorit
 
 ---
 
-Dalsi: [Verzovani pravidel](./03-verzovani.md)
+Další: [Verzování pravidel](./03-verzovani.md)

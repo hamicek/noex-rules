@@ -1,18 +1,18 @@
-# Verzovani pravidel
+# Verzování pravidel
 
-Pravidla se meni. Prah se upravi, podminka se prida, rozbite pravidlo je potreba vratit na vceresjsi verzi. Bez historie verzi jsou tyto zmeny neviditelne — nemuzete odpovedet na "co se zmenilo?", "kdo to zmenil?" nebo "muzeme to vratit?". Verzovaci system v noex-rules automaticky zaznamenava snapshot kazde zmeny pravidla, umoznuje diffovat libovolne dve verze a podporuje rollback jednim prikazem.
+Pravidla se mění. Práh se upraví, podmínka se přidá, rozbité pravidlo je potřeba vrátit na včerejší verzi. Bez historie verzí jsou tyto změny neviditelné — nemůžete odpovědět na "co se změnilo?", "kdo to změnil?" nebo "můžeme to vrátit?". Verzovací systém v noex-rules automaticky zaznamenává snapshot každé změny pravidla, umožňuje diffovat libovolné dvě verze a podporuje rollback jedním příkazem.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak povolit a nakonfigurovat verzovaci system
-- Jake zmeny se sleduji a kdy se vytvareji verze
-- Jak dotazovat historii verzi s filtrovanim a stankovanim
-- Jak diffovat dve verze pravidla na urovni poli
-- Jak vratit pravidlo na predchozi verzi
+- Jak povolit a nakonfigurovat verzovací systém
+- Jaké změny se sledují a kdy se vytvářejí verze
+- Jak dotazovat historii verzí s filtrováním a stránkováním
+- Jak diffovat dvě verze pravidla na úrovni polí
+- Jak vrátit pravidlo na předchozí verzi
 
-## Povoleni verzovani
+## Povolení verzování
 
-Verzovani vyzaduje `StorageAdapter` (z `@hamicek/noex`) pro persistenci historie verzi. Povolte ho pres konfiguraci `versioning`:
+Verzování vyžaduje `StorageAdapter` (z `@hamicek/noex`) pro persistenci historie verzí. Povolte ho přes konfiguraci `versioning`:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -21,8 +21,8 @@ import { MemoryAdapter } from '@hamicek/noex';
 const engine = await RuleEngine.start({
   versioning: {
     adapter: new MemoryAdapter(),
-    maxVersionsPerRule: 100,  // Uchovavat poslednich 100 verzi na pravidlo (vychozi)
-    maxAgeMs: 90 * 24 * 60 * 60 * 1000,  // Uchovavat 90 dni (vychozi)
+    maxVersionsPerRule: 100,  // Uchovávat posledních 100 verzí na pravidlo (výchozí)
+    maxAgeMs: 90 * 24 * 60 * 60 * 1000,  // Uchovávat 90 dní (výchozí)
   },
 });
 ```
@@ -31,43 +31,43 @@ const engine = await RuleEngine.start({
 
 ```typescript
 interface VersioningConfig {
-  adapter: StorageAdapter;        // Povinne: kam ukladat historii verzi
-  maxVersionsPerRule?: number;    // Max verzi na pravidlo (vychozi: 100)
-  maxAgeMs?: number;              // Max stari v ms (vychozi: 90 dni)
+  adapter: StorageAdapter;        // Povinné: kam ukládat historii verzí
+  maxVersionsPerRule?: number;    // Max verzí na pravidlo (výchozí: 100)
+  maxAgeMs?: number;              // Max stáří v ms (výchozí: 90 dní)
 }
 ```
 
-| Parametr | Vychozi | Popis |
+| Parametr | Výchozí | Popis |
 |----------|---------|-------|
 | `adapter` | — | Storage backend (`MemoryAdapter`, `FileAdapter` atd.) |
-| `maxVersionsPerRule` | `100` | Nejstarsi verze se odstrani pri prekroceni limitu |
-| `maxAgeMs` | 90 dni | Verze starsi nez tato hodnota se odstrani |
+| `maxVersionsPerRule` | `100` | Nejstarší verze se odstraní při překročení limitu |
+| `maxAgeMs` | 90 dní | Verze starší než tato hodnota se odstraní |
 
 ## Co se sleduje
 
-Jakmile je verzovani povoleno, engine automaticky zaznamenava verzni polozku pri kazde zmene pravidla. Zadna explicitni volani nejsou potreba — kazda mutace pravidla je zachycena:
+Jakmile je verzování povoleno, engine automaticky zaznamenává verzní položku při každé změně pravidla. Žádná explicitní volání nejsou potřeba — každá mutace pravidla je zachycena:
 
-| Operace | Typ zmeny | Kdy |
+| Operace | Typ změny | Kdy |
 |---------|-----------|-----|
-| `registerRule()` | `'registered'` | Nove pravidlo vytvoreno |
-| `updateRule()` | `'updated'` | Vlastnosti pravidla zmeneny |
-| `enableRule()` | `'enabled'` | Pravidlo aktivovano |
-| `disableRule()` | `'disabled'` | Pravidlo deaktivovano |
-| `unregisterRule()` | `'unregistered'` | Pravidlo smazano |
+| `registerRule()` | `'registered'` | Nové pravidlo vytvořeno |
+| `updateRule()` | `'updated'` | Vlastnosti pravidla změněny |
+| `enableRule()` | `'enabled'` | Pravidlo aktivováno |
+| `disableRule()` | `'disabled'` | Pravidlo deaktivováno |
+| `unregisterRule()` | `'unregistered'` | Pravidlo smazáno |
 | `rollbackRule()` | `'rolled_back'` | Pravidlo obnoveno z historie |
 
-### Verzni polozka
+### Verzní položka
 
-Kazda verzni polozka obsahuje uplny snapshot pravidla v danem okamziku:
+Každá verzní položka obsahuje úplný snapshot pravidla v daném okamžiku:
 
 ```typescript
 interface RuleVersionEntry {
-  version: number;            // Sekvencni v ramci pravidla (od 1)
-  ruleSnapshot: Rule;         // Kompletni stav pravidla v teto verzi
-  timestamp: number;          // Kdy byla tato verze vytvorena
-  changeType: RuleChangeType; // Co spustilo vytvoreni verze
-  rolledBackFrom?: number;    // Predchozi globalni verze (pri rollbacku)
-  description?: string;       // Volitelna lidsky citelna poznamka
+  version: number;            // Sekvenční v rámci pravidla (od 1)
+  ruleSnapshot: Rule;         // Kompletní stav pravidla v této verzi
+  timestamp: number;          // Kdy byla tato verze vytvořena
+  changeType: RuleChangeType; // Co spustilo vytvoření verze
+  rolledBackFrom?: number;    // Předchozí globální verze (při rollbacku)
+  description?: string;       // Volitelná lidsky čitelná poznámka
 }
 ```
 
@@ -82,17 +82,17 @@ interface RuleVersionEntry {
   └──────────┘     └──────────┘     └──────────┘      └──────────┘
 ```
 
-## Dotazovani na historii verzi
+## Dotazování na historii verzí
 
-Pouzijte `getRuleVersions()` pro dotazovani na historii pravidla s filtrovanim a strankovani:
+Použijte `getRuleVersions()` pro dotazování na historii pravidla s filtrováním a stránkováním:
 
 ```typescript
-// Ziskat nedavnou historii (vychozi: poslednich 50 verzi, nejnovejsi prvni)
+// Získat nedávnou historii (výchozí: posledních 50 verzí, nejnovější první)
 const history = engine.getRuleVersions('fraud-velocity-check');
 
-console.log(history.totalVersions);  // Celkovy pocet verzi pro toto pravidlo
-console.log(history.hasMore);        // Zda existuji dalsi stranky
-console.log(history.entries.length); // Polozky na teto strance
+console.log(history.totalVersions);  // Celkový počet verzí pro toto pravidlo
+console.log(history.hasMore);        // Zda existují další stránky
+console.log(history.entries.length); // Položky na této stránce
 
 for (const entry of history.entries) {
   console.log(
@@ -105,32 +105,32 @@ for (const entry of history.entries) {
 
 ```typescript
 interface RuleVersionQuery {
-  ruleId: string;                   // Povinne
-  limit?: number;                   // Max polozek (vychozi: 50)
-  offset?: number;                  // Preskocit pro strankovani
-  order?: 'asc' | 'desc';          // Podle cisla verze (vychozi: 'desc')
-  fromVersion?: number;             // Min verze (vcetne)
-  toVersion?: number;               // Max verze (vcetne)
-  changeTypes?: RuleChangeType[];   // Filtr podle typu zmeny
-  from?: number;                    // Po casovem razitku (vcetne)
-  to?: number;                      // Pred casovym razitkem (vcetne)
+  ruleId: string;                   // Povinné
+  limit?: number;                   // Max položek (výchozí: 50)
+  offset?: number;                  // Přeskočit pro stránkování
+  order?: 'asc' | 'desc';          // Podle čísla verze (výchozí: 'desc')
+  fromVersion?: number;             // Min verze (včetně)
+  toVersion?: number;               // Max verze (včetně)
+  changeTypes?: RuleChangeType[];   // Filtr podle typu změny
+  from?: number;                    // Po časovém razítku (včetně)
+  to?: number;                      // Před časovým razítkem (včetně)
 }
 ```
 
-### Priklady filtrovani
+### Příklady filtrování
 
 ```typescript
-// Pouze aktualizace — preskocit registraci a povoleni/zakazani
+// Pouze aktualizace — přeskočit registraci a povolení/zakázání
 const updates = engine.getRuleVersions('fraud-velocity-check', {
   changeTypes: ['updated'],
 });
 
-// Poslednich 24 hodin
+// Posledních 24 hodin
 const recent = engine.getRuleVersions('fraud-velocity-check', {
   from: Date.now() - 24 * 60 * 60 * 1000,
 });
 
-// Strankovani celou historii (nejstarsi prvni)
+// Stránkování celou historií (nejstarší první)
 const page1 = engine.getRuleVersions('fraud-velocity-check', {
   order: 'asc',
   limit: 10,
@@ -143,32 +143,32 @@ const page2 = engine.getRuleVersions('fraud-velocity-check', {
 });
 ```
 
-## Ziskani konkretni verze
+## Získání konkrétní verze
 
 ```typescript
 const entry = engine.getRuleVersion('fraud-velocity-check', 3);
 if (entry) {
   console.log(entry.changeType);              // 'updated'
   console.log(entry.ruleSnapshot.priority);   // 100
-  console.log(entry.ruleSnapshot.conditions); // [...podminky ve v3...]
+  console.log(entry.ruleSnapshot.conditions); // [...podmínky ve v3...]
 }
 ```
 
-## Porovnavani verzi (Diff)
+## Porovnávání verzí (Diff)
 
-`diffRuleVersions()` vytvori diff na urovni poli mezi libovolnymi dvema verzemi pravidla:
+`diffRuleVersions()` vytvoří diff na úrovni polí mezi libovolnými dvěma verzemi pravidla:
 
 ```typescript
 const diff = engine.diffRuleVersions('fraud-velocity-check', 1, 3);
 if (diff) {
-  console.log(`Porovnani v${diff.fromVersion} → v${diff.toVersion}`);
+  console.log(`Porovnání v${diff.fromVersion} → v${diff.toVersion}`);
   for (const change of diff.changes) {
     console.log(`  ${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`);
   }
 }
 ```
 
-### Vysledek diffu
+### Výsledek diffu
 
 ```typescript
 interface RuleVersionDiff {
@@ -179,16 +179,16 @@ interface RuleVersionDiff {
 }
 
 interface RuleFieldChange {
-  field: string;       // napr. 'name', 'priority', 'trigger.type'
-  oldValue: unknown;   // Hodnota ve starsi verzi
-  newValue: unknown;   // Hodnota v novejsi verzi
+  field: string;       // např. 'name', 'priority', 'trigger.type'
+  oldValue: unknown;   // Hodnota ve starší verzi
+  newValue: unknown;   // Hodnota v novější verzi
 }
 ```
 
-### Priklad vystupu diffu
+### Příklad výstupu diffu
 
 ```typescript
-// Po zmene priority z 50 na 100 a pridani tagu:
+// Po změně priority z 50 na 100 a přidání tagu:
 const diff = engine.diffRuleVersions('my-rule', 1, 2);
 // diff.changes:
 // [
@@ -199,47 +199,47 @@ const diff = engine.diffRuleVersions('my-rule', 1, 2);
 
 ## Rollback
 
-`rollbackRule()` obnovi pravidlo na stav predchozi verze. Obnovene pravidlo dostane **nove globalni cislo verze** — nepise historii:
+`rollbackRule()` obnoví pravidlo na stav předchozí verze. Obnovené pravidlo dostane **nové globální číslo verze** — nepíše historii:
 
 ```typescript
-// Aktualni stav: verze 5 s rozbitou podminkou
-// Vratit na verzi 3 (posledni znama dobra verze)
+// Aktuální stav: verze 5 s rozbitou podmínkou
+// Vrátit na verzi 3 (poslední známá dobrá verze)
 const restored = engine.rollbackRule('fraud-velocity-check', 3);
 
-console.log(restored.version);  // Nove globalni cislo verze (napr. 42)
-// Stav pravidla (podminky, akce, priorita atd.) odpovida verzi 3
+console.log(restored.version);  // Nové globální číslo verze (např. 42)
+// Stav pravidla (podmínky, akce, priorita atd.) odpovídá verzi 3
 ```
 
-### Semantika rollbacku
+### Sémantika rollbacku
 
 ```text
-  Historie verzi:
-  v1: registered  (original)
-  v2: updated     (pridana podminka)
-  v3: updated     (zmenena priorita)
-  v4: updated     (rozbita podminka)      ← aktualni
+  Historie verzí:
+  v1: registered  (originál)
+  v2: updated     (přidána podmínka)
+  v3: updated     (změněna priorita)
+  v4: updated     (rozbitá podmínka)      ← aktuální
   v5: rolled_back (obnoveno z v2)         ← po rollbackRule('rule', 2)
 ```
 
-- Rollback vytvori **novou verzni polozku** s `changeType: 'rolled_back'`
-- Pole `rolledBackFrom` zaznamenava cislo verze pred rollbackem
-- Snapshot pravidla ve v5 odpovida snapshotu v2
-- Pravidlo dostane nove globalni cislo verze (odlisne od v2)
-- Muzete rollbackovat rollback — historie je vzdy append-only
+- Rollback vytvoří **novou verzní položku** s `changeType: 'rolled_back'`
+- Pole `rolledBackFrom` zaznamenává číslo verze před rollbackem
+- Snapshot pravidla ve v5 odpovídá snapshotu v2
+- Pravidlo dostane nové globální číslo verze (odlišné od v2)
+- Můžete rollbackovat rollback — historie je vždy append-only
 
-### Bezpecnost
+### Bezpečnost
 
 ```typescript
-// Rollback vyzaduje nakonfigurovane verzovani
-// Vyhodi: 'Rule versioning is not configured'
+// Rollback vyžaduje nakonfigurované verzování
+// Vyhodí: 'Rule versioning is not configured'
 engine.rollbackRule('rule', 1);
 
-// Vyhodi, pokud verze neexistuje
-// Vyhodi: 'Version 99 not found for rule "fraud-velocity-check"'
+// Vyhodí, pokud verze neexistuje
+// Vyhodí: 'Version 99 not found for rule "fraud-velocity-check"'
 engine.rollbackRule('fraud-velocity-check', 99);
 ```
 
-## Kompletni priklad: Zivotni cyklus pravidla s verzovanim
+## Kompletní příklad: Životní cyklus pravidla s verzováním
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -253,7 +253,7 @@ const engine = await RuleEngine.start({
   },
 });
 
-// v1: Registrace pocatecniho pravidla
+// v1: Registrace počátečního pravidla
 engine.registerRule(
   Rule.create('high-value-alert')
     .name('Alert na vysokou hodnotu transakce')
@@ -268,34 +268,34 @@ engine.registerRule(
     .build()
 );
 
-// v2: Snizeni prahu na zaklade novych dat o podvodech
+// v2: Snížení prahu na základě nových dat o podvodech
 engine.updateRule('high-value-alert', {
   conditions: [{
     source: 'event',
     field: 'amount',
     operator: 'gte',
-    value: 5000,  // Snizeno z 10000
+    value: 5000,  // Sníženo z 10000
   }],
 });
 
-// v3: Pridani tagu critical
+// v3: Přidání tagu critical
 engine.updateRule('high-value-alert', {
   tags: ['fraud', 'alerts', 'critical'],
 });
 
-// v4: Nahodne rozbiti pravidla (spatny operator)
+// v4: Náhodné rozbití pravidla (špatný operátor)
 engine.updateRule('high-value-alert', {
   conditions: [{
     source: 'event',
     field: 'amount',
-    operator: 'lte',  // Chyba: melo byt 'gte'
+    operator: 'lte',  // Chyba: mělo být 'gte'
     value: 5000,
   }],
 });
 
-// --- Vysetrovani problemu ---
+// --- Vyšetřování problému ---
 
-// Co se zmenilo?
+// Co se změnilo?
 const history = engine.getRuleVersions('high-value-alert');
 for (const entry of history.entries) {
   console.log(`v${entry.version} [${entry.changeType}] v ${new Date(entry.timestamp).toISOString()}`);
@@ -305,7 +305,7 @@ for (const entry of history.entries) {
 // v2 [updated] v 2025-...
 // v1 [registered] v 2025-...
 
-// Co se zmenilo mezi v3 (dobra) a v4 (rozbita)?
+// Co se změnilo mezi v3 (dobrá) a v4 (rozbitá)?
 const diff = engine.diffRuleVersions('high-value-alert', 3, 4);
 for (const change of diff!.changes) {
   console.log(`${change.field}: ${JSON.stringify(change.oldValue)} → ${JSON.stringify(change.newValue)}`);
@@ -314,15 +314,15 @@ for (const change of diff!.changes) {
 
 // --- Oprava ---
 
-// Rollback na v3 (posledni znama dobra verze)
+// Rollback na v3 (poslední známá dobrá verze)
 const restored = engine.rollbackRule('high-value-alert', 3);
-console.log(restored.version);  // Nove globalni cislo verze
+console.log(restored.version);  // Nové globální číslo verze
 
-// Overeni opravy
+// Ověření opravy
 const current = engine.getRule('high-value-alert')!;
 console.log(current.conditions[0].operator);  // 'gte' — opraveno!
 
-// Historie verzi nyni ukazuje rollback
+// Historie verzí nyní ukazuje rollback
 const afterRollback = engine.getRuleVersions('high-value-alert');
 for (const entry of afterRollback.entries) {
   console.log(`v${entry.version} [${entry.changeType}]`);
@@ -334,46 +334,46 @@ for (const entry of afterRollback.entries) {
 // v1 [registered]
 ```
 
-## Ulozeni a retence
+## Úložiště a retence
 
-Verzni polozky se ukladaji pomoci nakonfigurovaneho `StorageAdapter`. Store udrzuje in-memory cache pro rychle cteni a periodicky zapisuje do adapteru.
+Verzní položky se ukládají pomocí nakonfigurovaného `StorageAdapter`. Store udržuje in-memory cache pro rychlé čtení a periodicky zapisuje do adaptéru.
 
 ### Politika retence
 
-Dva limity ridia, kolik historie se uchovava:
+Dva limity řídí, kolik historie se uchovává:
 
-- **`maxVersionsPerRule`** (vychozi: 100) — Kdyz pravidlo prekroci tento pocet verzi, nejstarsi polozky se odstrani.
-- **`maxAgeMs`** (vychozi: 90 dni) — Polozky starsi nez tato hodnota se odstrani bez ohledu na pocet.
+- **`maxVersionsPerRule`** (výchozí: 100) — Když pravidlo překročí tento počet verzí, nejstarší položky se odstraní.
+- **`maxAgeMs`** (výchozí: 90 dní) — Položky starší než tato hodnota se odstraní bez ohledu na počet.
 
-Oba limity se vynucuji pri zapisech, coz udrzuje store omezeny.
+Oba limity se vynucují při zápisech, což udržuje store omezený.
 
-### Statistiky verzovani
+### Statistiky verzování
 
 ```typescript
 const store = engine.getVersionStore();
 if (store) {
   const stats = store.getStats();
-  console.log(stats.trackedRules);   // Pocet pravidel s historii
-  console.log(stats.totalVersions);  // Celkovy pocet polozek pres vsechna pravidla
-  console.log(stats.dirtyRules);     // Pravidla s neulozenymi zmenami
-  console.log(stats.oldestEntry);    // Casove razitko nejstarsi polozky
-  console.log(stats.newestEntry);    // Casove razitko nejnovejsi polozky
+  console.log(stats.trackedRules);   // Počet pravidel s historií
+  console.log(stats.totalVersions);  // Celkový počet položek přes všechna pravidla
+  console.log(stats.dirtyRules);     // Pravidla s neuloženými změnami
+  console.log(stats.oldestEntry);    // Časové razítko nejstarší položky
+  console.log(stats.newestEntry);    // Časové razítko nejnovější položky
 }
 ```
 
-## Cviceni
+## Cvičení
 
-Mate pravidlo `rate-limiter`, ktere bylo nekolikrat aktualizovano. Napiste kod, ktery:
+Máte pravidlo `rate-limiter`, které bylo několikrát aktualizováno. Napište kód, který:
 
-1. Dotaze pouze verze typu `'updated'`, serazene od nejstarsi
-2. Najde diff mezi prvni a posledni verzi `'updated'`
-3. Pokud diff ukazuje, ze se zmenilo pole `priority`, provede rollback na prvni verzi `'updated'`
+1. Dotáže pouze verze typu `'updated'`, seřazené od nejstarší
+2. Najde diff mezi první a poslední verzí `'updated'`
+3. Pokud diff ukazuje, že se změnilo pole `priority`, provede rollback na první verzi `'updated'`
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
-// 1. Dotaz pouze na 'updated' verze, nejstarsi prvni
+// 1. Dotaz pouze na 'updated' verze, nejstarší první
 const updates = engine.getRuleVersions('rate-limiter', {
   changeTypes: ['updated'],
   order: 'asc',
@@ -383,7 +383,7 @@ if (updates.entries.length >= 2) {
   const firstUpdate = updates.entries[0];
   const lastUpdate = updates.entries[updates.entries.length - 1];
 
-  // 2. Diff prvni a posledni aktualizovane verze
+  // 2. Diff první a poslední aktualizované verze
   const diff = engine.diffRuleVersions(
     'rate-limiter',
     firstUpdate.version,
@@ -391,37 +391,37 @@ if (updates.entries.length >= 2) {
   );
 
   if (diff) {
-    // 3. Zkontrolovat, zda se zmenila priorita, a pripadne rollbackovat
+    // 3. Zkontrolovat, zda se změnila priorita, a případně rollbackovat
     const priorityChanged = diff.changes.some(c => c.field === 'priority');
 
     if (priorityChanged) {
       const restored = engine.rollbackRule('rate-limiter', firstUpdate.version);
       console.log(
-        `Rollback na v${firstUpdate.version}, nova verze: ${restored.version}`
+        `Rollback na v${firstUpdate.version}, nová verze: ${restored.version}`
       );
     }
   }
 }
 ```
 
-Klicove body:
-- `changeTypes: ['updated']` odfiltruje registraci, povoleni/zakazani a rollback polozky
-- `order: 'asc'` dava nejstarsi prvni, takze `entries[0]` je prvni aktualizace
-- Pole `changes` diffu obsahuje pouze pole, ktera se lisi mezi dvema verzemi
-- `rollbackRule()` vytvori novou verzni polozku — nikdy nepise historii
+Klíčové body:
+- `changeTypes: ['updated']` odfiltruje registraci, povolení/zakázání a rollback položky
+- `order: 'asc'` dává nejstarší první, takže `entries[0]` je první aktualizace
+- Pole `changes` diffu obsahuje pouze pole, která se liší mezi dvěma verzemi
+- `rollbackRule()` vytvoří novou verzní položku — nikdy nepíše historii
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Povolte verzovani predanim `VersioningConfig` se `StorageAdapter` do `RuleEngine.start()`
-- Kazda mutace pravidla (`registerRule`, `updateRule`, `enableRule`, `disableRule`, `unregisterRule`, `rollbackRule`) automaticky vytvori verzni polozku
-- Kazda verzni polozka obsahuje uplny snapshot pravidla, casove razitko a typ zmeny
-- Dotazujte historii s `getRuleVersions()` — podporuje filtrovani podle typu zmeny, rozsahu verzi, casoveho rozsahu a strankovani
-- Pouzijte `diffRuleVersions()` pro porovnani na urovni poli mezi libovolnymi dvema verzemi
-- `rollbackRule()` obnovi pravidlo z historickeho snapshotu a vytvori novou verzni polozku — historie je append-only
-- Retence je rizena pomoci `maxVersionsPerRule` (vychozi: 100) a `maxAgeMs` (vychozi: 90 dni)
+- Povolte verzování předáním `VersioningConfig` se `StorageAdapter` do `RuleEngine.start()`
+- Každá mutace pravidla (`registerRule`, `updateRule`, `enableRule`, `disableRule`, `unregisterRule`, `rollbackRule`) automaticky vytvoří verzní položku
+- Každá verzní položka obsahuje úplný snapshot pravidla, časové razítko a typ změny
+- Dotazujte historii s `getRuleVersions()` — podporuje filtrování podle typu změny, rozsahu verzí, časového rozsahu a stránkování
+- Použijte `diffRuleVersions()` pro porovnání na úrovni polí mezi libovolnými dvěma verzemi
+- `rollbackRule()` obnoví pravidlo z historického snapshotu a vytvoří novou verzní položku — historie je append-only
+- Retence je řízena pomocí `maxVersionsPerRule` (výchozí: 100) a `maxAgeMs` (výchozí: 90 dní)
 
 ---
 
-Dalsi: [Persistence pravidel a faktu](../07-persistence/01-persistence-stavu.md)
+Další: [Persistence pravidel a faktů](../07-persistence/01-persistence-stavu.md)

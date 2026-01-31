@@ -1,44 +1,44 @@
-# Cast 6: Organizace pravidel
+# Část 6: Organizace pravidel
 
-Hrstku pravidel je snadne spravovat. Ale jak vas system roste na desitky ci stovky pravidel, potrebujete strukturu: zpusob, jak povolit a zakazat souvisejici pravidla najednou, ridit, ktera pravidla se vyhodnocuji prvni, a sledovat, jak se pravidla meni v case. noex-rules poskytuje tri organizacni primitivy — **skupiny**, **tagy** a **prioritu** — plus vestavenou **verzovaci sluzbu**, ktera zaznamenava kazdou zmenu pro audit a rollback.
+Hrstku pravidel je snadné spravovat. Ale jak váš systém roste na desítky či stovky pravidel, potřebujete strukturu: způsob, jak povolit a zakázat související pravidla najednou, řídit, která pravidla se vyhodnocují první, a sledovat, jak se pravidla mění v čase. noex-rules poskytuje tři organizační primitivy — **skupiny**, **tagy** a **prioritu** — plus vestavěnou **verzovací službu**, která zaznamenává každou změnu pro audit a rollback.
 
 ## Kapitoly
 
 ### [6.1 Skupiny a tagy pravidel](./01-skupiny-a-tagy.md)
 
-Organizace pravidel do logickych celku se sdilenym zivotnim cyklem:
-- Skupiny pravidel jako hlavni prepinac povoleni/zakazani
-- Semantika `isRuleActive()`: `rule.enabled AND group.enabled`
-- Tagy pro prurezeovou kategorizaci a filtrovani
-- Pouziti: feature flagy, A/B testovani, prostredove pravidla
+Organizace pravidel do logických celků se sdíleným životním cyklem:
+- Skupiny pravidel jako hlavní přepínač povolení/zakázání
+- Sémantika `isRuleActive()`: `rule.enabled AND group.enabled`
+- Tagy pro průřezovou kategorizaci a filtrování
+- Použití: feature flagy, A/B testování, prostředová pravidla
 
-### [6.2 Priorita a poradi provadeni](./02-priorita-a-razeni.md)
+### [6.2 Priorita a pořadí provádění](./02-priorita-a-razeni.md)
 
-Rizeni toho, ktera pravidla se vyhodnocuji prvni a jak engine zpracovava triggery:
-- Priorita: vyssi cislo = vyhodnoceni drive
-- Retezeni pravidel: akce, ktere spousti dalsi pravidla
-- Vyhybani se nekonecnym smyckam s `maxConcurrency` a `debounceMs`
-- Navrh poradi vyhodnocovani pravidel pro predvidatelne chovani
+Řízení toho, která pravidla se vyhodnocují první a jak engine zpracovává triggery:
+- Priorita: vyšší číslo = vyhodnocení dříve
+- Řetězení pravidel: akce, které spouští další pravidla
+- Vyhýbání se nekonečným smyčkám s `maxConcurrency` a `debounceMs`
+- Návrh pořadí vyhodnocování pravidel pro předvídatelné chování
 
-### [6.3 Verzovani pravidel](./03-verzovani.md)
+### [6.3 Verzování pravidel](./03-verzovani.md)
 
-Sledovani zmen pravidel s uplnou historii, diffy a rollbackem:
-- Nastaveni `VersioningConfig` se storage adapterem
-- Automaticky zaznam verzi pri kazde zmene pravidla
-- Dotazovani na historii verzi s filtrovanim a strankovani
-- Diffy na urovni poli mezi dvema verzemi
-- Rollback na predchozi verzi
+Sledování změn pravidel s úplnou historií, diffy a rollbackem:
+- Nastavení `VersioningConfig` se storage adapterem
+- Automatický záznam verzí při každé změně pravidla
+- Dotazování na historii verzí s filtrováním a stránkováním
+- Diffy na úrovni polí mezi dvěma verzemi
+- Rollback na předchozí verzi
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
-- Seskupit souvisejici pravidla a ridit jejich zivotni cyklus jednim prepinacem
-- Pouzivat tagy pro flexibilni kategorizaci napric skupinami
-- Nastavit priority pro rizeni poradi vyhodnocovani pravidel
-- Konfigurovat soubeznot a debounce enginu pro bezpecne retezeni pravidel
-- Povolit verzovani pro sledovani kazde zmeny pravidla
-- Dotazovat se na historii verzi, porovnavat verze a provadet rollback
+Na konci této sekce budete schopni:
+- Seskupit související pravidla a řídit jejich životní cyklus jedním přepínačem
+- Používat tagy pro flexibilní kategorizaci napříč skupinami
+- Nastavit priority pro řízení pořadí vyhodnocování pravidel
+- Konfigurovat souběžnost a debounce enginu pro bezpečné řetězení pravidel
+- Povolit verzování pro sledování každé změny pravidla
+- Dotazovat se na historii verzí, porovnávat verze a provádět rollback
 
 ---
 
-Zacnete s: [Skupiny a tagy pravidel](./01-skupiny-a-tagy.md)
+Začněte s: [Skupiny a tagy pravidel](./01-skupiny-a-tagy.md)

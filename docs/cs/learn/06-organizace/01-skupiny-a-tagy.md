@@ -1,35 +1,35 @@
 # Skupiny a tagy pravidel
 
-Kdyz vas pravidlovy engine preroste hrstku pravidel, potrebujete zpusob, jak je spravovat jako logicke celky. Vypnuti funkce by nemelo znamenat hledani a zakazovani 12 jednotlivych pravidel. Spusteni A/B testu by nemelo vyzadovat sledovani, ktera pravidla patri k variante A. Skupiny pravidel vam davaji **hlavni prepinac** pro sady souvisejicich pravidel a tagy vam davaji **flexibilni system stitku** pro prurezeove koncerny.
+Když váš pravidlový engine přeroste hrstku pravidel, potřebujete způsob, jak je spravovat jako logické celky. Vypnutí funkce by nemělo znamenat hledání a zakazování 12 jednotlivých pravidel. Spuštění A/B testu by nemělo vyžadovat sledování, která pravidla patří k variantě A. Skupiny pravidel vám dávají **hlavní přepínač** pro sady souvisejících pravidel a tagy vám dávají **flexibilní systém štítků** pro průřezové koncerny.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak vytvaret a spravovat skupiny pravidel
-- Semantiku `isRuleActive()` a dvouurovnovy model povoleni/zakazani
-- Jak prirazovat pravidla ke skupinam pomoci fluent builderu
-- Jak pouzivat tagy pro kategorizaci a filtrovani
-- Prakticke vzory: feature flagy, A/B testovani, prostredove pravidla
+- Jak vytvářet a spravovat skupiny pravidel
+- Sémantiku `isRuleActive()` a dvouúrovňový model povolení/zakázání
+- Jak přiřazovat pravidla ke skupinám pomocí fluent builderu
+- Jak používat tagy pro kategorizaci a filtrování
+- Praktické vzory: feature flagy, A/B testování, prostředová pravidla
 
 ## Skupiny pravidel
 
-Skupina pravidel je pojmenovany kontejner s priznakem `enabled`. Kdyz je skupina zakazana, **vsechna pravidla v teto skupine jsou deaktivovana** — bez ohledu na jejich individualni stav `enabled`.
+Skupina pravidel je pojmenovaný kontejner s příznakem `enabled`. Když je skupina zakázána, **všechna pravidla v této skupině jsou deaktivována** — bez ohledu na jejich individuální stav `enabled`.
 
-### Rozhrani RuleGroup
+### Rozhraní RuleGroup
 
 ```typescript
 interface RuleGroup {
-  id: string;          // Unikatni identifikator
-  name: string;        // Lidsky citelny nazev
+  id: string;          // Unikátní identifikátor
+  name: string;        // Lidsky čitelný název
   description?: string;
-  enabled: boolean;    // Hlavni prepinac
+  enabled: boolean;    // Hlavní přepínač
   createdAt: number;
   updatedAt: number;
 }
 ```
 
-### Vytvareni a sprava skupin
+### Vytváření a správa skupin
 
-Skupiny musi byt vytvoreny pred tim, nez na ne mohou pravidla odkazovat:
+Skupiny musí být vytvořeny před tím, než na ně mohou pravidla odkazovat:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -37,18 +37,18 @@ import { onEvent, setFact, emit, log } from '@hamicek/noex-rules/dsl';
 
 const engine = await RuleEngine.start();
 
-// Vytvoreni skupiny
+// Vytvoření skupiny
 const group = engine.createGroup({
   id: 'holiday-promotions',
-  name: 'Prazdninove akce',
-  description: 'Sezonni ceny a slevova pravidla',
+  name: 'Prázdninové akce',
+  description: 'Sezónní ceny a slevová pravidla',
   enabled: true,
 });
 
-// Registrace pravidla ve skupine
+// Registrace pravidla ve skupině
 engine.registerRule(
   Rule.create('holiday-discount')
-    .name('Prazdninova sleva 20%')
+    .name('Prázdninová sleva 20%')
     .group('holiday-promotions')
     .when(onEvent('order.created'))
     .if(event('total').gte(50))
@@ -59,10 +59,10 @@ engine.registerRule(
     .build()
 );
 
-// Registrace dalsiho pravidla ve stejne skupine
+// Registrace dalšího pravidla ve stejné skupině
 engine.registerRule(
   Rule.create('holiday-free-shipping')
-    .name('Prazdninove doprava zdarma')
+    .name('Prázdninové doprava zdarma')
     .group('holiday-promotions')
     .when(onEvent('order.created'))
     .then(setFact('order:${event.orderId}:freeShipping', true))
@@ -70,16 +70,16 @@ engine.registerRule(
 );
 ```
 
-### Zivotni cyklus skupiny
+### Životní cyklus skupiny
 
 ```text
   createGroup()         enableGroup()         deleteGroup()
        │                     │                     │
        ▼                     ▼                     ▼
   ┌─────────┐          ┌─────────┐          ┌─────────────┐
-  │ enabled │──────────▶│ enabled │          │   smazana   │
+  │ enabled │──────────▶│ enabled │          │   smazána   │
   │  true   │          │  true   │          │ pravidla se │
-  └─────────┘          └─────────┘          │ odseskupi   │
+  └─────────┘          └─────────┘          │ odseskupí   │
        │                     ▲               └─────────────┘
        │ disableGroup()      │                     ▲
        ▼                     │                     │
@@ -89,55 +89,55 @@ engine.registerRule(
   └─────────┘
 ```
 
-**Klicove chovani**:
-- `createGroup()` — Vytvori novou skupinu. Vyhodi vyjimku, pokud ID jiz existuje. Vychozi: `enabled: true`.
-- `enableGroup(id)` / `disableGroup(id)` — Prepina hlavni prepinac. Ovlivni vsechna pravidla ve skupine okamzite.
-- `deleteGroup(id)` — Odstrani skupinu. Pravidla, ktera do ni patrila, se stanou **neseskupenymi** (jejich pole `group` se vymaze), nejsou smazana.
-- `updateGroup(id, updates)` — Aktualizuje nazev, popis nebo stav enabled.
-- `getGroup(id)` — Vrati skupinu, nebo `undefined`.
-- `getGroups()` — Vrati vsechny skupiny.
-- `getGroupRules(id)` — Vrati vsechna pravidla prirazena ke skupine.
+**Klíčové chování**:
+- `createGroup()` — Vytvoří novou skupinu. Vyhodí výjimku, pokud ID již existuje. Výchozí: `enabled: true`.
+- `enableGroup(id)` / `disableGroup(id)` — Přepíná hlavní přepínač. Ovlivní všechna pravidla ve skupině okamžitě.
+- `deleteGroup(id)` — Odstraní skupinu. Pravidla, která do ní patřila, se stanou **neseskupenými** (jejich pole `group` se vymaže), nejsou smazána.
+- `updateGroup(id, updates)` — Aktualizuje název, popis nebo stav enabled.
+- `getGroup(id)` — Vrátí skupinu, nebo `undefined`.
+- `getGroups()` — Vrátí všechny skupiny.
+- `getGroupRules(id)` — Vrátí všechna pravidla přiřazená ke skupině.
 
-### Zakazani skupiny
+### Zakázání skupiny
 
 ```typescript
-// Prazdninova sezona skoncila — zakazat vsechna prazdninova pravidla najednou
+// Prázdninová sezóna skončila — zakázat všechna prázdninová pravidla najednou
 engine.disableGroup('holiday-promotions');
 
-// Obe pravidla 'holiday-discount' i 'holiday-free-shipping' jsou nyni neaktivni.
-// Nespusti se, i kdyz jejich individualni priznak enabled je stale true.
+// Obě pravidla 'holiday-discount' i 'holiday-free-shipping' jsou nyní neaktivní.
+// Nespustí se, i když jejich individuální příznak enabled je stále true.
 ```
 
-### Smazani skupiny
+### Smazání skupiny
 
 ```typescript
-// Uplne odstranit skupinu
+// Úplně odstranit skupinu
 engine.deleteGroup('holiday-promotions');
 
-// Pravidla NEJSOU smazana — stanou se neseskupenymi.
-// 'holiday-discount' a 'holiday-free-shipping' jsou nyni zase aktivni
-// (za predpokladu, ze jejich individualni priznak enabled je true).
+// Pravidla NEJSOU smazána — stanou se neseskupenými.
+// 'holiday-discount' a 'holiday-free-shipping' jsou nyní zase aktivní
+// (za předpokladu, že jejich individuální příznak enabled je true).
 ```
 
-## Dvouurovnovy model povoleni/zakazani
+## Dvouúrovňový model povolení/zakázání
 
-Engine pouziva dvouurovnovou kontrolu aktivace. Pravidlo se spusti pouze tehdy, kdyz jsou **obe** urovne aktivni:
+Engine používá dvouúrovňovou kontrolu aktivace. Pravidlo se spustí pouze tehdy, když jsou **obě** úrovně aktivní:
 
 ```text
   isRuleActive(rule)?
        │
-       ├── rule.enabled === false?  ──→  NEAKTIVNI
+       ├── rule.enabled === false?  ──→  NEAKTIVNÍ
        │
        ├── rule.group existuje?
        │      │
-       │      ├── group.enabled === false?  ──→  NEAKTIVNI
+       │      ├── group.enabled === false?  ──→  NEAKTIVNÍ
        │      │
-       │      └── group.enabled === true?   ──→  AKTIVNI
+       │      └── group.enabled === true?   ──→  AKTIVNÍ
        │
-       └── bez skupiny?  ──→  AKTIVNI
+       └── bez skupiny?  ──→  AKTIVNÍ
 ```
 
-Implementace je primocare:
+Implementace je přímočará:
 
 ```typescript
 isRuleActive(rule: Rule): boolean {
@@ -150,43 +150,43 @@ isRuleActive(rule: Rule): boolean {
 }
 ```
 
-To znamena:
+To znamená:
 
-| `rule.enabled` | Skupina existuje? | `group.enabled` | Vysledek |
+| `rule.enabled` | Skupina existuje? | `group.enabled` | Výsledek |
 |:-:|:-:|:-:|:-:|
-| `false` | — | — | **Neaktivni** |
-| `true` | Ne | — | **Aktivni** |
-| `true` | Ano | `true` | **Aktivni** |
-| `true` | Ano | `false` | **Neaktivni** |
+| `false` | — | — | **Neaktivní** |
+| `true` | Ne | — | **Aktivní** |
+| `true` | Ano | `true` | **Aktivní** |
+| `true` | Ano | `false` | **Neaktivní** |
 
-### Proc dve urovne?
+### Proč dvě úrovně?
 
-Dvouurovnovy model vam umozni zakazat jednotliva pravidla pro debugging, zatimco skupina zustane aktivni, **a zaroven** zakazat cele skupiny pro spravu funkci bez zasahu do jednotlivych pravidel:
+Dvouúrovňový model vám umožní zakázat jednotlivá pravidla pro debugging, zatímco skupina zůstane aktivní, **a zároveň** zakázat celé skupiny pro správu funkcí bez zásahu do jednotlivých pravidel:
 
 ```typescript
-// Debug: zakazat jedno problematicke pravidlo bez ovlivneni skupiny
+// Debug: zakázat jedno problematické pravidlo bez ovlivnění skupiny
 engine.disableRule('holiday-discount');
-// 'holiday-free-shipping' stale funguje
+// 'holiday-free-shipping' stále funguje
 
-// Feature flag: zakazat celou funkci
+// Feature flag: zakázat celou funkci
 engine.disableGroup('holiday-promotions');
-// Vsechna pravidla se zastavi, bez ohledu na jejich individualni stav
+// Všechna pravidla se zastaví, bez ohledu na jejich individuální stav
 
-// Znovu povolit skupinu — 'holiday-free-shipping' opet funguje,
-// ale 'holiday-discount' zustava zakazano (jeho vlastni priznak je stale false)
+// Znovu povolit skupinu — 'holiday-free-shipping' opět funguje,
+// ale 'holiday-discount' zůstává zakázáno (jeho vlastní příznak je stále false)
 engine.enableGroup('holiday-promotions');
 ```
 
 ## Tagy
 
-Tagy jsou textove stitky pripojene k jednotlivym pravidlum. Na rozdil od skupin nemaji tagy zadny vestavenou efekt na chovani — jsou to metadata pro **kategorizaci, filtrovani a dotazovani**.
+Tagy jsou textové štítky připojené k jednotlivým pravidlům. Na rozdíl od skupin nemají tagy žádný vestavěný efekt na chování — jsou to metadata pro **kategorizaci, filtrování a dotazování**.
 
-### Prirazovani tagu
+### Přiřazování tagů
 
 ```typescript
 engine.registerRule(
   Rule.create('fraud-velocity-check')
-    .name('Kontrola rychlosti transakci')
+    .name('Kontrola rychlosti transakcí')
     .tags('fraud', 'security', 'payments')
     .when(onEvent('transaction.created'))
     .if(event('amount').gte(1000))
@@ -197,35 +197,35 @@ engine.registerRule(
 );
 ```
 
-Tagy jsou ulozeny jako pole na pravidle: `tags: string[]`. Pravidlo muze mit nula nebo vice tagu.
+Tagy jsou uloženy jako pole na pravidle: `tags: string[]`. Pravidlo může mít nula nebo více tagů.
 
 ### Tagy vs skupiny
 
 | Aspekt | Skupiny | Tagy |
 |--------|---------|------|
-| **Kardinalita** | Pravidlo patri do **nejvyse jedne** skupiny | Pravidlo muze mit **libovolny pocet** tagu |
-| **Efekt na chovani** | Zakazani skupiny deaktivuje jeji pravidla | Zadny vestavenou efekt na aktivaci pravidel |
-| **Ucel** | Sprava zivotniho cyklu (povoleni/zakazani sad pravidel) | Kategorizace, filtrovani, dokumentace |
-| **Hierarchie** | Plocha (zadne vnorene skupiny) | Plocha (zadna hierarchie tagu) |
+| **Kardinalita** | Pravidlo patří do **nejvýše jedné** skupiny | Pravidlo může mít **libovolný počet** tagů |
+| **Efekt na chování** | Zakázání skupiny deaktivuje její pravidla | Žádný vestavěný efekt na aktivaci pravidel |
+| **Účel** | Správa životního cyklu (povolení/zakázání sad pravidel) | Kategorizace, filtrování, dokumentace |
+| **Hierarchie** | Plochá (žádné vnořené skupiny) | Plochá (žádná hierarchie tagů) |
 
-### Kdy pouzit co
+### Kdy použít co
 
-Pouzijte **skupiny** kdyz potrebujete:
-- Povolit/zakazat vice pravidel jednim volanim
-- Implementovat feature flagy nebo A/B testovani
-- Oddelit pravidla podle prostredi nasazeni
+Použijte **skupiny** když potřebujete:
+- Povolit/zakázat více pravidel jedním voláním
+- Implementovat feature flagy nebo A/B testování
+- Oddělit pravidla podle prostředí nasazení
 
-Pouzijte **tagy** kdyz potrebujete:
-- Kategorizovat pravidla ve vice dimenzich
-- Filtrovat pravidla v API dotazech nebo admin rozhranich
-- Zdokumentovat ucel pravidla (napr. `'security'`, `'billing'`, `'notifications'`)
+Použijte **tagy** když potřebujete:
+- Kategorizovat pravidla ve více dimenzích
+- Filtrovat pravidla v API dotazech nebo admin rozhraních
+- Zdokumentovat účel pravidla (např. `'security'`, `'billing'`, `'notifications'`)
 
-Muzete kombinovat oboji — pravidlo muze patrit do skupiny **a** mit tagy:
+Můžete kombinovat obojí — pravidlo může patřit do skupiny **a** mít tagy:
 
 ```typescript
 engine.registerRule(
   Rule.create('beta-fraud-ml')
-    .name('ML detekce podvodu (Beta)')
+    .name('ML detekce podvodů (Beta)')
     .group('beta-features')
     .tags('fraud', 'ml', 'beta')
     .when(onEvent('transaction.created'))
@@ -236,9 +236,9 @@ engine.registerRule(
 );
 ```
 
-## Kompletni priklad: Feature flagy se skupinami
+## Kompletní příklad: Feature flagy se skupinami
 
-Bezny vzor je pouziti skupin jako feature flagu. Tento priklad spravuje e-commerce doporucovaci engine, ktery lze prepnout:
+Běžný vzor je použití skupin jako feature flagů. Tento příklad spravuje e-commerce doporučovací engine, který lze přepnout:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -246,18 +246,18 @@ import { onEvent, onFact, setFact, emit, ref, event, fact } from '@hamicek/noex-
 
 const engine = await RuleEngine.start();
 
-// Vytvoreni skupiny pro funkci
+// Vytvoření skupiny pro funkci
 engine.createGroup({
   id: 'recommendations',
-  name: 'Doporuceni produktu',
-  description: 'Pravidla pro AI doporuceni produktu',
+  name: 'Doporučení produktů',
+  description: 'Pravidla pro AI doporučení produktů',
   enabled: true,
 });
 
-// Pravidlo 1: Sledovani prohlizeni
+// Pravidlo 1: Sledování prohlížení
 engine.registerRule(
   Rule.create('track-browse')
-    .name('Sledovani prohlizeni produktu')
+    .name('Sledování prohlížení produktů')
     .group('recommendations')
     .tags('recommendations', 'tracking')
     .when(onEvent('product.viewed'))
@@ -268,10 +268,10 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 2: Doporuceni na zaklade historie nakupu
+// Pravidlo 2: Doporučení na základě historie nákupů
 engine.registerRule(
   Rule.create('cross-sell')
-    .name('Cross-sell doporuceni')
+    .name('Cross-sell doporučení')
     .group('recommendations')
     .tags('recommendations', 'sales')
     .priority(5)
@@ -284,10 +284,10 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 3: Odeslani doporucovaciho emailu
+// Pravidlo 3: Odeslání doporučovacího emailu
 engine.registerRule(
   Rule.create('recommend-email')
-    .name('Email s doporucenim')
+    .name('Email s doporučením')
     .group('recommendations')
     .tags('recommendations', 'email')
     .priority(1)
@@ -300,35 +300,35 @@ engine.registerRule(
     .build()
 );
 
-// --- Sprava funkce ---
+// --- Správa funkce ---
 
-// Zjistit, ktera pravidla jsou ve skupine
+// Zjistit, která pravidla jsou ve skupině
 const rules = engine.getGroupRules('recommendations');
-console.log(`Pravidla doporuceni: ${rules.length}`);
-// Pravidla doporuceni: 3
+console.log(`Pravidla doporučení: ${rules.length}`);
+// Pravidla doporučení: 3
 
-// Zakazat funkci behem nasazeni
+// Zakázat funkci během nasazení
 engine.disableGroup('recommendations');
-// Vsechna 3 pravidla se okamzite prestanu spoustet
+// Všechna 3 pravidla se okamžitě přestanou spouštět
 
-// Znovu povolit po nasazeni
+// Znovu povolit po nasazení
 engine.enableGroup('recommendations');
-// Vsechna 3 pravidla opet funguji
+// Všechna 3 pravidla opět fungují
 ```
 
-## Cviceni
+## Cvičení
 
-Navrhnete schemat organizace pravidel pro e-commerce platformu s temito pozadavky:
+Navrhněte schéma organizace pravidel pro e-commerce platformu s těmito požadavky:
 
-1. **Cenova pravidla** (slevy, akce, kupony), ktera lze prepnout jako celek
-2. **Pravidla detekce podvodu**, ktera musi byt vzdy aktivni (nikdy nahodne nezakazana)
-3. **Beta funkce** (novy doporucovaci algoritmus, experimentalni checkout), ktere bezi jen ve stagingu
-4. Vsechna pravidla by mela byt dotazovatelna podle domeny (`pricing`, `fraud`, `checkout`, `recommendations`)
+1. **Cenová pravidla** (slevy, akce, kupóny), která lze přepnout jako celek
+2. **Pravidla detekce podvodů**, která musí být vždy aktivní (nikdy náhodně nezakázána)
+3. **Beta funkce** (nový doporučovací algoritmus, experimentální checkout), které běží jen ve stagingu
+4. Všechna pravidla by měla být dotazovatelná podle domény (`pricing`, `fraud`, `checkout`, `recommendations`)
 
-Vytvorte skupiny a registrujte jedno prikladove pravidlo ke kazde skupine s odpovidajicimi tagy.
+Vytvořte skupiny a registrujte jedno příkladové pravidlo ke každé skupině s odpovídajícími tagy.
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -336,36 +336,36 @@ import { onEvent, setFact, emit, ref, event, fact } from '@hamicek/noex-rules/ds
 
 const engine = await RuleEngine.start();
 
-// Skupina 1: Ceny — prepinatelna
+// Skupina 1: Ceny — přepínatelná
 engine.createGroup({
   id: 'pricing',
-  name: 'Cenova pravidla',
-  description: 'Slevy, akce a kuponova pravidla',
+  name: 'Cenová pravidla',
+  description: 'Slevy, akce a kupónová pravidla',
   enabled: true,
 });
 
-// Skupina 2: Podvody — vzdy aktivni (vynutit politikou, ne kodem)
-// Skupinu pouzivame pro organizacni prehlednost, ale nikdy ji nezakazeme.
+// Skupina 2: Podvody — vždy aktivní (vynutit politikou, ne kódem)
+// Skupinu používáme pro organizační přehlednost, ale nikdy ji nezakážeme.
 engine.createGroup({
   id: 'fraud-detection',
-  name: 'Detekce podvodu',
-  description: 'Monitoring transakci a prevence podvodu',
+  name: 'Detekce podvodů',
+  description: 'Monitoring transakcí a prevence podvodů',
   enabled: true,
 });
 
-// Skupina 3: Beta funkce — zakazane v produkci
+// Skupina 3: Beta funkce — zakázané v produkci
 const isProduction = process.env.NODE_ENV === 'production';
 engine.createGroup({
   id: 'beta-features',
   name: 'Beta funkce',
-  description: 'Experimentalni funkce pouze pro staging',
+  description: 'Experimentální funkce pouze pro staging',
   enabled: !isProduction,
 });
 
-// Cenove pravidlo
+// Cenové pravidlo
 engine.registerRule(
   Rule.create('summer-sale')
-    .name('Letni vyprodej sleva 15%')
+    .name('Letní výprodej sleva 15%')
     .group('pricing')
     .tags('pricing', 'promotions', 'seasonal')
     .when(onEvent('order.created'))
@@ -378,10 +378,10 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo detekce podvodu
+// Pravidlo detekce podvodů
 engine.registerRule(
   Rule.create('high-value-check')
-    .name('Kontrola vysoke hodnoty transakce')
+    .name('Kontrola vysoké hodnoty transakce')
     .group('fraud-detection')
     .tags('fraud', 'security', 'payments')
     .priority(100)
@@ -397,7 +397,7 @@ engine.registerRule(
 // Pravidlo beta funkce
 engine.registerRule(
   Rule.create('ml-recommendations')
-    .name('ML doporuceni')
+    .name('ML doporučení')
     .group('beta-features')
     .tags('recommendations', 'ml', 'beta')
     .when(onEvent('product.viewed'))
@@ -408,10 +408,10 @@ engine.registerRule(
     .build()
 );
 
-// Neseskupene pravidlo s tagy pro checkout domenu
+// Neseskupené pravidlo s tagy pro checkout doménu
 engine.registerRule(
   Rule.create('checkout-validation')
-    .name('Validace adresy pri checkoutu')
+    .name('Validace adresy při checkoutu')
     .tags('checkout', 'validation')
     .when(onEvent('checkout.started'))
     .then(callService('addressService', 'validate', {
@@ -421,25 +421,25 @@ engine.registerRule(
 );
 ```
 
-Klicova rozhodnuti:
-- **Ceny** pouzivaji skupinu, aby akce sly prepnout behem prodejnich akci
-- **Detekce podvodu** pouziva skupinu pro organizaci, ale nikdy se nezakaze — to je tymova politika
-- **Beta funkce** pouzivaji skupinu s `enabled` rizenym prostredim
-- **Tagy** umoznuji prurezeove dotazy: najdi vsechna `'security'` pravidla, vsechna `'payments'` pravidla atd.
-- Checkout pravidlo je **neseskupene** ale otagovane — ne vsechno potrebuje skupinu
+Klíčová rozhodnutí:
+- **Ceny** používají skupinu, aby akce šly přepnout během prodejních akcí
+- **Detekce podvodů** používá skupinu pro organizaci, ale nikdy se nezakáže — to je týmová politika
+- **Beta funkce** používají skupinu s `enabled` řízeným prostředím
+- **Tagy** umožňují průřezové dotazy: najdi všechna `'security'` pravidla, všechna `'payments'` pravidla atd.
+- Checkout pravidlo je **neseskupené** ale otagované — ne všechno potřebuje skupinu
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **Skupiny pravidel** poskytuji hlavni prepinac povoleni/zakazani pro sady souvisejicich pravidel
-- Pravidlo je aktivni pouze kdyz `rule.enabled === true` **a** jeho skupina (pokud existuje) je povolena
-- Skupiny musi byt vytvoreny pred tim, nez na ne mohou pravidla odkazovat; smazani skupiny odseskupi pravidla, nemaze je
-- **Tagy** jsou metadatove stitky bez efektu na chovani — pouzijte je pro kategorizaci a filtrovani
-- Pravidlo patri do **nejvyse jedne skupiny**, ale muze mit **libovolny pocet tagu**
-- Skupiny jsou idealni pro feature flagy, A/B testovani a pravidla specificka pro prostredi
-- Tagy jsou idealni pro prurezeovou kategorizaci napric domenami
+- **Skupiny pravidel** poskytují hlavní přepínač povolení/zakázání pro sady souvisejících pravidel
+- Pravidlo je aktivní pouze když `rule.enabled === true` **a** jeho skupina (pokud existuje) je povolena
+- Skupiny musí být vytvořeny před tím, než na ně mohou pravidla odkazovat; smazání skupiny odseskupí pravidla, nemaže je
+- **Tagy** jsou metadatové štítky bez efektu na chování — použijte je pro kategorizaci a filtrování
+- Pravidlo patří do **nejvýše jedné skupiny**, ale může mít **libovolný počet tagů**
+- Skupiny jsou ideální pro feature flagy, A/B testování a pravidla specifická pro prostředí
+- Tagy jsou ideální pro průřezovou kategorizaci napříč doménami
 
 ---
 
-Dalsi: [Priorita a poradi provadeni](./02-priorita-a-razeni.md)
+Další: [Priorita a pořadí provádění](./02-priorita-a-razeni.md)
