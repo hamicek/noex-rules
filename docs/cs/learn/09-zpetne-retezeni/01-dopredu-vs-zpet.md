@@ -1,42 +1,42 @@
-# Dopredne vs zpetne retezeni
+# Dopředné vs zpětné řetězení
 
-V prubehu tohoto pruvodce jste psali pravidla, ktera reaguji na data: prijde udalost, vyhodnoti se podminky a spusti se akce. Toto je **forward chaining** — vychozi rezim uvazovani enginu. Ale existuje druhy, komplementarni rezim: **backward chaining**, kde zacnete od pozadovaneho zaveru a zeptate se enginu, zda ho lze dosahnout. Pochopeni obou rezimu — a kdy ktery pouzit — odemyka novou tridu dotazu.
+V průběhu tohoto průvodce jste psali pravidla, která reagují na data: přijde událost, vyhodnotí se podmínky a spustí se akce. Toto je **forward chaining** — výchozí režim uvažování enginu. Ale existuje druhý, komplementární režim: **backward chaining**, kde začnete od požadovaného závěru a zeptáte se enginu, zda ho lze dosáhnout. Pochopení obou režimů — a kdy který použít — odemyká novou třídu dotazů.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak forward chaining ridi vyhodnocovani pravidel (rekapitulace rizeni daty)
-- Jak backward chaining obrati smer (cilove uvazovani)
-- Semantiku read-only backward chainingu
-- Kdy pouzit forward vs backward chaining
-- Jak se oba rezimy doplnuji v jednom enginu
+- Jak forward chaining řídí vyhodnocování pravidel (rekapitulace řízení daty)
+- Jak backward chaining obrátí směr (cílové uvažování)
+- Sémantiku read-only backward chainingu
+- Kdy použít forward vs backward chaining
+- Jak se oba režimy doplňují v jednom enginu
 
-## Forward chaining: data tlaci dopredu
+## Forward chaining: data tlačí dopředu
 
-Forward chaining je to, co jste pouzivali v kazde dosavadni kapitole. Data vstoupi do enginu (udalosti, zmeny faktu, expirace casovcu), pravidla s odpovidajicimi triggery se vyhodnoti a akce produji nova data, ktera mohou spustit dalsi pravidla:
+Forward chaining je to, co jste používali v každé dosavadní kapitole. Data vstoupí do enginu (události, změny faktů, expirace časovačů), pravidla s odpovídajícími triggery se vyhodnotí a akce produkují nová data, která mohou spustit další pravidla:
 
 ```text
   ┌─────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
-  │  Data    │────▶│  Shoda       │────▶│  Podminky   │────▶│  Akce    │
-  │ (event,  │     │  pravidla    │     │  (vyhodnoceni│     │ (emit,   │
+  │  Data    │────▶│  Shoda       │────▶│  Podmínky   │────▶│  Akce    │
+  │ (event,  │     │  pravidla    │     │  (vyhodnocení│     │ (emit,   │
   │  fakt,   │     │  (trigger    │     │   )         │     │  setFact │
-  │  casovac)│     │   odpovida)  │     │              │     │  ...)    │
+  │  časovač)│     │   odpovídá)  │     │              │     │  ...)    │
   └─────────┘     └──────────────┘     └─────────────┘     └────┬─────┘
-                                                                 │
-                                                    ┌────────────┘
-                                                    │  Nova data
-                                                    ▼
-                                              ┌─────────┐
-                                              │  Data    │──▶ ... (kaskada)
-                                              └─────────┘
+                                                                │
+                                                   ┌────────────┘
+                                                   │  Nová data
+                                                   ▼
+                                             ┌─────────┐
+                                             │  Data    │──▶ ... (kaskáda)
+                                             └─────────┘
 ```
 
-**Smer**: Data → Pravidla → Nova data → Dalsi pravidla → ...
+**Směr**: Data → Pravidla → Nová data → Další pravidla → ...
 
 **Vlastnosti**:
-- **Reaktivni**: spousti se automaticky pri prichodu dat
-- **Vycerpavajici**: vyhodnoti vsechna odpovidajici pravidla pokazde
-- **S vedlejsimi efekty**: akce modifikuji stav enginu (fakta, udalosti, casovace)
-- **Kontinualni**: bezi dokud je engine spusteny
+- **Reaktivní**: spouští se automaticky při příchodu dat
+- **Vyčerpávající**: vyhodnotí všechna odpovídající pravidla pokaždé
+- **S vedlejšími efekty**: akce modifikují stav enginu (fakta, události, časovače)
+- **Kontinuální**: běží dokud je engine spuštěný
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -44,7 +44,7 @@ import { onEvent, emit, setFact, event, fact } from '@hamicek/noex-rules/dsl';
 
 const engine = await RuleEngine.start();
 
-// Forward chaining: data prochazi pravidly
+// Forward chaining: data procházejí pravidly
 engine.registerRule(
   Rule.create('earn-points')
     .name('Earn Loyalty Points')
@@ -69,139 +69,139 @@ engine.registerRule(
     .build()
 );
 
-// Data prijdou → pravidla se spusti → nove fakta se vytvori
+// Data přijdou → pravidla se spustí → nové fakta se vytvoří
 await engine.emit('order.completed', { customerId: 'c-42', total: 250 });
 ```
 
-Engine se nezastavi, aby se ptal "mel by se tento zakaznik stat VIP?". Jednodusse zpracuje prichozi udalost, vyhodnoti vsechna odpovidajici pravidla a spusti ta, jejichz podminky projdou.
+Engine se nezastaví, aby se ptal "měl by se tento zákazník stát VIP?". Jednoduše zpracuje příchozí událost, vyhodnotí všechna odpovídající pravidla a spustí ta, jejichž podmínky projdou.
 
-## Backward chaining: cile tahnou zpet
+## Backward chaining: cíle táhnou zpět
 
-Backward chaining obrati smer. Misto tlaceni dat dopredu zacnete s **cilem** — faktem nebo udalosti, o ktere chcete vedet — a engine prochazi graf pravidel pozpatku:
+Backward chaining obrátí směr. Místo tlačení dat dopředu začnete s **cílem** — faktem nebo událostí, o které chcete vědět — a engine prochází graf pravidel pozpátku:
 
 ```text
   ┌──────────┐     ┌───────────────┐     ┌──────────────┐     ┌───────────┐
-  │   Cil    │────▶│ Najdi pravidla│────▶│  Over        │────▶│ Podcile   │
-  │ "Muze X  │     │ jejichz akce  │     │  podminky    │     │ (rekurze) │
-  │  byt     │     │ produji X"    │     │  pravidla    │     │           │
-  │  pravda?"│     └───────────────┘     │  vuci faktum │     └─────┬─────┘
+  │   Cíl    │────▶│ Najdi pravidla│────▶│  Ověř        │────▶│ Podcíle   │
+  │ "Může X  │     │ jejichž akce  │     │  podmínky    │     │ (rekurze) │
+  │  být     │     │ produkují X"  │     │  pravidla    │     │           │
+  │  pravda?"│     └───────────────┘     │  vůči faktům │     └─────┬─────┘
   └──────────┘                           └──────────────┘           │
-                                                              ┌─────┘
-                                                              ▼
-                                                        ┌───────────┐
-                                                        │ Dukazovy  │
-                                                        │ strom     │
-                                                        │ (proc/proc│
-                                                        │  ne)      │
-                                                        └───────────┘
+                                                             ┌─────┘
+                                                             ▼
+                                                       ┌───────────┐
+                                                       │ Důkazový  │
+                                                       │ strom     │
+                                                       │ (proč/proč│
+                                                       │  ne)      │
+                                                       └───────────┘
 ```
 
-**Smer**: Cil → Pravidla (obracene) → Podminky → Podcile → ... → Fakta
+**Směr**: Cíl → Pravidla (obráceně) → Podmínky → Podcíle → ... → Fakta
 
 **Vlastnosti**:
-- **Tazaci**: kladete konkretni otazku
-- **Cileny**: prozkoumava pouze pravidla relevantni k cili
-- **Read-only**: nikdy nemodifikuje fakta, udalosti ani casovace
-- **Na vyzadani**: bezi pouze pri volani `engine.query()`
+- **Tázací**: kladete konkrétní otázku
+- **Cílený**: prozkoumává pouze pravidla relevantní k cíli
+- **Read-only**: nikdy nemodifikuje fakta, události ani časovače
+- **Na vyžádání**: běží pouze při volání `engine.query()`
 
 ```typescript
 import { factGoal, eventGoal } from '@hamicek/noex-rules/dsl';
 
-// Backward chaining: polozte konkretni otazku
+// Backward chaining: položte konkrétní otázku
 const result = engine.query(factGoal('customer:c-42:tier').equals('vip'));
 
 console.log(result.achievable);    // true nebo false
-console.log(result.exploredRules); // kolik pravidel bylo prozkoumano
-console.log(result.proof);         // kompletni strom vysvetleni
+console.log(result.exploredRules); // kolik pravidel bylo prozkoumáno
+console.log(result.proof);         // kompletní strom vysvětlení
 ```
 
-Engine nespousti zadne akce. Prozkoumava graf pravidel, aby odpovedel na otazku: "Na zaklade soucasnych faktu a pravidel, muze byt tento cil dosazitelny?"
+Engine nespouští žádné akce. Prozkoumává graf pravidel, aby odpověděl na otázku: "Na základě současných faktů a pravidel, může být tento cíl dosažitelný?"
 
 ## Jak backward chaining funguje
 
-Algoritmus postupuje nasledovne:
+Algoritmus postupuje následovně:
 
-1. **Zakladni pripad**: Existuje fakt jiz ve store a splnuje cil? Pokud ano, okamzite vrati `fact_exists` proof uzel.
+1. **Základní případ**: Existuje fakt již ve store a splňuje cíl? Pokud ano, okamžitě vrátí `fact_exists` proof uzel.
 
-2. **Nalezeni kandidatnich pravidel**: Vyhledani pravidel, jejichz **akce** by cil produkovaly (napr. pravidla s akci `set_fact` odpovidajici klici faktu cile, nebo pravidla s akci `emit_event` odpovidajici topicu cile).
+2. **Nalezení kandidátních pravidel**: Vyhledání pravidel, jejichž **akce** by cíl produkovaly (např. pravidla s akcí `set_fact` odpovídající klíči faktu cíle, nebo pravidla s akcí `emit_event` odpovídající topicu cíle).
 
-3. **Vyhodnoceni podminek**: Pro kazde kandidatni pravidlo overeni, zda jeho podminky jsou splneny aktualnim fact store.
+3. **Vyhodnocení podmínek**: Pro každé kandidátní pravidlo ověření, zda jeho podmínky jsou splněny aktuálním fact store.
 
-4. **Rekurze pro chybejici fakta**: Pokud podminka odkazuje na fakt, ktery neexistuje, vytvori se **podcil** pro tento fakt a rekurzivne se pokracuje (krok 1).
+4. **Rekurze pro chybějící fakta**: Pokud podmínka odkazuje na fakt, který neexistuje, vytvoří se **podcíl** pro tento fakt a rekurzivně se pokračuje (krok 1).
 
-5. **Sestaveni dukazoveho stromu**: Vysledkem je strom, ktery ukazuje, ktera pravidla byla prozkoumana, ktere podminky prosly ci selhaly a jak byly podcile vyreseny.
+5. **Sestavení důkazového stromu**: Výsledkem je strom, který ukazuje, která pravidla byla prozkoumána, které podmínky prošly či selhaly a jak byly podcíle vyřešeny.
 
 ```text
-  Cil: customer:c-42:tier = 'vip'
+  Cíl: customer:c-42:tier = 'vip'
   │
-  └─ Pravidlo: vip-upgrade (podminky: customer:c-42:points >= 1000)
+  └─ Pravidlo: vip-upgrade (podmínky: customer:c-42:points >= 1000)
      │
-     ├─ Podminka: fact:customer:c-42:points >= 1000
+     ├─ Podmínka: fact:customer:c-42:points >= 1000
      │  └─ Fakt existuje: customer:c-42:points = 1500  ✓
      │
-     └─ Vysledek: SPLNENO ✓
+     └─ Výsledek: SPLNĚNO ✓
 ```
 
-Pokud by fakt bodu neexistoval, ale jine pravidlo by ho mohlo produkovat:
+Pokud by fakt bodů neexistoval, ale jiné pravidlo by ho mohlo produkovat:
 
 ```text
-  Cil: customer:c-42:tier = 'vip'
+  Cíl: customer:c-42:tier = 'vip'
   │
-  └─ Pravidlo: vip-upgrade (podminky: customer:c-42:points >= 1000)
+  └─ Pravidlo: vip-upgrade (podmínky: customer:c-42:points >= 1000)
      │
-     ├─ Podminka: fact:customer:c-42:points >= 1000
-     │  └─ Podcil: customer:c-42:points (existence)
-     │     └─ Pravidlo: earn-points (podminky: event trigger)
-     │        └─ Podminka: event:order.completed — NESPLNENO
-     │           (backward chaining nema spousteci udalost)
+     ├─ Podmínka: fact:customer:c-42:points >= 1000
+     │  └─ Podcíl: customer:c-42:points (existence)
+     │     └─ Pravidlo: earn-points (podmínky: event trigger)
+     │        └─ Podmínka: event:order.completed — NESPLNĚNO
+     │           (backward chaining nemá spouštěcí událost)
      │
-     └─ Vysledek: NESPLNENO ✗
+     └─ Výsledek: NESPLNĚNO ✗
 ```
 
-Podminky zalozene na udalostech a kontextu jsou v backward chainingu vzdy nesplnene, protoze neexistuje zadna spousteci udalost k vyhodnoceni. To je zamerne — backward chaining odpovida na to, co je mozne na zaklade **soucasneho stavu**, ne co by se stalo pri emisi konkretni udalosti.
+Podmínky založené na událostech a kontextu jsou v backward chainingu vždy nesplněné, protože neexistuje žádná spouštěcí událost k vyhodnocení. To je záměrné — backward chaining odpovídá na to, co je možné na základě **současného stavu**, ne co by se stalo při emisi konkrétní události.
 
-## Srovnani
+## Srovnání
 
 | Aspekt | Forward chaining | Backward chaining |
 |--------|-----------------|-------------------|
-| **Smer** | Data → Pravidla → Zavery | Cil → Pravidla → Predpoklady |
-| **Spusteni** | Automaticke (udalosti, fakta, casovace) | Manualni (`engine.query()`) |
-| **Ucel** | Reagovat na zmeny | Odpovidat na otazky |
-| **Mutace stavu** | Ano (nastavuje fakta, emituje udalosti) | Ne (read-only) |
-| **Vystup** | Vedlejsi efekty (nova fakta, udalosti) | `QueryResult` s dukazovym stromem |
-| **Rozsah** | Vsechna odpovidajici pravidla | Pouze pravidla relevantni k cili |
+| **Směr** | Data → Pravidla → Závěry | Cíl → Pravidla → Předpoklady |
+| **Spuštění** | Automatické (události, fakta, časovače) | Manuální (`engine.query()`) |
+| **Účel** | Reagovat na změny | Odpovídat na otázky |
+| **Mutace stavu** | Ano (nastavuje fakta, emituje události) | Ne (read-only) |
+| **Výstup** | Vedlejší efekty (nová fakta, události) | `QueryResult` s důkazovým stromem |
+| **Rozsah** | Všechna odpovídající pravidla | Pouze pravidla relevantní k cíli |
 | **API** | `engine.emit()`, `engine.setFact()` | `engine.query(goal)` |
-| **Analogie** | Prepocet tabulky | SQL dotaz / Prolog dotaz |
+| **Analogie** | Přepočet tabulky | SQL dotaz / Prolog dotaz |
 
-## Kdy pouzit ktery pristup
+## Kdy použít který přístup
 
 ### Forward chaining
 
-Pouzijte forward chaining, kdyz potrebujete, aby engine **reagoval** na zmeny automaticky:
+Použijte forward chaining, když potřebujete, aby engine **reagoval** na změny automaticky:
 
-- Zpracovani prichozich objednavek, plateb, cteni senzoru
-- Spousteni notifikaci, alertu a eskalaci
-- Udrzovani odvozenych faktu (agregaty, stavy, skore)
-- Provadeni business workflow s kaskadovymi retezci pravidel
-- Cokoli, co by se melo stat **protoze** se neco zmenilo
+- Zpracování příchozích objednávek, plateb, čtení senzorů
+- Spouštění notifikací, alertů a eskalací
+- Udržování odvozených faktů (agregáty, stavy, skóre)
+- Provádění business workflow s kaskádovými řetězci pravidel
+- Cokoli, co by se mělo stát **protože** se něco změnilo
 
 ### Backward chaining
 
-Pouzijte backward chaining, kdyz potrebujete **polozit otazku** bez vedlejsich efektu:
+Použijte backward chaining, když potřebujete **položit otázku** bez vedlejších efektů:
 
-- **Overeni zpusobilosti**: "Je tento zakaznik zpusobily pro VIP upgrade?"
-- **Validace predpokladu**: "Muze byt tato objednavka splnena s aktualnim skladem?"
-- **What-if analyza**: "Kdybych nastavil tento fakt, stal by se tento cil dosazitelnym?"
-- **Debugging**: "Proc se toto pravidlo nespustilo?" (inspekce dukazoveho stromu)
-- **Analyza dopadu**: "Ktera pravidla mohou produkovat tuto udalost?"
-- **Compliance**: "Muze byt toto schvaleni udeleno pri soucasnych politikach?"
+- **Ověření způsobilosti**: "Je tento zákazník způsobilý pro VIP upgrade?"
+- **Validace předpokladů**: "Může být tato objednávka splněna s aktuálním skladem?"
+- **What-if analýza**: "Kdybych nastavil tento fakt, stal by se tento cíl dosažitelným?"
+- **Debugging**: "Proč se toto pravidlo nespustilo?" (inspekce důkazového stromu)
+- **Analýza dopadu**: "Která pravidla mohou produkovat tuto událost?"
+- **Compliance**: "Může být toto schválení uděleno při současných politikách?"
 
 ### Oba dohromady
 
-Nejsilnejsi vzor pouziva oba rezimy spolecne. Forward chaining se stara o zive zpracovani, zatimco backward chaining poskytuje dotazy na vyzadani:
+Nejsilnější vzor používá oba režimy společně. Forward chaining se stará o živé zpracování, zatímco backward chaining poskytuje dotazy na vyžádání:
 
 ```typescript
-// Forward chaining: zpracovavej objednavky jak prichazeji
+// Forward chaining: zpracovávej objednávky jak přicházejí
 engine.registerRule(
   Rule.create('process-order')
     .name('Process Order')
@@ -212,7 +212,7 @@ engine.registerRule(
     .build()
 );
 
-// Backward chaining: over, zda objednavka MUZE byt zpracovana pred odeslanim
+// Backward chaining: ověř, zda objednávka MŮŽE být zpracována před odesláním
 const canProcess = engine.query(
   factGoal('order:ord-99:status').equals('processing')
 );
@@ -223,13 +223,13 @@ if (canProcess.achievable) {
     productId: 'prod-1',
   });
 } else {
-  console.log('Objednavka nemuze byt zpracovana:', canProcess.proof);
+  console.log('Objednávka nemůže být zpracována:', canProcess.proof);
 }
 ```
 
-## Cviceni
+## Cvičení
 
-Uvazujte nasledujici sadu pravidel:
+Uvažujte následující sadu pravidel:
 
 ```typescript
 engine.registerRule(
@@ -255,37 +255,37 @@ engine.registerRule(
 );
 ```
 
-Pro kazdou otazku nize rozhodnete, zda je vhodny forward chaining, backward chaining, nebo oba:
+Pro každou otázku níže rozhodněte, zda je vhodný forward chaining, backward chaining, nebo oba:
 
-1. Prijde udalost zadosti o pujcku a je treba ji zpracovat.
-2. Uverovy pracovnik chce overit, zda konkretni zadatel splnuje podminky pro pujcku, jeste pred podanim zadosti.
-3. Dashboard zobrazuje notifikace o schvaleni pujcek v realnem case.
-4. Auditni system potrebuje vysvetlit, proc byla pujcka zamitnuta.
+1. Přijde událost žádosti o půjčku a je třeba ji zpracovat.
+2. Úvěrový pracovník chce ověřit, zda konkrétní žadatel splňuje podmínky pro půjčku, ještě před podáním žádosti.
+3. Dashboard zobrazuje notifikace o schválení půjček v reálném čase.
+4. Auditní systém potřebuje vysvětlit, proč byla půjčka zamítnuta.
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-1. **Forward chaining**. Udalost zadosti o pujcku spusti `approve-loan`, ktery vyhodnoti podminky a nastavi stav pujcky. Toto je reaktivni zpracovani.
+1. **Forward chaining**. Událost žádosti o půjčku spustí `approve-loan`, který vyhodnotí podmínky a nastaví stav půjčky. Toto je reaktivní zpracování.
 
-2. **Backward chaining**. Uverovy pracovnik zavola `engine.query(factGoal('loan:L-1:status').equals('approved'))`. Engine prochazi zpetne podminky `approve-loan` bez modifikace stavu. Dukazovy strom odhali, ktere podminky prosly a ktere selhaly (napr. prilis nizke kreditni skore).
+2. **Backward chaining**. Úvěrový pracovník zavolá `engine.query(factGoal('loan:L-1:status').equals('approved'))`. Engine prochází zpětně podmínky `approve-loan` bez modifikace stavu. Důkazový strom odhalí, které podmínky prošly a které selhaly (např. příliš nízké kreditní skóre).
 
-3. **Forward chaining**. Dashboard odebira udalosti emitovane pravidly forward chainingu. Kdyz je pujcka schvalena, spusti se udalost a dashboard se aktualizuje.
+3. **Forward chaining**. Dashboard odebírá události emitované pravidly forward chainingu. Když je půjčka schválena, spustí se událost a dashboard se aktualizuje.
 
-4. **Oba**. Forward chaining zpracoval pujcku a zamitnuti probeslo v realnem case. Ale pro vysvetleni *proc* byla zamitnuta po faktu, backward chaining vytvori dukazovy strom ukazujici, ktere podminky selhaly. Dukazovy strom je auditni artefakt.
+4. **Oba**. Forward chaining zpracoval půjčku a zamítnutí proběhlo v reálném čase. Ale pro vysvětlení *proč* byla zamítnuta po faktu, backward chaining vytvoří důkazový strom ukazující, které podmínky selhaly. Důkazový strom je auditní artefakt.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **Forward chaining** je rizeny daty: udalosti a fakta prochazi pravidly, produji nova data a vedlejsi efekty
-- **Backward chaining** je rizeny cilem: zeptate se "Je tento cil dosazitelny?" a engine prohledava pravidla pozpatku
-- Backward chaining je **read-only** — nikdy nemodifikuje fakta, neemituje udalosti ani nespousti akce
-- Engine hleda pravidla, jejichz **akce** produji cil, a pak rekurzivne overuje jejich **podminky**
-- Podminky zalozene na udalostech, kontextu nebo lookupech jsou v backward chainingu vzdy nesplnene (zadny trigger kontext)
-- Vysledkem je **dukazovy strom** (`ProofNode`), ktery presne vysvetli, proc cil je nebo neni dosazitelny
-- Pouzijte forward chaining pro **reaktivni zpracovani** a backward chaining pro **tazaci dotazy**
-- Nejsilnejsi vzor kombinuje oba: forward chaining pro zive zpracovani, backward chaining pro analyzu na vyzadani
+- **Forward chaining** je řízený daty: události a fakta procházejí pravidly, produkují nová data a vedlejší efekty
+- **Backward chaining** je řízený cílem: zeptáte se "Je tento cíl dosažitelný?" a engine prohledává pravidla pozpátku
+- Backward chaining je **read-only** — nikdy nemodifikuje fakta, neemituje události ani nespouští akce
+- Engine hledá pravidla, jejichž **akce** produkují cíl, a pak rekurzivně ověřuje jejich **podmínky**
+- Podmínky založené na událostech, kontextu nebo lookupech jsou v backward chainingu vždy nesplněné (žádný trigger kontext)
+- Výsledkem je **důkazový strom** (`ProofNode`), který přesně vysvětlí, proč cíl je nebo není dosažitelný
+- Použijte forward chaining pro **reaktivní zpracování** a backward chaining pro **tázací dotazy**
+- Nejsilnější vzor kombinuje oba: forward chaining pro živé zpracování, backward chaining pro analýzu na vyžádání
 
 ---
 
-Dalsi: [Dotazovani cilu](./02-dotazovani-cilu.md)
+Další: [Dotazování cílů](./02-dotazovani-cilu.md)

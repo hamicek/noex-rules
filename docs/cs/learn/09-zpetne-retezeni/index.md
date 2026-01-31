@@ -1,36 +1,36 @@
-# Cast 9: Zpetne retezeni
+# Část 9: Zpětné řetězení
 
-Forward chaining — vychozi rezim noex-rules — je **rizeny daty**: udalosti a fakta prochazi pravidly a produji nove fakta a udalosti. Ale nekdy potrebujete polozit opacnou otazku: "**Je tento cil dosazitelny?**" Zpetne retezeni obrati smer. Na zaklade cile (faktu nebo udalosti, ktery chcete, aby platil) engine prochazi graf pravidel pozpatku, hleda pravidla, jejichz akce cil produji, a rekurzivne overuje, zda jejich podminky lze splnit. Vysledkem je **dukazovy strom**, ktery presne vysvetli, proc cil je nebo neni dosazitelny — aniz by modifikoval jakykoli stav enginu.
+Forward chaining — výchozí režim noex-rules — je **řízený daty**: události a fakta procházejí pravidly a produkují nové fakta a události. Ale někdy potřebujete položit opačnou otázku: "**Je tento cíl dosažitelný?**" Zpětné řetězení obrátí směr. Na základě cíle (faktu nebo události, který chcete, aby platil) engine prochází graf pravidel pozpátku, hledá pravidla, jejichž akce cíl produkují, a rekurzivně ověřuje, zda jejich podmínky lze splnit. Výsledkem je **důkazový strom**, který přesně vysvětlí, proč cíl je nebo není dosažitelný — aniž by modifikoval jakýkoli stav enginu.
 
 ## Kapitoly
 
-### [9.1 Dopredne vs zpetne retezeni](./01-dopredu-vs-zpet.md)
+### [9.1 Dopředné vs zpětné řetězení](./01-dopredu-vs-zpet.md)
 
-Dve komplementarni strategie uvazovani:
-- Rekapitulace forward chainingu: data prochazi pravidly a produji zavery
-- Backward chaining: zacnete od cile a postupujte zpet pres podminky pravidel
-- Kdy pouzit ktery pristup a jak se navzajem doplnuji
-- Srovnavaci tabulka a rozhodovaci kriteria
+Dvě komplementární strategie uvažování:
+- Rekapitulace forward chainingu: data procházejí pravidly a produkují závěry
+- Backward chaining: začněte od cíle a postupujte zpět přes podmínky pravidel
+- Kdy použít který přístup a jak se navzájem doplňují
+- Srovnávací tabulka a rozhodovací kritéria
 
-### [9.2 Dotazovani cilu](./02-dotazovani-cilu.md)
+### [9.2 Dotazování cílů](./02-dotazovani-cilu.md)
 
-Kompletni API zpetneho retezeni:
+Kompletní API zpětného řetězení:
 - Typy `FactGoal` a `EventGoal` s DSL buildery
 - Metoda `engine.query()` a `BackwardChainingConfig`
-- `QueryResult` a struktura dukazoveho stromu (union `ProofNode`)
-- Retezeni pravidel, detekce cyklu a limity hloubky
-- Kompletni priklad overovani zpusobilosti s viceurovnovymi dukazovymi stromy
+- `QueryResult` a struktura důkazového stromu (union `ProofNode`)
+- Řetězení pravidel, detekce cyklů a limity hloubky
+- Kompletní příklad ověřování způsobilosti s víceúrovňovými důkazovými stromy
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
-- Vysvetlit rozdil mezi doprednym a zpetnym retezenim
-- Zvolit spravnou strategii uvazovani pro dany problem
-- Dotazovat engine pomoci builderu `factGoal()` a `eventGoal()`
-- Cist a interpretovat dukazove stromy pro pochopeni, proc cile uspely nebo selhaly
-- Konfigurovat limity hloubky a poctu pravidel pro dotazy zpetneho retezeni
-- Pouzivat zpetne retezeni pro overovani zpusobilosti, validaci predpokladu a analyzu dopadu
+Na konci této sekce budete schopni:
+- Vysvětlit rozdíl mezi dopředným a zpětným řetězením
+- Zvolit správnou strategii uvažování pro daný problém
+- Dotazovat engine pomocí builderů `factGoal()` a `eventGoal()`
+- Číst a interpretovat důkazové stromy pro pochopení, proč cíle uspěly nebo selhaly
+- Konfigurovat limity hloubky a počtu pravidel pro dotazy zpětného řetězení
+- Používat zpětné řetězení pro ověřování způsobilosti, validaci předpokladů a analýzu dopadu
 
 ---
 
-Zacnete s: [Dopredne vs zpetne retezeni](./01-dopredu-vs-zpet.md)
+Začněte s: [Dopředné vs zpětné řetězení](./01-dopredu-vs-zpet.md)

@@ -1,45 +1,45 @@
-# Dotazovani cilu
+# Dotazování cílů
 
-Predchozi kapitola vysvetlila teorii zpetneho retezeni. Tato kapitola je kompletni API reference: jak konstruovat cile, konfigurovat engine, volat `engine.query()` a interpretovat dukazovy strom, ktery vraci. Postavite vicepravidlovy system overovani zpusobilosti a naucite se cist dukazove stromy zahrnujici vice urovni retezeni pravidel.
+Předchozí kapitola vysvětlila teorii zpětného řetězení. Tato kapitola je kompletní API reference: jak konstruovat cíle, konfigurovat engine, volat `engine.query()` a interpretovat důkazový strom, který vrací. Postavíte vícepravidlový systém ověřování způsobilosti a naučíte se číst důkazové stromy zahrnující více úrovní řetězení pravidel.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak konfigurovat backward chaining pomoci `BackwardChainingConfig`
-- Konstrukce cilu s raw objekty a DSL buildery (`factGoal`, `eventGoal`)
-- Volani `engine.query()` a cteni `QueryResult`
-- Vsechny typy `ProofNode`: `FactExistsNode`, `RuleProofNode`, `UnachievableNode`
-- Jak funguje retezeni pravidel, detekce cyklu a limity hloubky
+- Jak konfigurovat backward chaining pomocí `BackwardChainingConfig`
+- Konstrukce cílů s raw objekty a DSL buildery (`factGoal`, `eventGoal`)
+- Volání `engine.query()` a čtení `QueryResult`
+- Všechny typy `ProofNode`: `FactExistsNode`, `RuleProofNode`, `UnachievableNode`
+- Jak funguje řetězení pravidel, detekce cyklů a limity hloubky
 - Pozorovatelnost: tracing a audit logging pro backward dotazy
 
 ## Konfigurace
 
-Backward chaining je dostupny na kazdem enginu bez dalsi konfigurace. Pro nastaveni limitu predejte `backwardChaining` do `RuleEngine.start()`:
+Backward chaining je dostupný na každém enginu bez další konfigurace. Pro nastavení limitů předejte `backwardChaining` do `RuleEngine.start()`:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
 
 const engine = await RuleEngine.start({
   backwardChaining: {
-    maxDepth: 15,           // Max hloubka rekurze (vychozi: 10)
-    maxExploredRules: 200,  // Max prozoumanych pravidel na dotaz (vychozi: 100)
+    maxDepth: 15,           // Max hloubka rekurze (výchozí: 10)
+    maxExploredRules: 200,  // Max prozkoumáných pravidel na dotaz (výchozí: 100)
   },
 });
 ```
 
-| Volba | Vychozi | Popis |
+| Volba | Výchozí | Popis |
 |-------|---------|-------|
-| `maxDepth` | `10` | Maximalni hloubka rekurze pri vyhodnocovani podcilu |
-| `maxExploredRules` | `100` | Maximalni celkovy pocet prozkoumanych pravidel v ramci dotazu |
+| `maxDepth` | `10` | Maximální hloubka rekurze při vyhodnocování podcílů |
+| `maxExploredRules` | `100` | Maximální celkový počet prozkoumáných pravidel v rámci dotazu |
 
-Oba limity chrani pred nekonecnymi dotazy ve velkych sadach pravidel. Pri dosazeni limitu vraci postizena vetev `UnachievableNode` s duvodem `'max_depth'`.
+Oba limity chrání před nekonečnými dotazy ve velkých sadách pravidel. Při dosažení limitu vrací postižená větev `UnachievableNode` s důvodem `'max_depth'`.
 
-## Cile
+## Cíle
 
-**Cil** je otazka, kterou kladete enginu. Existuji dva typy:
+**Cíl** je otázka, kterou kladete enginu. Existují dva typy:
 
 ### FactGoal
 
-"Muze tento fakt existovat (nebo mit konkretni hodnotu)?"
+"Může tento fakt existovat (nebo mít konkrétní hodnotu)?"
 
 ```typescript
 import { factGoal } from '@hamicek/noex-rules/dsl';
@@ -47,10 +47,10 @@ import { factGoal } from '@hamicek/noex-rules/dsl';
 // Kontrola existence — existuje fakt s jakoukoli hodnotou?
 factGoal('customer:c-42:tier')
 
-// Rovnost hodnoty — rovna se fakt 'vip'?
+// Rovnost hodnoty — rovná se fakt 'vip'?
 factGoal('customer:c-42:tier').equals('vip')
 
-// Numericka srovnani
+// Numerická srovnání
 factGoal('customer:c-42:points').gte(1000)
 factGoal('order:ord-1:total').lt(500)
 factGoal('sensor:temp:current').gt(100)
@@ -60,134 +60,134 @@ factGoal('account:a-1:balance').lte(0)
 factGoal('user:u-1:status').neq('banned')
 ```
 
-Metoda `.exists()` je k dispozici jako pomucka pro citelnost, ale je vychozim chovanim — volani `factGoal('key')` a `factGoal('key').exists()` produji stejny cil.
+Metoda `.exists()` je k dispozici jako pomůcka pro čitelnost, ale je výchozím chováním — volání `factGoal('key')` a `factGoal('key').exists()` produkují stejný cíl.
 
-**Dostupne operatory**:
+**Dostupné operátory**:
 
-| Metoda | Operator | Popis |
+| Metoda | Operátor | Popis |
 |--------|----------|-------|
-| `.exists()` | — | Fakt existuje s jakoukoli hodnotou (vychozi) |
-| `.equals(v)` | `eq` | Hodnota faktu se rovna `v` |
-| `.neq(v)` | `neq` | Hodnota faktu se nerovna `v` |
-| `.gt(n)` | `gt` | Hodnota faktu je vetsi nez `n` |
-| `.gte(n)` | `gte` | Hodnota faktu je vetsi nebo rovna `n` |
-| `.lt(n)` | `lt` | Hodnota faktu je mensi nez `n` |
-| `.lte(n)` | `lte` | Hodnota faktu je mensi nebo rovna `n` |
+| `.exists()` | — | Fakt existuje s jakoukoli hodnotou (výchozí) |
+| `.equals(v)` | `eq` | Hodnota faktu se rovná `v` |
+| `.neq(v)` | `neq` | Hodnota faktu se nerovná `v` |
+| `.gt(n)` | `gt` | Hodnota faktu je větší než `n` |
+| `.gte(n)` | `gte` | Hodnota faktu je větší nebo rovna `n` |
+| `.lt(n)` | `lt` | Hodnota faktu je menší než `n` |
+| `.lte(n)` | `lte` | Hodnota faktu je menší nebo rovna `n` |
 
-Numericke operatory (`.gt()`, `.gte()`, `.lt()`, `.lte()`) vyzaduji konecne cislo a vyhoduji `DslValidationError` pro nenumericke hodnoty.
+Numerické operátory (`.gt()`, `.gte()`, `.lt()`, `.lte()`) vyžadují konečné číslo a vyhodí `DslValidationError` pro nenumerické hodnoty.
 
 ### EventGoal
 
-"Muze byt tato udalost emitovana nejakym retezem pravidel?"
+"Může být tato událost emitována nějakým řetězem pravidel?"
 
 ```typescript
 import { eventGoal } from '@hamicek/noex-rules/dsl';
 
-// Muze nektery retez pravidel produkovat tuto udalost?
+// Může některý řetěz pravidel produkovat tuto událost?
 eventGoal('order.completed')
 eventGoal('notification.sent')
 eventGoal('fraud.alert')
 ```
 
-Cile udalosti vyhledavaji pravidla, jejichz akce obsahuji `emit_event` akci s odpovidajicim topicem.
+Cíle událostí vyhledávají pravidla, jejichž akce obsahují `emit_event` akci s odpovídajícím topicem.
 
-### Raw cilove objekty
+### Raw cílové objekty
 
-Cile muzete take konstruovat jako plain objekty bez DSL:
+Cíle můžete také konstruovat jako plain objekty bez DSL:
 
 ```typescript
-// Faktovy cil (raw)
+// Faktový cíl (raw)
 const goal = { type: 'fact' as const, key: 'customer:c-42:tier', value: 'vip', operator: 'eq' as const };
 
-// Udalostni cil (raw)
+// Událostní cíl (raw)
 const goal = { type: 'event' as const, topic: 'order.completed' };
 
 engine.query(goal);
 ```
 
-DSL buildery jsou preferovany pro typovou bezpecnost a citelnost.
+DSL buildery jsou preferovány pro typovou bezpečnost a čitelnost.
 
-## Dotazovani
+## Dotazování
 
-Zavolejte `engine.query()` s cilem nebo goal builderem:
+Zavolejte `engine.query()` s cílem nebo goal builderem:
 
 ```typescript
 const result = engine.query(factGoal('customer:c-42:tier').equals('vip'));
 ```
 
-Metoda prijima raw `Goal` objekty i instance `GoalBuilder` (z DSL). Buildery resolvuje automaticky volanim `.build()`.
+Metoda přijímá raw `Goal` objekty i instance `GoalBuilder` (z DSL). Buildery resolvuje automaticky voláním `.build()`.
 
 ### QueryResult
 
-Kazdy dotaz vraci `QueryResult`:
+Každý dotaz vrací `QueryResult`:
 
 ```typescript
 interface QueryResult {
-  goal: Goal;              // Dotazovany cil
-  achievable: boolean;     // Zda je cil dosazitelny
-  proof: ProofNode;        // Dukazovy strom vysvetlujici proc
-  exploredRules: number;   // Celkovy pocet prozkoumanych pravidel
-  maxDepthReached: boolean; // Zda rekurze dosahla limitu hloubky
-  durationMs: number;      // Doba provedeni dotazu v milisekundach
+  goal: Goal;              // Dotazovaný cíl
+  achievable: boolean;     // Zda je cíl dosažitelný
+  proof: ProofNode;        // Důkazový strom vysvětlující proč
+  exploredRules: number;   // Celkový počet prozkoumáných pravidel
+  maxDepthReached: boolean; // Zda rekurze dosáhla limitu hloubky
+  durationMs: number;      // Doba provedení dotazu v milisekundách
 }
 ```
 
-Pole `achievable` je hlavni odpoved. Strom `proof` vysvetluje uvazovani.
+Pole `achievable` je hlavní odpověď. Strom `proof` vysvětluje uvažování.
 
-## Dukazove stromy
+## Důkazové stromy
 
-Dukazovy strom je rekurzivni struktura se tremi typy uzlu:
+Důkazový strom je rekurzivní struktura se třemi typy uzlů:
 
 ```text
   ProofNode
-  ├── FactExistsNode     — Zakladni pripad: fakt jiz ve store
-  ├── RuleProofNode      — Pravidlo bylo prozkoumano s podminkamni
-  └── UnachievableNode   — Cil nelze dosahnout (s duvodem)
+  ├── FactExistsNode     — Základní případ: fakt již ve store
+  ├── RuleProofNode      — Pravidlo bylo prozkoumáno s podmínkami
+  └── UnachievableNode   — Cíl nelze dosáhnout (s důvodem)
 ```
 
 ### FactExistsNode
 
-Vracen, kdyz fakt jiz existuje ve store:
+Vrácen, když fakt již existuje ve store:
 
 ```typescript
 interface FactExistsNode {
   type: 'fact_exists';
-  key: string;          // Klic faktu
-  currentValue: unknown; // Aktualni hodnota ve store
-  satisfied: boolean;    // Zda hodnota odpovida cili
+  key: string;          // Klíč faktu
+  currentValue: unknown; // Aktuální hodnota ve store
+  satisfied: boolean;    // Zda hodnota odpovídá cíli
 }
 ```
 
-`FactExistsNode` muze byt splneny (fakt existuje a odpovida) nebo nesplneny (fakt existuje, ale neodpovida operatoru/hodnote cile). Kdyz fakt neexistuje vubec a zadne pravidlo ho neprodukuje, dostanete misto toho `UnachievableNode`.
+`FactExistsNode` může být splněný (fakt existuje a odpovídá) nebo nesplněný (fakt existuje, ale neodpovídá operátoru/hodnotě cíle). Když fakt neexistuje vůbec a žádné pravidlo ho neprodukuje, dostanete místo toho `UnachievableNode`.
 
 ### RuleProofNode
 
-Vracen, kdyz bylo nalezeno pravidlo, ktere by mohlo cil produkovat:
+Vrácen, když bylo nalezeno pravidlo, které by mohlo cíl produkovat:
 
 ```typescript
 interface RuleProofNode {
   type: 'rule';
   ruleId: string;                     // ID pravidla
-  ruleName: string;                   // Lidsky citelny nazev
-  satisfied: boolean;                 // Zda vsechny podminky prosly
-  conditions: ConditionProofNode[];   // Vysledky vyhodnoceni jednotlivych podminek
-  children: ProofNode[];              // Podcile z nesplnenych podminek
+  ruleName: string;                   // Lidsky čitelný název
+  satisfied: boolean;                 // Zda všechny podmínky prošly
+  conditions: ConditionProofNode[];   // Výsledky vyhodnocení jednotlivých podmínek
+  children: ProofNode[];              // Podcíle z nesplněných podmínek
 }
 
 interface ConditionProofNode {
-  source: string;         // Lidsky citelny zdroj (napr. 'fact:customer:points')
-  operator: string;       // Operator podminky (napr. 'gte')
-  expectedValue: unknown; // Ocekavana hodnota podminky
-  actualValue: unknown;   // Skutecna hodnota z fact store
-  satisfied: boolean;     // Zda tato podminka prosla
+  source: string;         // Lidsky čitelný zdroj (např. 'fact:customer:points')
+  operator: string;       // Operátor podmínky (např. 'gte')
+  expectedValue: unknown; // Očekávaná hodnota podmínky
+  actualValue: unknown;   // Skutečná hodnota z fact store
+  satisfied: boolean;     // Zda tato podmínka prošla
 }
 ```
 
-Pole `children` obsahuje podcile — rekurzivni proof uzly pro podminky odkazujici na fakta, ktera jeste nejsou ve store. Zde strom roste do hloubky.
+Pole `children` obsahuje podcíle — rekurzivní proof uzly pro podmínky odkazující na fakta, která ještě nejsou ve store. Zde strom roste do hloubky.
 
 ### UnachievableNode
 
-Vracen, kdyz cil nelze dosahnout:
+Vrácen, když cíl nelze dosáhnout:
 
 ```typescript
 interface UnachievableNode {
@@ -197,21 +197,21 @@ interface UnachievableNode {
 }
 ```
 
-| Duvod | Vyznam |
+| Důvod | Význam |
 |-------|--------|
-| `no_rules` | Zadne akce pravidel cil neproduji |
-| `cycle_detected` | Vsechna kandidatni pravidla tvori kruhovou zavislost |
-| `max_depth` | Dosazen limit hloubky rekurze |
-| `all_paths_failed` | Pravidla existuji, ale zadne nema splnitelne podminky |
+| `no_rules` | Žádné akce pravidel cíl neprodukují |
+| `cycle_detected` | Všechna kandidátní pravidla tvoří kruhovou závislost |
+| `max_depth` | Dosažen limit hloubky rekurze |
+| `all_paths_failed` | Pravidla existují, ale žádné nemá splnitelné podmínky |
 
-## Retezeni pravidel
+## Řetězení pravidel
 
-Sila backward chainingu pochazi z nasledovani retezu pravidel. Kdyz podminka odkazuje na chybejici fakt, engine automaticky vytvori podcil a hleda pravidla, ktera ho produji:
+Síla backward chainingu pochází z následování řetězů pravidel. Když podmínka odkazuje na chybějící fakt, engine automaticky vytvoří podcíl a hledá pravidla, která ho produkují:
 
 ```typescript
 const engine = await RuleEngine.start();
 
-// Pravidlo 1: Ziskej body z objednavek
+// Pravidlo 1: Získej body z objednávek
 engine.registerRule(
   Rule.create('earn-points')
     .name('Earn Loyalty Points')
@@ -220,7 +220,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 2: Upgrade na VIP kdyz je dost bodu
+// Pravidlo 2: Upgrade na VIP když je dost bodů
 engine.registerRule(
   Rule.create('vip-upgrade')
     .name('VIP Tier Upgrade')
@@ -230,27 +230,27 @@ engine.registerRule(
     .build()
 );
 
-// Dotaz: Muze zakaznik c-42 mit VIP tier?
+// Dotaz: Může zákazník c-42 mít VIP tier?
 const result = engine.query(factGoal('customer:c-42:tier').equals('vip'));
 ```
 
-Engine prochazi zpetne:
+Engine prochází zpětně:
 
-1. Cil: `customer:c-42:tier = 'vip'` → najde pravidlo `vip-upgrade`
-2. Podminka: `customer:c-42:points >= 1000` → fakt chybi → podcil
-3. Podcil: `customer:c-42:points` existuje → najde pravidlo `earn-points`
-4. `earn-points` nema podminky → splneno
+1. Cíl: `customer:c-42:tier = 'vip'` → najde pravidlo `vip-upgrade`
+2. Podmínka: `customer:c-42:points >= 1000` → fakt chybí → podcíl
+3. Podcíl: `customer:c-42:points` existuje → najde pravidlo `earn-points`
+4. `earn-points` nemá podmínky → splněno
 
-Vysledek: achievable = `true`, s dvouurovnovym dukazovym stromem.
+Výsledek: achievable = `true`, s dvouúrovňovým důkazovým stromem.
 
-Pokud by `customer:c-42:points` jiz existoval s hodnotou `1500`, engine by nemusel rekurzovat — krok 2 by vratil splneny `FactExistsNode`.
+Pokud by `customer:c-42:points` již existoval s hodnotou `1500`, engine by nemusel rekurzovat — krok 2 by vrátil splněný `FactExistsNode`.
 
-## Detekce cyklu
+## Detekce cyklů
 
-Kdyz pravidla tvori kruhove zavislosti, engine cyklus detekuje a zastavi:
+Když pravidla tvoří kruhové závislosti, engine cyklus detekuje a zastaví:
 
 ```typescript
-// Pravidlo A produkuje fact-x kdyz fact-y existuje
+// Pravidlo A produkuje fact-x když fact-y existuje
 engine.registerRule(
   Rule.create('rule-a')
     .name('Rule A')
@@ -260,7 +260,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo B produkuje fact-y kdyz fact-x existuje
+// Pravidlo B produkuje fact-y když fact-x existuje
 engine.registerRule(
   Rule.create('rule-b')
     .name('Rule B')
@@ -275,17 +275,17 @@ const result = engine.query(factGoal('fact-x'));
 // result.proof.reason === 'cycle_detected'
 ```
 
-Engine udrzuje mnozinu navstivenych pri prochazeni. Kdyz narazi na kombinaci pravidlo+cil, kterou jiz v aktualni ceste videl, vrati se zpet. Pokud vsechna kandidatni pravidla jsou soucasti cyklu, vysledkem je `UnachievableNode` s duvodem `'cycle_detected'`.
+Engine udržuje množinu navštívených při procházení. Když narazí na kombinaci pravidlo+cíl, kterou již v aktuální cestě viděl, vrátí se zpět. Pokud všechna kandidátní pravidla jsou součástí cyklu, výsledkem je `UnachievableNode` s důvodem `'cycle_detected'`.
 
-## Deaktivovana pravidla a skupiny
+## Deaktivovaná pravidla a skupiny
 
-Backward chaining respektuje stav pravidel a skupin. Deaktivovana pravidla a pravidla v deaktivovanych skupinach jsou pri hledani preskocena:
+Backward chaining respektuje stav pravidel a skupin. Deaktivovaná pravidla a pravidla v deaktivovaných skupinách jsou při hledání přeskočena:
 
 ```typescript
 engine.registerRule(
   Rule.create('my-rule')
     .name('My Rule')
-    .enabled(false) // Deaktivovano — backward chaining toto pravidlo ignoruje
+    .enabled(false) // Deaktivováno — backward chaining toto pravidlo ignoruje
     .when(onEvent('trigger'))
     .then(setFact('output', true))
     .build()
@@ -293,12 +293,12 @@ engine.registerRule(
 
 const result = engine.query(factGoal('output'));
 // result.achievable === false
-// result.proof.reason === 'no_rules' (deaktivovane pravidlo je neviditelne)
+// result.proof.reason === 'no_rules' (deaktivované pravidlo je neviditelné)
 ```
 
-## Kompletni priklad: System overovani zpusobilosti pro pujcku
+## Kompletní příklad: Systém ověřování způsobilosti pro půjčku
 
-Tento priklad demonstruje vicepravidlovy system, kde backward chaining prochazi tremi urovnemi pravidel pro urceni zpusobilosti pro pujcku:
+Tento příklad demonstruje vícepravidlový systém, kde backward chaining prochází třemi úrovněmi pravidel pro určení způsobilosti pro půjčku:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -311,9 +311,9 @@ const engine = await RuleEngine.start({
   backwardChaining: { maxDepth: 15 },
 });
 
-// --- Uroven 1: Zakladni datova pravidla ---
+// --- Úroveň 1: Základní datová pravidla ---
 
-// Vyhledani kreditniho skore produkuje fakt skore
+// Vyhledání kreditního skóre produkuje fakt skóre
 engine.registerRule(
   Rule.create('credit-score-lookup')
     .name('Credit Score Lookup')
@@ -325,7 +325,7 @@ engine.registerRule(
     .build()
 );
 
-// Overeni prijmu produkuje fakt prijmu
+// Ověření příjmu produkuje fakt příjmu
 engine.registerRule(
   Rule.create('income-verification')
     .name('Income Verification')
@@ -337,9 +337,9 @@ engine.registerRule(
     .build()
 );
 
-// --- Uroven 2: Odvozena kriteria zpusobilosti ---
+// --- Úroveň 2: Odvozená kritéria způsobilosti ---
 
-// Kreditne zpusobily kdyz skore >= 680
+// Kreditně způsobilý když skóre >= 680
 engine.registerRule(
   Rule.create('credit-eligible')
     .name('Credit Eligibility')
@@ -349,7 +349,7 @@ engine.registerRule(
     .build()
 );
 
-// Prijmove zpusobily kdyz overeny prijem >= 45000
+// Příjmově způsobilý když ověřený příjem >= 45000
 engine.registerRule(
   Rule.create('income-eligible')
     .name('Income Eligibility')
@@ -359,9 +359,9 @@ engine.registerRule(
     .build()
 );
 
-// --- Uroven 3: Konecne rozhodnuti o pujcce ---
+// --- Úroveň 3: Konečné rozhodnutí o půjčce ---
 
-// Schvalit pujcku kdyz je splnena kreditni i prijmova zpusobilost
+// Schválit půjčku když je splněna kreditní i příjmová způsobilost
 engine.registerRule(
   Rule.create('loan-approval')
     .name('Loan Approval')
@@ -375,7 +375,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Scenar 1: Plne zpusobily zadatel ---
+// --- Scénář 1: Plně způsobilý žadatel ---
 
 engine.setFact('applicant:A-1:creditScore', 750);
 engine.setFact('applicant:A-1:verifiedIncome', 85000);
@@ -384,25 +384,25 @@ engine.setFact('applicant:A-1:incomeEligible', true);
 
 const eligible = engine.query(factGoal('applicant:A-1:loanApproved').equals(true));
 
-console.log('Zadatel A-1 pujcka schvalena:', eligible.achievable);
-// true — vsechny podminky splneny z existujicich faktu
-console.log('Prozkoumana pravidla:', eligible.exploredRules);
-// 1 — jen loan-approval bylo potreba
+console.log('Žadatel A-1 půjčka schválena:', eligible.achievable);
+// true — všechny podmínky splněny z existujících faktů
+console.log('Prozkoumáná pravidla:', eligible.exploredRules);
+// 1 — jen loan-approval bylo potřeba
 
-// --- Scenar 2: Chybejici prijmova zpusobilost ---
+// --- Scénář 2: Chybějící příjmová způsobilost ---
 
 engine.setFact('applicant:A-2:creditScore', 720);
 engine.setFact('applicant:A-2:creditEligible', true);
-// Zadny fakt incomeEligible — backward chaining ho bude hledat
+// Žádný fakt incomeEligible — backward chaining ho bude hledat
 
 const partial = engine.query(factGoal('applicant:A-2:loanApproved').equals(true));
 
-console.log('Zadatel A-2 pujcka schvalena:', partial.achievable);
-// false — fakt incomeEligible chybi a pravidlo income-eligible potrebuje
-//         verifiedIncome, ktery take neexistuje
-console.log('Prozkoumana pravidla:', partial.exploredRules);
+console.log('Žadatel A-2 půjčka schválena:', partial.achievable);
+// false — fakt incomeEligible chybí a pravidlo income-eligible potřebuje
+//         verifiedIncome, který také neexistuje
+console.log('Prozkoumáná pravidla:', partial.exploredRules);
 
-// --- Inspekce dukazoveho stromu ---
+// --- Inspekce důkazového stromu ---
 
 function printProof(node: any, indent = 0): void {
   const pad = '  '.repeat(indent);
@@ -415,7 +415,7 @@ function printProof(node: any, indent = 0): void {
     case 'rule':
       console.log(`${pad}[PRAVIDLO] ${node.ruleName} (${node.satisfied ? '✓' : '✗'})`);
       for (const cond of node.conditions) {
-        console.log(`${pad}  ${cond.source} ${cond.operator} ${cond.expectedValue} → skutecna: ${cond.actualValue} (${cond.satisfied ? '✓' : '✗'})`);
+        console.log(`${pad}  ${cond.source} ${cond.operator} ${cond.expectedValue} → skutečná: ${cond.actualValue} (${cond.satisfied ? '✓' : '✗'})`);
       }
       for (const child of node.children) {
         printProof(child, indent + 1);
@@ -423,77 +423,77 @@ function printProof(node: any, indent = 0): void {
       break;
 
     case 'unachievable':
-      console.log(`${pad}[NEDOSAZITELNY] ${node.reason}${node.details ? ': ' + node.details : ''}`);
+      console.log(`${pad}[NEDOSAŽITELNÝ] ${node.reason}${node.details ? ': ' + node.details : ''}`);
       break;
   }
 }
 
-console.log('\n--- Dukazovy strom pro A-2 ---');
+console.log('\n--- Důkazový strom pro A-2 ---');
 printProof(partial.proof);
 
-// --- Muze byt emitovana udalost loan.approved? ---
+// --- Může být emitována událost loan.approved? ---
 
 const canEmit = engine.query(eventGoal('loan.approved'));
-console.log('\nMuze emitovat loan.approved:', canEmit.achievable);
+console.log('\nMůže emitovat loan.approved:', canEmit.achievable);
 
 await engine.stop();
 ```
 
 ## Pozorovatelnost
 
-Backward chaining se integruje s tracing a audit systemy enginu.
+Backward chaining se integruje s tracing a audit systémy enginu.
 
-### Trace zaznamy
+### Trace záznamy
 
-Kdyz je tracing povoleny, backward dotazy emituji dva typy trace zaznamu:
+Když je tracing povolen, backward dotazy emitují dva typy trace záznamů:
 
-| Typ | Kdy | Klicove detaily |
+| Typ | Kdy | Klíčové detaily |
 |-----|-----|-----------------|
-| `backward_goal_evaluated` | Cil (fakt nebo udalost) je vyhodnocen | `goalType`, `key`/`topic`, `depth`, `satisfied`, `proofType` |
-| `backward_rule_explored` | Pravidlo je prozkoumano behem hledani | `ruleId`, `ruleName`, `satisfied`, `conditionsCount`, `childrenCount`, `depth` |
+| `backward_goal_evaluated` | Cíl (fakt nebo událost) je vyhodnocen | `goalType`, `key`/`topic`, `depth`, `satisfied`, `proofType` |
+| `backward_rule_explored` | Pravidlo je prozkoumáno během hledání | `ruleId`, `ruleName`, `satisfied`, `conditionsCount`, `childrenCount`, `depth` |
 
 ```typescript
 const engine = await RuleEngine.start({
   tracing: { enabled: true },
 });
 
-// Po dotazu jsou trace zaznamy v kolektoru
+// Po dotazu jsou trace záznamy v kolektoru
 engine.query(factGoal('customer:c-42:tier').equals('vip'));
 
 const goalTraces = engine.traceCollector.getByType('backward_goal_evaluated');
 const ruleTraces = engine.traceCollector.getByType('backward_rule_explored');
 
 for (const trace of goalTraces) {
-  console.log(`Cil ${trace.details.goalType}:${trace.details.key ?? trace.details.topic}`
-    + ` v hloubce ${trace.details.depth}: ${trace.details.satisfied ? 'splneno' : 'nesplneno'}`);
+  console.log(`Cíl ${trace.details.goalType}:${trace.details.key ?? trace.details.topic}`
+    + ` v hloubce ${trace.details.depth}: ${trace.details.satisfied ? 'splněno' : 'nesplněno'}`);
 }
 ```
 
 ### Audit logging
 
-Kdyz je audit logging povoleny, backward dotazy zaznamenavaji udalosti zahajeni a dokonceni:
+Když je audit logging povolen, backward dotazy zaznamenávají události zahájení a dokončení:
 
-| Audit udalost | Detaily |
+| Audit událost | Detaily |
 |----------------|---------|
 | `backward_query_started` | `goalType`, `key`/`topic`, `value`, `operator` |
 | `backward_query_completed` | `goalType`, `achievable`, `exploredRules`, `maxDepthReached`, `durationMs` |
 
-## Cviceni
+## Cvičení
 
-Postavte system overovani zpusobilosti pro zakaznicke odmeny:
+Postavte systém ověřování způsobilosti pro zákaznické odměny:
 
-1. Vytvorte engine s povolenym backward chaining (maxDepth: 20)
+1. Vytvořte engine s povoleným backward chaining (maxDepth: 20)
 2. Registrujte tato pravidla:
-   - `active-customer`: nastavi `customer:${id}:active` na `true` pri prijmu udalosti `customer.login`
-   - `purchase-milestone`: nastavi `customer:${id}:milestone` na `true` kdyz `customer:${id}:totalPurchases` >= 500
-   - `reward-eligible`: nastavi `customer:${id}:rewardEligible` na `true` kdyz `customer:${id}:active` je `true` A ZAROVEN `customer:${id}:milestone` je `true`
+   - `active-customer`: nastaví `customer:${id}:active` na `true` při příjmu události `customer.login`
+   - `purchase-milestone`: nastaví `customer:${id}:milestone` na `true` když `customer:${id}:totalPurchases` >= 500
+   - `reward-eligible`: nastaví `customer:${id}:rewardEligible` na `true` když `customer:${id}:active` je `true` A ZÁROVEŇ `customer:${id}:milestone` je `true`
 3. Nastavte fakta: `customer:c-1:active = true`, `customer:c-1:totalPurchases = 750`
-4. Dotaz: Muze `customer:c-1:rewardEligible` byt rovno `true`?
-5. Vytisknete dukazovy strom pro zobrazeni retezu uvazovani
-6. Dotazujte se na druheho zakaznika `c-2`, ktery ma `active = true` ale `totalPurchases = 200` — overdte, ze neni dosazitelny a prozkoumejte proc
+4. Dotaz: Může `customer:c-1:rewardEligible` být rovno `true`?
+5. Vytiskněte důkazový strom pro zobrazení řetězu uvažování
+6. Dotazujte se na druhého zákazníka `c-2`, který má `active = true` ale `totalPurchases = 200` — ověřte, že není dosažitelný a prozkoumejte proč
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -506,7 +506,7 @@ const engine = await RuleEngine.start({
   backwardChaining: { maxDepth: 20 },
 });
 
-// Pravidlo 1: Oznac zakaznika jako aktivniho pri prihlaseni
+// Pravidlo 1: Označ zákazníka jako aktivního při přihlášení
 engine.registerRule(
   Rule.create('active-customer')
     .name('Active Customer')
@@ -515,7 +515,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 2: Nastav milestone kdyz nakupy dosahnou 500
+// Pravidlo 2: Nastav milestone když nákupy dosáhnou 500
 engine.registerRule(
   Rule.create('purchase-milestone')
     .name('Purchase Milestone')
@@ -525,7 +525,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 3: Zpusobily pro odmenu kdyz je aktivni A dosahl milestone
+// Pravidlo 3: Způsobilý pro odměnu když je aktivní A dosáhl milestone
 engine.registerRule(
   Rule.create('reward-eligible')
     .name('Reward Eligibility')
@@ -536,7 +536,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Zakaznik c-1: zpusobily ---
+// --- Zákazník c-1: způsobilý ---
 
 engine.setFact('customer:c-1:active', true);
 engine.setFact('customer:c-1:totalPurchases', 750);
@@ -544,7 +544,7 @@ engine.setFact('customer:c-1:milestone', true);
 
 const c1Result = engine.query(factGoal('customer:c-1:rewardEligible').equals(true));
 
-console.log('Zakaznik c-1 zpusobily pro odmenu:', c1Result.achievable);
+console.log('Zákazník c-1 způsobilý pro odměnu:', c1Result.achievable);
 // true
 
 function printProof(node: any, indent = 0): void {
@@ -563,58 +563,58 @@ function printProof(node: any, indent = 0): void {
       }
       break;
     case 'unachievable':
-      console.log(`${pad}[NEDOSAZITELNY] ${node.reason}${node.details ? ': ' + node.details : ''}`);
+      console.log(`${pad}[NEDOSAŽITELNÝ] ${node.reason}${node.details ? ': ' + node.details : ''}`);
       break;
   }
 }
 
-console.log('\n--- Dukazovy strom pro c-1 ---');
+console.log('\n--- Důkazový strom pro c-1 ---');
 printProof(c1Result.proof);
 
-// --- Zakaznik c-2: nezpusobily ---
+// --- Zákazník c-2: nezpůsobilý ---
 
 engine.setFact('customer:c-2:active', true);
 engine.setFact('customer:c-2:totalPurchases', 200);
 
 const c2Result = engine.query(factGoal('customer:c-2:rewardEligible').equals(true));
 
-console.log('\nZakaznik c-2 zpusobily pro odmenu:', c2Result.achievable);
-// false — milestone nedosazen, totalPurchases jen 200
+console.log('\nZákazník c-2 způsobilý pro odměnu:', c2Result.achievable);
+// false — milestone nedosažen, totalPurchases jen 200
 
-console.log('\n--- Dukazovy strom pro c-2 ---');
+console.log('\n--- Důkazový strom pro c-2 ---');
 printProof(c2Result.proof);
 
-// Dukazovy strom ukazuje:
+// Důkazový strom ukazuje:
 // [PRAVIDLO] Reward Eligibility (✗)
 //   fact:customer:c-2:active equals true → true (✓)
 //   fact:customer:c-2:milestone equals true → undefined (✗)
 //   [PRAVIDLO] Purchase Milestone (✗)
 //     fact:customer:c-2:totalPurchases gte 500 → 200 (✗)
 
-console.log('\nProzkoumana pravidla pro c-1:', c1Result.exploredRules);
-console.log('Prozkoumana pravidla pro c-2:', c2Result.exploredRules);
+console.log('\nProzkoumáná pravidla pro c-1:', c1Result.exploredRules);
+console.log('Prozkoumáná pravidla pro c-2:', c2Result.exploredRules);
 
 await engine.stop();
 ```
 
-Zakaznik c-1 je zpusobily, protoze vsechna tri fakta existuji: `active = true`, `totalPurchases = 750` a `milestone = true`. Zakaznik c-2 selze, protoze fakt milestone neexistuje, a kdyz backward chaining hleda pravidlo `purchase-milestone`, podminka `totalPurchases = 200` selze (200 < 500).
+Zákazník c-1 je způsobilý, protože všechna tři fakta existují: `active = true`, `totalPurchases = 750` a `milestone = true`. Zákazník c-2 selže, protože fakt milestone neexistuje, a když backward chaining hledá pravidlo `purchase-milestone`, podmínka `totalPurchases = 200` selže (200 < 500).
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Konfigurujte limity backward chainingu pomoci `backwardChaining: { maxDepth, maxExploredRules }` v `RuleEngine.start()`
-- Konstruujte faktove cile pomoci `factGoal(key)` a retezem operatoru: `.equals()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`
-- Konstruujte udalostni cile pomoci `eventGoal(topic)` pro overeni, zda muze byt udalost emitovana
-- Volejte `engine.query(goal)` — prijima raw `Goal` objekty i DSL buildery
+- Konfigurujte limity backward chainingu pomocí `backwardChaining: { maxDepth, maxExploredRules }` v `RuleEngine.start()`
+- Konstruujte faktové cíle pomocí `factGoal(key)` a řetězem operátorů: `.equals()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`
+- Konstruujte událostní cíle pomocí `eventGoal(topic)` pro ověření, zda může být událost emitována
+- Volejte `engine.query(goal)` — přijímá raw `Goal` objekty i DSL buildery
 - `QueryResult` obsahuje `achievable`, strom `proof`, `exploredRules`, `maxDepthReached` a `durationMs`
-- Tri typy proof uzlu: `FactExistsNode` (zakladni pripad), `RuleProofNode` (pravidlo prozkoumano), `UnachievableNode` (cil nedosazitelny)
-- Engine **rekurzivne retezi** pres pravidla: chybejici fakta se stavaji podcili, ktere hledaji produkujici pravidla
-- **Detekce cyklu** brani nekonecnym smyckam — kruhove zavislosti pravidel vraci `'cycle_detected'`
-- Deaktivovana pravidla a pravidla v deaktivovanych skupinach jsou **neviditelna** pro backward chaining
-- Backward dotazy emituji trace zaznamy `backward_goal_evaluated` a `backward_rule_explored`
-- Audit logging zaznamenava udalosti `backward_query_started` a `backward_query_completed`
+- Tři typy proof uzlů: `FactExistsNode` (základní případ), `RuleProofNode` (pravidlo prozkoumáno), `UnachievableNode` (cíl nedosažitelný)
+- Engine **rekurzivně řetězí** přes pravidla: chybějící fakta se stávají podcíly, které hledají produkující pravidla
+- **Detekce cyklů** brání nekonečným smyčkám — kruhové závislosti pravidel vrací `'cycle_detected'`
+- Deaktivovaná pravidla a pravidla v deaktivovaných skupinách jsou **neviditelná** pro backward chaining
+- Backward dotazy emitují trace záznamy `backward_goal_evaluated` a `backward_rule_explored`
+- Audit logging zaznamenává události `backward_query_started` a `backward_query_completed`
 
 ---
 
-Dalsi: [REST API](../10-api/01-rest-api.md)
+Další: [REST API](../10-api/01-rest-api.md)
