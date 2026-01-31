@@ -1,21 +1,21 @@
 # Sekvence a absence
 
-Sekvence a absence jsou dva **na poradi citlive** CEP vzory. Sekvence detekuje, ze udalosti prisly v urcitem poradi v casovem okne. Absence detekuje, ze ocekavana udalost *neprisla* po spousteci udalosti. Spolecne pokryvaji nejcastejsi temporalni business logiku: vicekrokove workflow a detekci timeoutu.
+Sekvence a absence jsou dva **na pořadí citlivé** CEP vzory. Sekvence detekuje, že události přišly v určitém pořadí v časovém okně. Absence detekuje, že očekávaná událost *nepřišla* po spouštěcí události. Společně pokrývají nejčastější temporální business logiku: vícekrokové workflow a detekci timeoutu.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak definovat sekvencni vzory s `sequence()`
-- Jak strict rezim ovlivnuje mezi-udalosti
-- Jak pouzivat `groupBy` a `as` (pojmenovane udalosti) v sekvencich
+- Jak definovat sekvenční vzory s `sequence()`
+- Jak strict režim ovlivňuje mezi-události
+- Jak používat `groupBy` a `as` (pojmenované události) v sekvencích
 - Jak definovat vzory absence s `absence()`
-- Kompletni zivotni cyklus instanci sekvence a absence
-- Kompletni priklady: platebni tok (sekvence) a detekce timeoutu (absence)
+- Kompletní životní cyklus instancí sekvence a absence
+- Kompletní příklady: platební tok (sekvence) a detekce timeoutu (absence)
 
-## Sekvencni vzory
+## Sekvenční vzory
 
-Sekvencni vzor matchne, kdyz udalosti prijdou **v urcitem poradi** v casovem okne. Nejjednodussi priklad: "objednavka vytvorena, pak platba prijata, behem 5 minut."
+Sekvenční vzor matchne, když události přijdou **v určitém pořadí** v časovém okně. Nejjednodušší příklad: "objednávka vytvořena, pak platba přijata, během 5 minut."
 
-### Zakladni sekvence
+### Základní sekvence
 
 ```typescript
 import {
@@ -37,11 +37,11 @@ engine.registerRule(
 );
 ```
 
-Kdyz se spusti `order.created`, matcher zacne sledovat. Pokud se `payment.received` spusti behem 5 minut, sekvence se dokonci a pravidlo se aktivuje. Pokud 5 minut uplyne bez `payment.received`, instance ticho expiruje.
+Když se spustí `order.created`, matcher začne sledovat. Pokud se `payment.received` spustí během 5 minut, sekvence se dokončí a pravidlo se aktivuje. Pokud 5 minut uplyne bez `payment.received`, instance tiše expiruje.
 
 ### GroupBy
 
-Bez `groupBy` matcher zachazi se vsemi udalostmi jako s jednim globalnim proudem. V praxi temer vzdy chcete grupovat podle korelacniho pole — aby platba objednavky A nahodou nedokoncila sekvenci objednavky B:
+Bez `groupBy` matcher zachází se všemi událostmi jako s jedním globálním proudem. V praxi téměř vždy chcete grupovat podle korelačního pole — aby platba objednávky A náhodou nedokončila sekvenci objednávky B:
 
 ```typescript
 sequence()
@@ -51,25 +51,25 @@ sequence()
   .groupBy('orderId')
 ```
 
-Kazda unikatni hodnota `orderId` ziska vlastni nezavislou instanci sekvence. Objednavky `ORD-1` a `ORD-2` jsou sledovany oddelene.
+Každá unikátní hodnota `orderId` získá vlastní nezávislou instanci sekvence. Objednávky `ORD-1` a `ORD-2` jsou sledovány odděleně.
 
-### Strict rezim
+### Strict režim
 
-Ve vychozim nastaveni (`strict: false`) jsou mezi-udalosti, ktere neodpovidaji dalsimu ocekavamenu kroku, **ignorovany**. Matcher trpelive ceka na spravnou udalost:
+Ve výchozím nastavení (`strict: false`) jsou mezi-události, které neodpovídají dalšímu očekávanému kroku, **ignorovány**. Matcher trpělivě čeká na správnou událost:
 
 ```text
-  strict: false (vychozi)
+  strict: false (výchozí)
   ─────────────────────────────────────────────────
   order.created ──→ [inventory.checked] ──→ payment.received  ✓ MATCH
-                     (ignorovano — neni dalsi v sekvenci)
+                     (ignorováno — není další v sekvenci)
 
   strict: true
   ─────────────────────────────────────────────────
-  order.created ──→ [inventory.checked] ──→ payment.received  ✗ ZRUSENO
-                     (nesouvisejici udalost rusi sekvenci)
+  order.created ──→ [inventory.checked] ──→ payment.received  ✗ ZRUŠENO
+                     (nesouvisející událost ruší sekvenci)
 ```
 
-Pouzijte strict rezim, kdyz mezi-udalosti signalizuji, ze ocekavany tok byl narusen:
+Použijte strict režim, když mezi-události signalizují, že očekávaný tok byl narušen:
 
 ```typescript
 sequence()
@@ -80,9 +80,9 @@ sequence()
   .strict(true)
 ```
 
-### Filtry udalosti
+### Filtry událostí
 
-Kazda udalost v sekvenci muze specifikovat filtr pro matchovani pouze udalosti s konkrenimi daty:
+Každá událost v sekvenci může specifikovat filtr pro matchování pouze událostí s konkrétními daty:
 
 ```typescript
 sequence()
@@ -92,11 +92,11 @@ sequence()
   .groupBy('orderId')
 ```
 
-Tato sekvence zacina pouze u premiovych objednavek a dokonci se pouze s platbou kartou.
+Tato sekvence začíná pouze u prémiových objednávek a dokončí se pouze s platbou kartou.
 
-### Pojmenovane udalosti (as)
+### Pojmenované události (as)
 
-Pouzijte parametr `as` pro pojmenovani matchnutych udalosti, coz usnadni referencovani v akcich:
+Použijte parametr `as` pro pojmenování matchnutých událostí, což usnadní referencování v akcích:
 
 ```typescript
 sequence()
@@ -106,11 +106,11 @@ sequence()
   .groupBy('orderId')
 ```
 
-Tri argumenty `.event()` jsou: `topic`, `filter`, `as`.
+Tři argumenty `.event()` jsou: `topic`, `filter`, `as`.
 
-### Vicekrokove sekvence
+### Vícekrokové sekvence
 
-Sekvence mohou mit libovolny pocet kroku:
+Sekvence mohou mít libovolný počet kroků:
 
 ```typescript
 engine.registerRule(
@@ -129,33 +129,33 @@ engine.registerRule(
 );
 ```
 
-Kazdy krok musi matchnout v poradi. Instance postoupuje o jeden krok naraz a celkove casove okno plati od prvni udalosti po posledni.
+Každý krok musí matchnout v pořadí. Instance postupuje o jeden krok naráz a celkové časové okno platí od první události po poslední.
 
-### Rozhrani sekvence
+### Rozhraní sekvence
 
-Surovy typ `SequencePattern` pro referenci:
+Surový typ `SequencePattern` pro referenci:
 
 ```typescript
 interface SequencePattern {
   type: 'sequence';
-  events: EventMatcher[];     // Usporadany seznam ocekavanych udalosti
-  within: string | number;    // Casove okno: "5m", "1h", nebo milisekundy
-  groupBy?: string;           // Grupovani podle pole (napr. "orderId")
-  strict?: boolean;           // Odmitne mezi-udalosti (vychozi: false)
+  events: EventMatcher[];     // Uspořádaný seznam očekávaných událostí
+  within: string | number;    // Časové okno: "5m", "1h", nebo milisekundy
+  groupBy?: string;           // Grupování podle pole (např. "orderId")
+  strict?: boolean;           // Odmítne mezi-události (výchozí: false)
 }
 
 interface EventMatcher {
   topic: string;                     // Vzor topicu: "order.*", "payment.received"
   filter?: Record<string, unknown>;  // Filtr dat: { status: 'failed' }
-  as?: string;                       // Alias pro referencovani v akcich
+  as?: string;                       // Alias pro referencování v akcích
 }
 ```
 
 ## Vzory absence
 
-Vzor absence se spusti, kdyz ocekavana udalost **neprijde** v casovem okne po spousteci udalosti. Je to opak sekvence — detekujete to, co se *nestalo*.
+Vzor absence se spustí, když očekávaná událost **nepřijde** v časovém okně po spouštěcí události. Je to opak sekvence — detekujete to, co se *nestalo*.
 
-### Zakladni absence
+### Základní absence
 
 ```typescript
 import {
@@ -177,29 +177,29 @@ engine.registerRule(
 );
 ```
 
-Kdyz se spusti `order.created`, matcher nastavi 15-minutovy casovac. Pokud `payment.received` prijde se stejnym `orderId` pred vyprenim casovace, instance je zrusena (uspech — zakaznik zaplatil). Pokud casovac vypri bez `payment.received`, vzor absence matchne a pravidlo se aktivuje.
+Když se spustí `order.created`, matcher nastaví 15-minutový časovač. Pokud `payment.received` přijde se stejným `orderId` před vypršením časovače, instance je zrušena (úspěch — zákazník zaplatil). Pokud časovač vyprší bez `payment.received`, vzor absence matchne a pravidlo se aktivuje.
 
-### Zivotni cyklus
+### Životní cyklus
 
 ```text
   order.created (orderId: "ORD-1")
        │
        ▼
-  AbsenceMatcher vytvori instanci
+  AbsenceMatcher vytvoří instanci
   Stav: WAITING
-  Casovac: 15 minut
+  Časovač: 15 minut
        │
-       ├──── payment.received (orderId: "ORD-1") prijde behem 15m
-       │     └── Instance ZRUSENA (ocekavana udalost prisla, zadna akce)
+       ├──── payment.received (orderId: "ORD-1") přijde během 15m
+       │     └── Instance ZRUŠENA (očekávaná událost přišla, žádná akce)
        │
-       └──── 15 minut uplyne, zadna payment.received pro "ORD-1"
-             └── Instance DOKONCENA (absence detekovana)
-                 └── Pravidlo se aktivuje → nastaveni faktu "cancelled", emise udalosti
+       └──── 15 minut uplyne, žádná payment.received pro "ORD-1"
+             └── Instance DOKONČENA (absence detekována)
+                 └── Pravidlo se aktivuje → nastavení faktu "cancelled", emise události
 ```
 
 ### Filtry na absenci
 
-Jak `after`, tak `expected` podporuji filtry:
+Jak `after`, tak `expected` podporují filtry:
 
 ```typescript
 absence()
@@ -209,36 +209,36 @@ absence()
   .groupBy('orderId')
 ```
 
-Toto sleduje pouze objednavky s vysokou prioritou. Bezne objednavky nespusti casovac absence.
+Toto sleduje pouze objednávky s vysokou prioritou. Běžné objednávky nespustí časovač absence.
 
-### Rozhrani absence
+### Rozhraní absence
 
 ```typescript
 interface AbsencePattern {
   type: 'absence';
-  after: EventMatcher;       // Spousteci udalost
-  expected: EventMatcher;    // Ocekavana udalost, ktera by mela nasledovat
-  within: string | number;   // Casove okno
-  groupBy?: string;          // Grupovani podle pole
+  after: EventMatcher;       // Spouštěcí událost
+  expected: EventMatcher;    // Očekávaná událost, která by měla následovat
+  within: string | number;   // Časové okno
+  groupBy?: string;          // Grupování podle pole
 }
 ```
 
-## Formaty casovych oken
+## Formáty časových oken
 
-Sekvence i absence prijimaji casova okna jako retezce nebo milisekundy:
+Sekvence i absence přijímají časová okna jako řetězce nebo milisekundy:
 
-| Format | Vyznam | Priklad |
+| Formát | Význam | Příklad |
 |--------|--------|---------|
-| `"30s"` | 30 sekund | Kratky timeout |
+| `"30s"` | 30 sekund | Krátký timeout |
 | `"5m"` | 5 minut | Timeout platby |
 | `"1h"` | 1 hodina | Monitoring SLA |
-| `"2d"` | 2 dny | Deadline odeslani |
-| `"1w"` | 1 tyden | Dlouhodobe sledovani |
-| `30000` | 30 000 ms | Presne milisekundy |
+| `"2d"` | 2 dny | Deadline odeslání |
+| `"1w"` | 1 týden | Dlouhodobé sledování |
+| `30000` | 30 000 ms | Přesné milisekundy |
 
-## Kompletni funkcni priklad
+## Kompletní funkční příklad
 
-E-commerce platebni pipeline se sekvencnim i absence vzorem:
+E-commerce platební pipeline se sekvenčním i absence vzorem:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -251,7 +251,7 @@ import {
 async function main() {
   const engine = await RuleEngine.start({ name: 'payment-pipeline' });
 
-  // === Sledovani uspesne cesty: objednavka → platba → potvrzeni ===
+  // === Sledování úspěšné cesty: objednávka → platba → potvrzení ===
   engine.registerRule(
     Rule.create('order-confirmed')
       .name('Order Confirmed')
@@ -268,7 +268,7 @@ async function main() {
         orderId: ref('trigger.events.0.orderId'),
         amount: ref('trigger.events.1.amount'),
       }))
-      .also(log('info', 'Objednavka potvrzena: ${trigger.events.0.orderId}'))
+      .also(log('info', 'Objednávka potvrzena: ${trigger.events.0.orderId}'))
       .build()
   );
 
@@ -293,32 +293,32 @@ async function main() {
       .build()
   );
 
-  // === Reakce na potvrzene objednavky ===
+  // === Reakce na potvrzené objednávky ===
   engine.registerRule(
     Rule.create('notify-confirmation')
       .name('Send Confirmation')
       .when(onEvent('order.confirmed'))
-      .then(log('info', 'Odesilam potvrzeni pro ${event.orderId}'))
+      .then(log('info', 'Odesílám potvrzení pro ${event.orderId}'))
       .build()
   );
 
-  // === Reakce na zrusene objednavky ===
+  // === Reakce na zrušené objednávky ===
   engine.registerRule(
     Rule.create('notify-cancellation')
       .name('Send Cancellation Notice')
       .when(onEvent('order.cancelled'))
-      .then(log('warn', 'Odesilam oznameni o zruseni pro ${event.orderId}'))
+      .then(log('warn', 'Odesílám oznámení o zrušení pro ${event.orderId}'))
       .build()
   );
 
-  // --- Test: Uspesna cesta ---
+  // --- Test: Úspěšná cesta ---
   await engine.emit('order.created', {
     orderId: 'ORD-1',
     customerId: 'C-1',
     total: 299.99,
   });
 
-  // Platba prijde behem 15 minut
+  // Platba přijde během 15 minut
   await engine.emit('payment.received', {
     orderId: 'ORD-1',
     amount: 299.99,
@@ -335,8 +335,8 @@ async function main() {
     total: 149.99,
   });
 
-  // Zadna platba pro ORD-2... po 15 minutach:
-  // Engine automaticky spusti vzor absence
+  // Žádná platba pro ORD-2... po 15 minutách:
+  // Engine automaticky spustí vzor absence
   // ORD-2 status → "cancelled"
 
   await engine.stop();
@@ -345,25 +345,25 @@ async function main() {
 main();
 ```
 
-### Co se deje krok po kroku
+### Co se děje krok po kroku
 
-1. `order.created (ORD-1)` → sekvencni matcher zacne sledovat, absence matcher nastavi 15m casovac
-2. `payment.received (ORD-1)` → sekvence se dokonci (spusti `order.confirmed`), absence se zrusi (platba prisla)
-3. `order.created (ORD-2)` → sekvence zacina, absence nastavi 15m casovac
-4. Uplyne 15 minut → absence se spusti pro ORD-2 (zadna platba), sekvence expiruje (nedokoncena)
+1. `order.created (ORD-1)` → sekvenční matcher začne sledovat, absence matcher nastaví 15m časovač
+2. `payment.received (ORD-1)` → sekvence se dokončí (spustí `order.confirmed`), absence se zruší (platba přišla)
+3. `order.created (ORD-2)` → sekvence začíná, absence nastaví 15m časovač
+4. Uplyne 15 minut → absence se spustí pro ORD-2 (žádná platba), sekvence expiruje (nedokončena)
 
-Dve CEP pravidla spolupracuji prirozene: sekvence zachyti uspesnou cestu a absence zachyti timeout — obe grupovane podle `orderId`, takze si navzajem neprekazeji.
+Dvě CEP pravidla spolupracují přirozeně: sekvence zachytí úspěšnou cestu a absence zachytí timeout — obě grupované podle `orderId`, takže si navzájem nepřekážejí.
 
-## Cviceni
+## Cvičení
 
-Sestavte tok onboardingu uzivatelu s obema vzory:
+Sestavte tok onboardingu uživatelů s oběma vzory:
 
-1. **Registracni sekvence**: Detekujte, kdyz uzivatel dokonci cely onboarding: `user.registered` → `email.verified` → `profile.completed`, vse behem 24 hodin, grupovano podle `userId`. Po dokonceni sekvence nastavte fakt `user:${userId}:onboarded` na `true`.
+1. **Registrační sekvence**: Detekujte, když uživatel dokončí celý onboarding: `user.registered` → `email.verified` → `profile.completed`, vše během 24 hodin, grupováno podle `userId`. Po dokončení sekvence nastavte fakt `user:${userId}:onboarded` na `true`.
 
-2. **Timeout overeni**: Pokud `email.verified` nenasleduje `user.registered` behem 1 hodiny, emitujte `reminder.send_verification` s emailem uzivatele.
+2. **Timeout ověření**: Pokud `email.verified` nenásleduje `user.registered` během 1 hodiny, emitujte `reminder.send_verification` s emailem uživatele.
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import {
@@ -371,7 +371,7 @@ import {
   sequence, absence,
 } from '@hamicek/noex-rules/dsl';
 
-// 1. Kompletni onboardingova sekvence
+// 1. Kompletní onboardingová sekvence
 const onboardingComplete = Rule.create('onboarding-complete')
   .name('Onboarding Complete')
   .priority(100)
@@ -389,7 +389,7 @@ const onboardingComplete = Rule.create('onboarding-complete')
   }))
   .build();
 
-// 2. Timeout overeni emailu
+// 2. Timeout ověření emailu
 const verificationReminder = Rule.create('verification-reminder')
   .name('Send Verification Reminder')
   .priority(200)
@@ -410,21 +410,21 @@ engine.registerRule(onboardingComplete);
 engine.registerRule(verificationReminder);
 ```
 
-Sekvence sleduje kompletni trikrokovy tok. Absence nezavisle sleduje timeout prvniho kroku. Obe jsou grupovane podle `userId`, takze kazdy uzivatel ziska vlastni sledovaci instanci.
+Sekvence sleduje kompletní tříkrokový tok. Absence nezávisle sleduje timeout prvního kroku. Obě jsou grupované podle `userId`, takže každý uživatel získá vlastní sledovací instanci.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **Sekvence** detekuje udalosti prichazejici v urcitem poradi v casovem okne
-- Pouzijte `groupBy` pro izolaci instanci podle korelacniho klice (napr. `orderId`, `userId`)
-- `strict: true` zrusi sekvenci, pokud mezi kroky prijdou nesouvisejici udalosti
-- Filtry udalosti zuzi, ktere udalosti matchnou kazdy krok; `as` pojmenuje matchnute udalosti pro referenci
-- **Absence** detekuje, ze ocekavana udalost neprisla po triggeru v casovem okne
-- Absence se dokonci (spusti) pri timeoutu, zrusi se, kdyz ocekavana udalost prijde
-- Casova okna prijimaji citelne retezce (`"5m"`, `"1h"`, `"2d"`) nebo milisekundy
-- Sekvence a absence spolupracuji prirozene pro vzory uspesna cesta + timeout
+- **Sekvence** detekuje události přicházející v určitém pořadí v časovém okně
+- Použijte `groupBy` pro izolaci instancí podle korelačního klíče (např. `orderId`, `userId`)
+- `strict: true` zruší sekvenci, pokud mezi kroky přijdou nesouvisející události
+- Filtry událostí zúží, které události matchnou každý krok; `as` pojmenuje matchnuté události pro referenci
+- **Absence** detekuje, že očekávaná událost nepřišla po triggeru v časovém okně
+- Absence se dokončí (spustí) při timeoutu, zruší se, když očekávaná událost přijde
+- Časová okna přijímají čitelné řetězce (`"5m"`, `"1h"`, `"2d"`) nebo milisekundy
+- Sekvence a absence spolupracují přirozeně pro vzory úspěšná cesta + timeout
 
 ---
 
-Dalsi: [Pocet a agregace](./03-pocet-a-agregace.md)
+Další: [Počet a agregace](./03-pocet-a-agregace.md)

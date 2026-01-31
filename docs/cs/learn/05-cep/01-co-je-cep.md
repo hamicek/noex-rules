@@ -1,22 +1,22 @@
 # Co je CEP?
 
-Vse, co jste dosud postavili, reaguje na jednu udalost nebo jednu zmenu faktu. To je silne, ale realna business logika casto zavisi na **vztazich mezi udalostmi v case**. Zaplatil zakaznik do 15 minut od vytvoreni objednavky? Doslo k peti neuspesnym pokus o prihlaseni za posledni minutu? Prekrocila prumerna teplota senzoru bezpecnostni prah za posledni hodinu? Complex Event Processing (CEP) vam umozni vyjadrit tyto temporalni vzory jako deklarativni pravidla, bez psani imperativnich polling smycek nebo manualni spravy stavu.
+Vše, co jste dosud postavili, reaguje na jednu událost nebo jednu změnu faktu. To je silné, ale reálná business logika často závisí na **vztazích mezi událostmi v čase**. Zaplatil zákazník do 15 minut od vytvoření objednávky? Došlo k pěti neúspěšným pokusům o přihlášení za poslední minutu? Překročila průměrná teplota senzoru bezpečnostní práh za poslední hodinu? Complex Event Processing (CEP) vám umožní vyjádřit tyto temporální vzory jako deklarativní pravidla, bez psaní imperativních polling smyček nebo manuální správy stavu.
 
-## Co se naucite
+## Co se naučíte
 
-- Proc pravidla pro jednu udalost nedokazi zachytit temporalni business logiku
-- Ctyri typy CEP vzoru a kdy pouzit ktery
-- Jak TemporalProcessor zapada do architektury enginu
-- Jak rozpoznat CEP pozadavky v realnych problemech
+- Proč pravidla pro jednu událost nedokáží zachytit temporální business logiku
+- Čtyři typy CEP vzorů a kdy použít který
+- Jak TemporalProcessor zapadá do architektury enginu
+- Jak rozpoznat CEP požadavky v reálných problémech
 
-## Limity pravidel pro jednu udalost
+## Limity pravidel pro jednu událost
 
-Uvazme scenar timeoutu platby. Po vytvoreni objednavky ma zakaznik 15 minut na zaplaceni. Pokud platba neprijde, objednavka se ma zrusit.
+Uvažme scénář timeoutu platby. Po vytvoření objednávky má zákazník 15 minut na zaplacení. Pokud platba nepřijde, objednávka se má zrušit.
 
-S pravidly pro jednu udalost byste potrebovali neco jako:
+S pravidly pro jednu událost byste potřebovali něco jako:
 
 ```typescript
-// Pravidlo 1: Pri vytvoreni objednavky spustit casovac
+// Pravidlo 1: Při vytvoření objednávky spustit časovač
 engine.registerRule(
   Rule.create('start-payment-timer')
     .when(onEvent('order.created'))
@@ -31,7 +31,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 2: Pri prijmu platby zrusit casovac
+// Pravidlo 2: Při příjmu platby zrušit časovač
 engine.registerRule(
   Rule.create('cancel-payment-timer')
     .when(onEvent('payment.received'))
@@ -39,7 +39,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 3: Pri timeoutu zrusit objednavku
+// Pravidlo 3: Při timeoutu zrušit objednávku
 engine.registerRule(
   Rule.create('cancel-unpaid-order')
     .when(onEvent('order.payment_timeout'))
@@ -48,7 +48,7 @@ engine.registerRule(
 );
 ```
 
-Tri pravidla, manualni sprava casovace a business zamer — "pokud platba nenasladuje objednavku do 15 minut" — je roztrousen pres vsechna. S CEP je stejna logika jedina deklarace:
+Tři pravidla, manuální správa časovače a business záměr — "pokud platba nenásleduje objednávku do 15 minut" — je roztroušen přes všechna. S CEP je stejná logika jediná deklarace:
 
 ```typescript
 engine.registerRule(
@@ -64,76 +64,76 @@ engine.registerRule(
 );
 ```
 
-Jedno pravidlo. Jeden zamer. Engine se postara o casovac, zruseni a grupovani.
+Jedno pravidlo. Jeden záměr. Engine se postará o časovač, zrušení a grupování.
 
-## Ctyri typy vzoru
+## Čtyři typy vzorů
 
-CEP v noex-rules poskytuje ctyri temporalni typy vzoru. Kazdy detekuje jiny druh vztahu mezi udalostmi v case:
+CEP v noex-rules poskytuje čtyři temporální typy vzorů. Každý detekuje jiný druh vztahu mezi událostmi v čase:
 
 ```text
   ┌─────────────────────────────────────────────────────────────────────┐
-  │                      Typy CEP vzoru                                │
+  │                      Typy CEP vzorů                                │
   ├─────────────┬───────────────────────────────────────────────────────┤
-  │  SEKVENCE   │  Udalosti prijdou v urcitem poradi                  │
-  │             │  "A se stalo, pak B, behem 5 minut"                 │
+  │  SEKVENCE   │  Události přijdou v určitém pořadí                  │
+  │             │  "A se stalo, pak B, během 5 minut"                 │
   ├─────────────┼───────────────────────────────────────────────────────┤
-  │  ABSENCE    │  Ocekavana udalost nikdy neprisla                   │
-  │             │  "A se stalo, ale B nenasledovalo do 15 min"        │
+  │  ABSENCE    │  Očekávaná událost nikdy nepřišla                   │
+  │             │  "A se stalo, ale B nenásledovalo do 15 min"        │
   ├─────────────┼───────────────────────────────────────────────────────┤
-  │  POCET      │  Prilis mnoho (nebo malo) udalosti v casovem okne   │
-  │             │  "5+ neuspesnych prihlaseni behem 1 minuty"         │
+  │  POČET      │  Příliš mnoho (nebo málo) událostí v časovém okně   │
+  │             │  "5+ neúspěšných přihlášení během 1 minuty"         │
   ├─────────────┼───────────────────────────────────────────────────────┤
-  │  AGREGACE   │  Numericka agregace prekroci prah                   │
-  │             │  "Soucet objednavek prekrocil $10 000 za 1 hodinu"  │
+  │  AGREGACE   │  Numerická agregace překročí práh                   │
+  │             │  "Součet objednávek překročil $10 000 za 1 hodinu"  │
   └─────────────┴───────────────────────────────────────────────────────┘
 ```
 
 ### Sekvence
 
-Detekuje udalosti prichazejici v urcitem poradi v casovem okne. Pouzijte ji pro vicekrokove workflow, kde potrebujete potvrdit, ze kazdy krok probehl ve spravnem poradi.
+Detekuje události přicházející v určitém pořadí v časovém okně. Použijte ji pro vícekrokové workflow, kde potřebujete potvrdit, že každý krok proběhl ve správném pořadí.
 
-**Priklady**: tok objednavka → platba → odeslani, registrace uzivatele → overeni emailu → prvni prihlaseni.
+**Příklady**: tok objednávka → platba → odeslání, registrace uživatele → ověření emailu → první přihlášení.
 
 ### Absence
 
-Detekuje, ze ocekavana udalost **neprisla** v casovem okne po spousteci udalosti. Pouzijte ji pro detekci timeoutu a monitoring SLA.
+Detekuje, že očekávaná událost **nepřišla** v časovém okně po spouštěcí události. Použijte ji pro detekci timeoutu a monitoring SLA.
 
-**Priklady**: objednavka vytvorena, ale zadna platba do 15 minut; tikety podpory otevreny, ale zadna odpoved do 1 hodiny.
+**Příklady**: objednávka vytvořena, ale žádná platba do 15 minut; tikety podpory otevřeny, ale žádná odpověď do 1 hodiny.
 
-### Pocet
+### Počet
 
-Detekuje, kdyz pocet odpovidajicich udalosti v casovem okne prekroci prah. Pouzijte ho pro frekvencne zalozene alertovani a omezeni rychlosti.
+Detekuje, když počet odpovídajících událostí v časovém okně překročí práh. Použijte ho pro frekvenčně založené alertování a omezení rychlosti.
 
-**Priklady**: 5+ neuspesnych prihlaseni za 5 minut (brute force), 100+ API chyb za 1 minutu (detekce vypadku).
+**Příklady**: 5+ neúspěšných přihlášení za 5 minut (brute force), 100+ API chyb za 1 minutu (detekce výpadku).
 
 ### Agregace
 
-Detekuje, kdyz numericka agregace (soucet, prumer, min, max) hodnot poli udalosti prekroci prah v casovem okne. Pouzijte ji pro monitoring na zaklade hodnot.
+Detekuje, když numerická agregace (součet, průměr, min, max) hodnot polí událostí překročí práh v časovém okně. Použijte ji pro monitoring na základě hodnot.
 
-**Priklady**: celkove trzby > $10 000 za 1 hodinu, prumerna doba odezvy > 500ms za 5 minut.
+**Příklady**: celkové tržby > $10 000 za 1 hodinu, průměrná doba odezvy > 500ms za 5 minut.
 
-## Jak CEP zapada do architektury
+## Jak CEP zapadá do architektury
 
-TemporalProcessor je dedikavona komponenta, ktera funguje vedle standardniho vyhodnocovani pravidel enginu:
+TemporalProcessor je dedikovaná komponenta, která funguje vedle standardního vyhodnocování pravidel enginu:
 
 ```text
-  Udalost prichazi
+  Událost přichází
        │
        ▼
   ┌─────────────┐
   │ RuleEngine  │
   │             │
   │  ┌──────────────────────────────┐
-  │  │ Standardni vyhodnoceni       │──── event/fact triggery → podminky → akce
+  │  │ Standardní vyhodnocení       │──── event/fact triggery → podmínky → akce
   │  └──────────────────────────────┘
   │             │
   │  ┌──────────────────────────────┐
   │  │ TemporalProcessor            │──── CEP pattern matching
   │  │                              │
-  │  │  SequenceMatcher             │──── sleduje usporadane retezce udalosti
-  │  │  AbsenceMatcher              │──── sleduje chybejici udalosti + timeouty
-  │  │  CountMatcher                │──── sleduje frekvencni okna udalosti
-  │  │  AggregateMatcher            │──── sleduje okna numericke agregace
+  │  │  SequenceMatcher             │──── sleduje uspořádané řetězce událostí
+  │  │  AbsenceMatcher              │──── sleduje chybějící události + timeouty
+  │  │  CountMatcher                │──── sleduje frekvenční okna událostí
+  │  │  AggregateMatcher            │──── sleduje okna numerické agregace
   │  └──────────────────────────────┘
   │             │
   │  ┌──────────────────────────────┐
@@ -141,120 +141,120 @@ TemporalProcessor je dedikavona komponenta, ktera funguje vedle standardniho vyh
   │  └──────────────────────────────┘
   │             │
   │  ┌──────────────────────────────┐
-  │  │ EventStore                   │──── historie udalosti pro casove dotazy
+  │  │ EventStore                   │──── historie událostí pro časové dotazy
   │  └──────────────────────────────┘
   └─────────────┘
        │
        ▼
-  Shoda vzoru → vyhodnoceni podminek pravidla → provedeni akci
+  Shoda vzoru → vyhodnocení podmínek pravidla → provedení akcí
 ```
 
-**Klicove komponenty**:
+**Klíčové komponenty**:
 
 | Komponenta | Role |
 |------------|------|
-| `TemporalProcessor` | Koordinuje vsechny ctyri matchery, registruje pravidla, smeruje udalosti |
-| `SequenceMatcher` | Spravuje instance sekvenci, sleduje matchnute udalosti v poradi |
-| `AbsenceMatcher` | Spravuje instance absenci, spousti se pri timeoutu |
-| `CountMatcher` | Spravuje okna poctu (klouzava a pevna) |
-| `AggregateMatcher` | Spravuje okna agregace, pocita sum/avg/min/max |
-| `TimerManager` | Vytvari a rusi casovace pro deadliny sekvenci/absenci |
-| `EventStore` | Uklada nedavne udalosti pro casove dotazy poctu/agregace |
+| `TemporalProcessor` | Koordinuje všechny čtyři matchery, registruje pravidla, směruje události |
+| `SequenceMatcher` | Spravuje instance sekvencí, sleduje matchnuté události v pořadí |
+| `AbsenceMatcher` | Spravuje instance absencí, spouští se při timeoutu |
+| `CountMatcher` | Spravuje okna počtu (klouzavá a pevná) |
+| `AggregateMatcher` | Spravuje okna agregace, počítá sum/avg/min/max |
+| `TimerManager` | Vytváří a ruší časovače pro deadliny sekvencí/absencí |
+| `EventStore` | Ukládá nedávné události pro časové dotazy počtu/agregace |
 
-Kdyz je CEP pravidlo registrovano, jeho temporalni trigger je naparsovan a predan prislusnemu matcheru. Jak udalosti protekaji enginem, TemporalProcessor kontroluje kazdou vuci vsem aktivnim vzorum. Kdyz vzor matchne, engine vyhodnoti podminky pravidla a — pokud projdou — provede jeho akce.
+Když je CEP pravidlo registrováno, jeho temporální trigger je naparsován a předán příslušnému matcheru. Jak události protékají enginem, TemporalProcessor kontroluje každou vůči všem aktivním vzorům. Když vzor matchne, engine vyhodnotí podmínky pravidla a — pokud projdou — provede jeho akce.
 
-## Zivotni cyklus vzoru
+## Životní cyklus vzorů
 
-Kazdy CEP vzor udrzuje **instance** — jednu na unikatni skupinu (definovanou `groupBy`). Kazda instance prochazi stavovym automatem:
+Každý CEP vzor udržuje **instance** — jednu na unikátní skupinu (definovanou `groupBy`). Každá instance prochází stavovým automatem:
 
 ```text
   Sekvence:   pending ──→ matching ──→ completed
                                   └──→ expired
 
-  Absence:    pending ──→ waiting  ──→ completed  (timeout, udalost neprisla)
-                                  └──→ cancelled  (ocekavana udalost prisla)
+  Absence:    pending ──→ waiting  ──→ completed  (timeout, událost nepřišla)
+                                  └──→ cancelled  (očekávaná událost přišla)
 
-  Pocet:      active ──→ triggered
+  Počet:      active ──→ triggered
                     └──→ expired
 
   Agregace:   active ──→ triggered
                     └──→ expired
 ```
 
-Instance jsou automaticky uklizeny po dokonceni nebo expiraci. Pole `groupBy` zajistuje, ze kazda logicka skupina (napr. kazde `orderId`) ma vlastni nezavislou instanci.
+Instance jsou automaticky uklizeny po dokončení nebo expiraci. Pole `groupBy` zajišťuje, že každá logická skupina (např. každé `orderId`) má vlastní nezávislou instanci.
 
-## Rozpoznavani CEP pozadavku
+## Rozpoznávání CEP požadavků
 
-Pri analyze business pozadavku hledejte tyto fraze:
+Při analýze business požadavků hledejte tyto fráze:
 
-| Fraze | Vzor |
+| Fráze | Vzor |
 |-------|------|
-| "A nasledovane B behem X casu" | **Sekvence** |
-| "A pak B pak C v poradi" | **Sekvence** |
-| "Pokud B nenastane behem X po A" | **Absence** |
-| "Zadna odpoved behem X" | **Absence** |
-| "Vice nez N udalosti za X casu" | **Pocet** |
-| "Rychlost prekracuje N za minutu/hodinu" | **Pocet** |
-| "Celkem/prumer/soucet prekracuje X v casovem okne" | **Agregace** |
-| "Kdyz soucet ... prekroci prah" | **Agregace** |
+| "A následované B během X času" | **Sekvence** |
+| "A pak B pak C v pořadí" | **Sekvence** |
+| "Pokud B nenastane během X po A" | **Absence** |
+| "Žádná odpověď během X" | **Absence** |
+| "Více než N událostí za X času" | **Počet** |
+| "Rychlost překračuje N za minutu/hodinu" | **Počet** |
+| "Celkem/průměr/součet překračuje X v časovém okně" | **Agregace** |
+| "Když součet ... překročí práh" | **Agregace** |
 
-## Priklady z realneho sveta
+## Příklady z reálného světa
 
-### E-Commerce: vyrizeni objednavky
+### E-Commerce: vyřízení objednávky
 
-"Objednavka musi byt odeslana do 48 hodin od potvrzeni platby."
+"Objednávka musí být odeslána do 48 hodin od potvrzení platby."
 
-→ Vzor **absence**: po `payment.confirmed` ocekavejte `shipment.dispatched` behem `48h`, grupovano podle `orderId`.
+→ Vzor **absence**: po `payment.confirmed` očekávejte `shipment.dispatched` během `48h`, grupováno podle `orderId`.
 
-### Bezpecnost: detekce brute force
+### Bezpečnost: detekce brute force
 
-"Zamknete ucet po 5 neuspesnych pokusech o prihlaseni behem 5 minut."
+"Zamkněte účet po 5 neúspěšných pokusech o přihlášení během 5 minut."
 
-→ Vzor **pocet**: pocitejte udalosti `auth.login_failed`, prah 5, okno `5m`, grupovano podle `userId`.
+→ Vzor **počet**: počítejte události `auth.login_failed`, práh 5, okno `5m`, grupováno podle `userId`.
 
-### Finance: monitoring transakci
+### Finance: monitoring transakcí
 
-"Upozornete, pokud celkova castka transakci prekroci $50 000 behem 1 hodiny pro stejny ucet."
+"Upozorněte, pokud celková částka transakcí překročí $50 000 během 1 hodiny pro stejný účet."
 
-→ Vzor **agregace**: agregujte `transaction.completed` na poli `amount`, funkce `sum`, prah 50000, okno `1h`, grupovano podle `accountId`.
+→ Vzor **agregace**: agregujte `transaction.completed` na poli `amount`, funkce `sum`, práh 50000, okno `1h`, grupováno podle `accountId`.
 
-### IoT: vicekrokova porucha
+### IoT: vícekroková porucha
 
-"Upozornete, pokud senzor hlasi vysokou teplotu, pak vysoky tlak, pak vibrace — v tomto poradi behem 10 minut."
+"Upozorněte, pokud senzor hlásí vysokou teplotu, pak vysoký tlak, pak vibrace — v tomto pořadí během 10 minut."
 
-→ Vzor **sekvence**: udalosti `sensor.high_temp`, `sensor.high_pressure`, `sensor.vibration`, behem `10m`, grupovano podle `sensorId`.
+→ Vzor **sekvence**: události `sensor.high_temp`, `sensor.high_pressure`, `sensor.vibration`, během `10m`, grupováno podle `sensorId`.
 
-## Cviceni
+## Cvičení
 
-Pro kazdy business pozadavek identifikujte spravny typ CEP vzoru a vysvetlete proc:
+Pro každý business požadavek identifikujte správný typ CEP vzoru a vysvětlete proč:
 
-1. "Pokud uzivatel prida polozky do kosiku, ale neuskutecni objednavku do 30 minut, poslete pripominaci email."
-2. "Upozornete bezpecnostni tym, kdyz jedna IP adresa uskutecni vice nez 100 API pozadavku za 1 minutu."
-3. "Sledujte platebni pipeline: objednavka vytvorena → platba autorizovana → platba zachycena, vse behem 10 minut."
-4. "Upozornete sklad, kdyz celkova hmotnost objednavek cekajicich na odeslani prekroci 500 kg za posledni 2 hodiny."
+1. "Pokud uživatel přidá položky do košíku, ale neuskuteční objednávku do 30 minut, pošlete připomínací email."
+2. "Upozorněte bezpečnostní tým, když jedna IP adresa uskuteční více než 100 API požadavků za 1 minutu."
+3. "Sledujte platební pipeline: objednávka vytvořena → platba autorizována → platba zachycena, vše během 10 minut."
+4. "Upozorněte sklad, když celková hmotnost objednávek čekajících na odeslání překročí 500 kg za poslední 2 hodiny."
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-1. **Absence** — po `cart.item_added` ocekavejte `checkout.completed` behem `30m`, grupovano podle `userId`. Klicem je "nenastane behem" → absence.
+1. **Absence** — po `cart.item_added` očekávejte `checkout.completed` během `30m`, grupováno podle `userId`. Klíčem je "nenastane během" → absence.
 
-2. **Pocet** — pocitejte udalosti `api.request`, prah 100, okno `1m`, grupovano podle `ipAddress`. Klicem je "vice nez N udalosti v case" → pocet.
+2. **Počet** — počítejte události `api.request`, práh 100, okno `1m`, grupováno podle `ipAddress`. Klíčem je "více než N událostí v čase" → počet.
 
-3. **Sekvence** — udalosti `order.created` → `payment.authorized` → `payment.captured`, behem `10m`, grupovano podle `orderId`. Klicem je "A pak B pak C v poradi" → sekvence.
+3. **Sekvence** — události `order.created` → `payment.authorized` → `payment.captured`, během `10m`, grupováno podle `orderId`. Klíčem je "A pak B pak C v pořadí" → sekvence.
 
-4. **Agregace** — agregujte `order.pending_shipment` na poli `weight`, funkce `sum`, prah 500, okno `2h`. Klicem je "celkem prekracuje prah v case" → agregace.
+4. **Agregace** — agregujte `order.pending_shipment` na poli `weight`, funkce `sum`, práh 500, okno `2h`. Klíčem je "celkem překračuje práh v čase" → agregace.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Pravidla pro jednu udalost nedokazi vyjadrit temporalni vztahy mezi udalostmi
-- CEP poskytuje ctyri typy vzoru: **sekvence**, **absence**, **pocet** a **agregace**
-- Kazdy typ vzoru resi odlisnou kategorii temporalni business logiky
-- TemporalProcessor koordinuje pattern matching vedle standardniho vyhodnocovani pravidel
-- Instance vzoru jsou izolovany pomoci `groupBy` a nasleduji definovane stavove automaty
-- Hledejte temporalni klicova slova v pozadavcich ("behem", "nasledovano", "nenastane", "rychlost", "celkem prekracuje") pro identifikaci CEP prilezitosti
+- Pravidla pro jednu událost nedokáží vyjádřit temporální vztahy mezi událostmi
+- CEP poskytuje čtyři typy vzorů: **sekvence**, **absence**, **počet** a **agregace**
+- Každý typ vzoru řeší odlišnou kategorii temporální business logiky
+- TemporalProcessor koordinuje pattern matching vedle standardního vyhodnocování pravidel
+- Instance vzorů jsou izolovány pomocí `groupBy` a následují definované stavové automaty
+- Hledejte temporální klíčová slova v požadavcích ("během", "následováno", "nenastane", "rychlost", "celkem překračuje") pro identifikaci CEP příležitostí
 
 ---
 
-Dalsi: [Sekvence a absence](./02-sekvence-a-absence.md)
+Další: [Sekvence a absence](./02-sekvence-a-absence.md)

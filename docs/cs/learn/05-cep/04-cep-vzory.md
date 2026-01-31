@@ -1,31 +1,31 @@
 # CEP vzory v praxi
 
-Naucili jste se ctyri jednotlive typy CEP vzoru. Realne systemy je zridka pouzivaji izolovane — kombinuji vice vzoru, michaji CEP s bezpymi pravidly a vrsti detakcni stupne pro stavbu kompletnich monitorovacich pipeline. Tato kapitola vam ukaze, jak skladat vzory pro produkcni scenare.
+Naučili jste se čtyři jednotlivé typy CEP vzorů. Reálné systémy je zřídka používají izolovaně — kombinují více vzorů, míchají CEP s běžnými pravidly a vrství detekční stupně pro stavbu kompletních monitorovacích pipeline. Tato kapitola vám ukáže, jak skládat vzory pro produkční scénáře.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak kombinovat CEP vzory s bezpymi pravidly pro udalosti a fakta
-- Jak stavet vicestupnove detakcni pipeline
-- Kompletni priklad IoT monitorovacich pipeline
-- Vykonnostni aspekty temporalnich vzoru
-- Strategie debuggovani pro CEP pravidla
+- Jak kombinovat CEP vzory s běžnými pravidly pro události a fakta
+- Jak stavět vícestupňové detekční pipeline
+- Kompletní příklad IoT monitorovacích pipeline
+- Výkonnostní aspekty temporálních vzorů
+- Strategie debuggování pro CEP pravidla
 
-## Kombinovani CEP s bezpymi pravidly
+## Kombinování CEP s běžnými pravidly
 
-CEP pravidla produkcji udalosti stejne jako kazde jine pravidlo. To znamena, ze muzete retezit vystup CEP do bezpych pravidel spoustenych udalostmi, pravidel spoustenych fakty, nebo dokonce do dalsich CEP vzoru:
+CEP pravidla produkují události stejně jako každé jiné pravidlo. To znamená, že můžete řetězit výstup CEP do běžných pravidel spouštěných událostmi, pravidel spouštěných fakty, nebo dokonce do dalších CEP vzorů:
 
 ```text
-  CEP pravidlo               Bezne pravidlo              CEP pravidlo
+  CEP pravidlo               Běžné pravidlo              CEP pravidlo
   ┌──────────────┐           ┌──────────────┐           ┌──────────────┐
-  │ count()      │──emituje→ │ onEvent()    │──nastavi→ │ aggregate()  │
-  │ 5 selhani    │  "alert"  │ obohatuje    │  fakt     │ prah rizika  │
+  │ count()      │──emituje→ │ onEvent()    │──nastaví→ │ aggregate()  │
+  │ 5 selhání    │  "alert"  │ obohacuje    │  fakt     │ práh rizika  │
   │ za 5 min     │           │ kontextem    │           │              │
   └──────────────┘           └──────────────┘           └──────────────┘
 ```
 
-### Vzor: CEP → obohaceni → akce
+### Vzor: CEP → obohacení → akce
 
-Bezny vzor je pouzit CEP pravidlo pro detekci stavu, pak bezne pravidlo pro obohaceni detekce dalsim kontextem pred provedenim akce:
+Běžný vzor je použít CEP pravidlo pro detekci stavu, pak běžné pravidlo pro obohacení detekce dalším kontextem před provedením akce:
 
 ```typescript
 import {
@@ -34,7 +34,7 @@ import {
   count,
 } from '@hamicek/noex-rules/dsl';
 
-// Stupen 1: CEP detekuje brute force
+// Stupeň 1: CEP detekuje brute force
 engine.registerRule(
   Rule.create('detect-brute-force')
     .priority(200)
@@ -53,7 +53,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 2: Bezne pravidlo obohatuje kontextem uzivatele
+// Stupeň 2: Běžné pravidlo obohacuje kontextem uživatele
 engine.registerRule(
   Rule.create('enrich-brute-force')
     .priority(150)
@@ -68,7 +68,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 3: Bezne pravidlo provede akci na zaklade obohenych dat
+// Stupeň 3: Běžné pravidlo provede akci na základě obohacených dat
 engine.registerRule(
   Rule.create('lock-account')
     .priority(100)
@@ -76,17 +76,17 @@ engine.registerRule(
     .when(onEvent('security.threat_assessed'))
     .if(event('threat').eq('brute_force'))
     .then(setFact('user:${event.userId}:locked', true))
-    .also(log('warn', 'Ucet zamcen: ${event.userId}'))
+    .also(log('warn', 'Účet zamčen: ${event.userId}'))
     .build()
 );
 ```
 
-### Vzor: CEP + podminky na faktech
+### Vzor: CEP + podmínky na faktech
 
-CEP pravidla mohou mit dalsi podminky kontrolujici fakta, coz vam dava kontextove vedomij pattern matching:
+CEP pravidla mohou mít další podmínky kontrolující fakta, což vám dává kontextově vědomý pattern matching:
 
 ```typescript
-// Alertovat na brute force pouze pro ne-admin uzivatele
+// Alertovat na brute force pouze pro ne-admin uživatele
 engine.registerRule(
   Rule.create('brute-force-non-admin')
     .priority(200)
@@ -103,43 +103,43 @@ engine.registerRule(
 );
 ```
 
-CEP vzor se spousti na frekvenci, ale akce se provede pouze pokud fakt role uzivatele neni `admin`.
+CEP vzor se spouští na frekvenci, ale akce se provede pouze pokud fakt role uživatele není `admin`.
 
-## Vicestupnova detakcni pipeline
+## Vícestupňová detekční pipeline
 
-Komplexni bezpecnostni nebo monitorovaci systemy pouzivaji vice CEP vzoru v pipeline. Kazdy stupen detekuje jiny aspekt a predava do dalsiho:
+Komplexní bezpečnostní nebo monitorovací systémy používají více CEP vzorů v pipeline. Každý stupeň detekuje jiný aspekt a předává do dalšího:
 
 ```text
   ┌───────────────────────────────────────────────────────┐
-  │            Vicestupnova detekce podvodu                │
+  │            Vícestupňová detekce podvodů                │
   │                                                       │
-  │  Stupen 1: Detekce vzoru                              │
+  │  Stupeň 1: Detekce vzorů                              │
   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
   │  │ count()     │  │ aggregate() │  │ sequence()  │  │
-  │  │ Neuspecna   │  │ Vysokohodnotne│ │ Neobvykly   │  │
-  │  │ prihlaseni  │  │ prevody     │  │ tok         │  │
+  │  │ Neúspěšná   │  │ Vysokohodnotné│ │ Neobvyklý   │  │
+  │  │ přihlášení  │  │ převody     │  │ tok         │  │
   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  │
   │         │                │                │          │
-  │  Stupen 2: Skorovani rizika                          │
+  │  Stupeň 2: Skórování rizika                          │
   │         ▼                ▼                ▼          │
   │  ┌────────────────────────────────────────────────┐  │
-  │  │ Kazda detekce nastavi fakt skore rizika        │  │
+  │  │ Každá detekce nastaví fakt skóre rizika        │  │
   │  │ risk:userId:login = 30                          │  │
   │  │ risk:userId:transfer = 50                       │  │
   │  │ risk:userId:flow = 20                           │  │
   │  └─────────────────────┬──────────────────────────┘  │
   │                        │                              │
-  │  Stupen 3: Agregace                                  │
+  │  Stupeň 3: Agregace                                  │
   │                        ▼                              │
   │  ┌────────────────────────────────────────────────┐  │
-  │  │ aggregate() nad udalostmi skore rizika         │  │
-  │  │ Soucet skore rizika > 70 za 1 hodinu → ALERT  │  │
+  │  │ aggregate() nad událostmi skóre rizika         │  │
+  │  │ Součet skóre rizika > 70 za 1 hodinu → ALERT  │  │
   │  └────────────────────────────────────────────────┘  │
   └───────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// Stupen 1a: Frekvence neuspecnych prihlaseni
+// Stupeň 1a: Frekvence neúspěšných přihlášení
 engine.registerRule(
   Rule.create('risk-failed-logins')
     .priority(200)
@@ -159,7 +159,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 1b: Vysokohodnotne prevody
+// Stupeň 1b: Vysokohodnotné převody
 engine.registerRule(
   Rule.create('risk-high-transfers')
     .priority(200)
@@ -180,7 +180,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 1c: Neobvykla sekvence prihlaseni → prevod
+// Stupeň 1c: Neobvyklá sekvence přihlášení → převod
 engine.registerRule(
   Rule.create('risk-unusual-flow')
     .priority(200)
@@ -199,7 +199,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 2: Akumulace skore rizika
+// Stupeň 2: Akumulace skóre rizika
 engine.registerRule(
   Rule.create('accumulate-risk')
     .priority(150)
@@ -212,7 +212,7 @@ engine.registerRule(
     .build()
 );
 
-// Stupen 3: Agregace skore rizika
+// Stupeň 3: Agregace skóre rizika
 engine.registerRule(
   Rule.create('risk-threshold')
     .priority(100)
@@ -229,14 +229,14 @@ engine.registerRule(
       userId: ref('trigger.groupKey'),
       totalRisk: ref('trigger.value'),
     }))
-    .also(log('error', 'FRAUD ALERT: uzivatel ${trigger.groupKey}, skore rizika ${trigger.value}'))
+    .also(log('error', 'FRAUD ALERT: uživatel ${trigger.groupKey}, skóre rizika ${trigger.value}'))
     .build()
 );
 ```
 
-## Kompletni priklad: IoT monitorovaci pipeline
+## Kompletní příklad: IoT monitorovací pipeline
 
-Komplexni IoT monitorovaci system vyuzivajici vsechny ctyri typy CEP vzoru:
+Komplexní IoT monitorovací systém využívající všechny čtyři typy CEP vzorů:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -250,10 +250,10 @@ async function main() {
   const engine = await RuleEngine.start({ name: 'iot-monitor' });
 
   // ================================================================
-  // STUPEN 1: Detekce vzoru jednotlivych senzoru
+  // STUPEŇ 1: Detekce vzorů jednotlivých senzorů
   // ================================================================
 
-  // 1a. Teplotni skok: prumerna teplota > 80°C za 5 minut
+  // 1a. Teplotní skok: průměrná teplota > 80°C za 5 minut
   engine.registerRule(
     Rule.create('temp-spike')
       .name('Temperature Spike')
@@ -275,7 +275,7 @@ async function main() {
       .build()
   );
 
-  // 1b. Monitoring heartbeatu: zadny odecet za 2 minuty
+  // 1b. Monitoring heartbeatu: žádný odečet za 2 minuty
   engine.registerRule(
     Rule.create('sensor-offline')
       .name('Sensor Offline Detection')
@@ -294,7 +294,7 @@ async function main() {
       .build()
   );
 
-  // 1c. Rychla fluktuace: 10+ odectu za 1 minutu (porucha senzoru)
+  // 1c. Rychlá fluktuace: 10+ odečtů za 1 minutu (porucha senzoru)
   engine.registerRule(
     Rule.create('rapid-fluctuation')
       .name('Rapid Sensor Fluctuation')
@@ -315,7 +315,7 @@ async function main() {
       .build()
   );
 
-  // 1d. Kaskada selhani: teplotni skok → tlakovy skok → alert vibraci
+  // 1d. Kaskáda selhání: teplotní skok → tlakový skok → alert vibrací
   engine.registerRule(
     Rule.create('failure-cascade')
       .name('Multi-Sensor Failure Cascade')
@@ -332,15 +332,15 @@ async function main() {
         zoneId: ref('trigger.events.0.zoneId'),
       }))
       .also(setFact('zone:${trigger.events.0.zoneId}:status', 'critical'))
-      .also(log('error', 'KRITICKE: Kaskada selhani v zone ${trigger.events.0.zoneId}'))
+      .also(log('error', 'KRITICKÉ: Kaskáda selhání v zóně ${trigger.events.0.zoneId}'))
       .build()
   );
 
   // ================================================================
-  // STUPEN 2: Smerovani a eskalace alertu
+  // STUPEŇ 2: Směrování a eskalace alertů
   // ================================================================
 
-  // Eskalace kritickych selhani
+  // Eskalace kritických selhání
   engine.registerRule(
     Rule.create('escalate-critical')
       .name('Escalate Critical Alerts')
@@ -350,12 +350,12 @@ async function main() {
       .then(emit('notification.page_oncall', {
         zoneId: ref('event.zoneId'),
         severity: 'critical',
-        message: 'Detekovana kaskada selhani v zone ${event.zoneId}',
+        message: 'Detekována kaskáda selhání v zóně ${event.zoneId}',
       }))
       .build()
   );
 
-  // Logovani vsech alertu
+  // Logování všech alertů
   engine.registerRule(
     Rule.create('log-alerts')
       .name('Alert Logger')
@@ -367,10 +367,10 @@ async function main() {
   );
 
   // ================================================================
-  // STUPEN 3: Sprava stavu dashboardu
+  // STUPEŇ 3: Správa stavu dashboardu
   // ================================================================
 
-  // Sledovani zdravi zon ve faktech
+  // Sledování zdraví zón ve faktech
   engine.registerRule(
     Rule.create('zone-health')
       .name('Zone Health Tracker')
@@ -380,14 +380,14 @@ async function main() {
       .build()
   );
 
-  // --- Simulace dat senzoru ---
+  // --- Simulace dat senzorů ---
   const sensors = ['S-1', 'S-2', 'S-3'];
 
   for (const sensorId of sensors) {
-    // Normalní heartbeat
+    // Normální heartbeat
     await engine.emit('sensor.heartbeat', { sensorId });
 
-    // Odecet teploty
+    // Odečet teploty
     await engine.emit('sensor.temperature', {
       sensorId,
       zoneId: 'ZONE-A',
@@ -396,7 +396,7 @@ async function main() {
   }
 
   console.log('S-1 status:', engine.getFact('sensor:S-1:status'));
-  // "warning" (detekovan teplotni skok)
+  // "warning" (detekován teplotní skok)
 
   await engine.stop();
 }
@@ -404,102 +404,102 @@ async function main() {
 main();
 ```
 
-### Poznamky k architekture
+### Poznámky k architektuře
 
-Tato pipeline demonstruje nekolik dulezitych vzoru:
+Tato pipeline demonstruje několik důležitých vzorů:
 
-1. **Vrstvena detekce**: Stupen 1 detekuje jednotlive vzory, stupen 2 smeruje a eskaluje, stupen 3 spravuje stav pro dashboardy.
+1. **Vrstvená detekce**: Stupeň 1 detekuje jednotlivé vzory, stupeň 2 směruje a eskaluje, stupeň 3 spravuje stav pro dashboardy.
 
-2. **Event topicy jako kontrakty**: Kazdy stupen komunikuje pres zname event topicy (`alert.temp_high`, `alert.critical_failure`, `notification.page_oncall`). Nova pravidla se mohou prihlasit ke kteremukoli stupni.
+2. **Event topicy jako kontrakty**: Každý stupeň komunikuje přes známé event topicy (`alert.temp_high`, `alert.critical_failure`, `notification.page_oncall`). Nová pravidla se mohou přihlásit ke kterémukoli stupni.
 
-3. **Fakta jako sdileny stav**: Fakta statusu senzoru a zon vytvareji dotazovatelny pohled na zdravi systemu, ktery mohou dashboardy a API cist.
+3. **Fakta jako sdílený stav**: Fakta statusu senzorů a zón vytvářejí dotazovatelný pohled na zdraví systému, který mohou dashboardy a API číst.
 
-4. **Razeni podle priority**: Kriticke vzory (detekce kaskad, priorita 250) se vyhodnocuji pred nize prioritnimi vzory (logovani, priorita 10).
+4. **Řazení podle priority**: Kritické vzory (detekce kaskád, priorita 250) se vyhodnocují před níže prioritními vzory (logování, priorita 10).
 
-## Vykonnostni aspekty
+## Výkonnostní aspekty
 
 ### Velikost EventStore
 
-EventStore drzi nedavne udalosti v pameti pro dotazy poctu a agregace. Konfigurujte retenci na zaklade vaseho nejdelsiho casoveho okna:
+EventStore drží nedávné události v paměti pro dotazy počtu a agregace. Konfigurujte retenci na základě vašeho nejdelšího časového okna:
 
 ```typescript
 const engine = await RuleEngine.start({
   name: 'production',
   events: {
-    maxEvents: 50000,   // Max udalosti v pameti
+    maxEvents: 50000,   // Max událostí v paměti
     maxAgeMs: 86400000, // 24 hodin
   },
 });
 ```
 
-Pokud je vase nejdelsi CEP okno 1 hodina, nepotrebujete 24 hodin retence. Snizte `maxAgeMs` pro uvolneni pameti.
+Pokud je vaše nejdelší CEP okno 1 hodina, nepotřebujete 24 hodin retence. Snižte `maxAgeMs` pro uvolnění paměti.
 
 ### Kardinalita groupBy
 
-Kazda unikatni hodnota `groupBy` vytvori samostatnou instanci vzoru. Pole s vysokou kardinalitou (jako `requestId` nebo `sessionId`) mohou vytvorit tisice instanci:
+Každá unikátní hodnota `groupBy` vytvoří samostatnou instanci vzoru. Pole s vysokou kardinalitou (jako `requestId` nebo `sessionId`) mohou vytvořit tisíce instancí:
 
 ```typescript
-// Dobre: ohranicena kardinalita
-count().event('api.error').groupBy('endpoint')     // ~50 endpointu
-aggregate().event('order.paid').groupBy('region')  // ~10 regionu
+// Dobré: ohraničená kardinalita
+count().event('api.error').groupBy('endpoint')     // ~50 endpointů
+aggregate().event('order.paid').groupBy('region')  // ~10 regionů
 
-// Opatrne: potencialne vysoka kardinalita
-count().event('api.error').groupBy('userId')       // ~100K uzivatelu
-aggregate().event('tx.completed').groupBy('txId')  // neohranicene!
+// Opatrně: potenciálně vysoká kardinalita
+count().event('api.error').groupBy('userId')       // ~100K uživatelů
+aggregate().event('tx.completed').groupBy('txId')  // neohraničené!
 ```
 
-Pro pole s vysokou kardinalitou preferujte klouzava okna (ktera se uklidi po kazdem vyhodnoceni) a udrzujte casova okna kratka.
+Pro pole s vysokou kardinalitou preferujte klouzavá okna (která se uklidí po každém vyhodnocení) a udržujte časová okna krátká.
 
-### Velikost okna vs pamet
+### Velikost okna vs paměť
 
-Vetsi okna vyzaduji ukladani vice udalosti:
+Větší okna vyžadují ukládání více událostí:
 
-| Okno | Rychlost udalosti | Dopad na pamet |
+| Okno | Rychlost událostí | Dopad na paměť |
 |------|--------------------|--------------------|
-| 1 minuta | 100/s | ~6 000 udalosti |
-| 5 minut | 100/s | ~30 000 udalosti |
-| 1 hodina | 100/s | ~360 000 udalosti |
-| 24 hodin | 100/s | ~8,6M udalosti |
+| 1 minuta | 100/s | ~6 000 událostí |
+| 5 minut | 100/s | ~30 000 událostí |
+| 1 hodina | 100/s | ~360 000 událostí |
+| 24 hodin | 100/s | ~8,6M událostí |
 
-Pouzijte nejkratsi okno, ktere splnuje vas business pozadavek. Pokud potrebujete dlouha okna s vysokym tokem udalosti, zvazste pred-agregaci v kratsich intervalech.
+Použijte nejkratší okno, které splňuje váš business požadavek. Pokud potřebujete dlouhá okna s vysokým tokem událostí, zvažte před-agregaci v kratších intervalech.
 
-### Pocet vzoru
+### Počet vzorů
 
-Kazdy registrovany CEP vzor pridava rezie zpracovani na udalost. Engine vyhodnocuje kazdou prichozi udalost vuci vsem aktivnim vzorum. Pro systemy se stovkami CEP pravidel zvazte:
+Každý registrovaný CEP vzor přidává režie zpracování na událost. Engine vyhodnocuje každou příchozí událost vůči všem aktivním vzorům. Pro systémy se stovkami CEP pravidel zvažte:
 
-- Pouzivani filtru udalosti pro zuzeni matchovani
-- Organizaci pravidel s tagy a skupinami pro selektivni povoleni
-- Pred-filtrovani udalosti pred dosazenem do enginu
+- Používání filtrů událostí pro zúžení matchování
+- Organizaci pravidel s tagy a skupinami pro selektivní povolení
+- Před-filtrování událostí před dosažením do enginu
 
-## Debuggovani CEP pravidel
+## Debuggování CEP pravidel
 
-### Bezne problemy
+### Běžné problémy
 
-**Vzor se nikdy nespusti**:
-1. Zkontrolujte, ze event topic presne odpovida (vcetne wildcardu)
-2. Overte, ze pole `groupBy` existuje v datech udalosti
-3. Overte, ze casove okno je dostatecne dlouhe pro vase testovaci data
-4. Pro pocet/agregaci: zkontrolujte, ze bylo emitovano dostatek udalosti
-5. Pro sekvenci: overte, ze udalosti prichazeji ve spravnem poradi
-6. Pro absenci: pockejte na celou dobu timeoutu
+**Vzor se nikdy nespustí**:
+1. Zkontrolujte, že event topic přesně odpovídá (včetně wildcardů)
+2. Ověřte, že pole `groupBy` existuje v datech události
+3. Ověřte, že časové okno je dostatečně dlouhé pro vaše testovací data
+4. Pro počet/agregaci: zkontrolujte, že bylo emitováno dostatek událostí
+5. Pro sekvenci: ověřte, že události přicházejí ve správném pořadí
+6. Pro absenci: počkejte na celou dobu timeoutu
 
-**Vzor se spousti prilis casto**:
-1. Zkontrolujte `groupBy` — chybejici `groupBy` zachazi se vsemi udalostmi jako s jednou skupinou
-2. Overte, ze filtry jsou dostatecne restriktivni
-3. Pro klouzavy pocet: kazda udalost znovu vyhodnocuje, muze se spustit pri kazde udalosti nad prahem
+**Vzor se spouští příliš často**:
+1. Zkontrolujte `groupBy` — chybějící `groupBy` zachází se všemi událostmi jako s jednou skupinou
+2. Ověřte, že filtry jsou dostatečně restriktivní
+3. Pro klouzavý počet: každá událost znovu vyhodnocuje, může se spustit při každé události nad prahem
 
-**Vzor se spousti s nespravnymi daty**:
-1. Zkontrolujte cesty `ref()` odpovidajici typu triggeru (napr. `trigger.events.0` pro sekvenci, `trigger.after` pro absenci, `trigger.groupKey` pro pocet/agregaci)
-2. Overte, ze nazvy poli v datech udalosti odpovidaji ocekavani vzoru
+**Vzor se spouští s nesprávnými daty**:
+1. Zkontrolujte cesty `ref()` odpovídající typu triggeru (např. `trigger.events.0` pro sekvenci, `trigger.after` pro absenci, `trigger.groupKey` pro počet/agregaci)
+2. Ověřte, že názvy polí v datech události odpovídají očekávání vzoru
 
-### Inspekce aktivnich instanci
+### Inspekce aktivních instancí
 
-TemporalProcessor vystavuje svuj stav pro debuggovani:
+TemporalProcessor vystavuje svůj stav pro debuggování:
 
 ```typescript
-// Ziskat vsechny aktivni instance vzoru
+// Získat všechny aktivní instance vzorů
 const instances = engine.temporalProcessor.getActiveInstances();
-console.log('Aktivnich instanci:', instances.length);
+console.log('Aktivních instancí:', instances.length);
 
 for (const inst of instances) {
   console.log(`  ${inst.id}: ${inst.pattern.type} [${inst.state}]`);
@@ -508,13 +508,13 @@ for (const inst of instances) {
   console.log(`    Expiruje: ${new Date(inst.expiresAt).toISOString()}`);
 }
 
-// Ziskat instance pro konkretni pravidlo
+// Získat instance pro konkrétní pravidlo
 const ruleInstances = engine.temporalProcessor.getInstancesForRule('brute-force');
 ```
 
-### Trasovani udalosti skrze vzory
+### Trasování událostí skrze vzory
 
-Povolte trasovani pro zobrazeni toku udalosti CEP matchery:
+Povolte trasování pro zobrazení toku událostí CEP matchery:
 
 ```typescript
 engine.on('temporal.match', (match) => {
@@ -529,17 +529,17 @@ engine.on('temporal.match', (match) => {
 });
 ```
 
-## Cviceni
+## Cvičení
 
-Navrhněte kompletni system detekce e-commerce podvodu s vyuzitim vice CEP vzoru. System by mel detekovat:
+Navrhněte kompletní systém detekce e-commerce podvodů s využitím více CEP vzorů. Systém by měl detekovat:
 
-1. **Rychle objednavky**: Vice nez 3 objednavky od stejneho uzivatele za 10 minut (podezrela automatizace)
-2. **Skok vysokych hodnot**: Celkova castka objednavek prekracuje $5 000 pro uzivatele za 1 hodinu
-3. **Nove zarizeni + velky nakup**: Uzivatel se prihlasi z noveho zarizeni, pak zada objednavku nad $500, behem 30 minut
-4. **Agregace rizika**: Kdyz kombinovane skore rizika (z vyse uvedenych detekci) prekroci 60 pro uzivatele za 1 hodinu, emitujte fraud alert
+1. **Rychlé objednávky**: Více než 3 objednávky od stejného uživatele za 10 minut (podezřelá automatizace)
+2. **Skok vysokých hodnot**: Celková částka objednávek překračuje $5 000 pro uživatele za 1 hodinu
+3. **Nové zařízení + velký nákup**: Uživatel se přihlásí z nového zařízení, pak zadá objednávku nad $500, během 30 minut
+4. **Agregace rizika**: Když kombinované skóre rizika (z výše uvedených detekcí) překročí 60 pro uživatele za 1 hodinu, emitujte fraud alert
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import {
@@ -548,7 +548,7 @@ import {
   sequence, count, aggregate,
 } from '@hamicek/noex-rules/dsl';
 
-// 1. Rychle objednavky (pocet)
+// 1. Rychlé objednávky (počet)
 engine.registerRule(
   Rule.create('rapid-orders')
     .priority(200)
@@ -565,11 +565,11 @@ engine.registerRule(
       category: 'rapid_orders',
       score: 25,
     }))
-    .also(log('warn', 'Rychle objednavky detekovany: ${trigger.groupKey}'))
+    .also(log('warn', 'Rychlé objednávky detekovány: ${trigger.groupKey}'))
     .build()
 );
 
-// 2. Skok vysokych hodnot (agregace)
+// 2. Skok vysokých hodnot (agregace)
 engine.registerRule(
   Rule.create('high-value-spike')
     .priority(200)
@@ -587,11 +587,11 @@ engine.registerRule(
       category: 'high_value',
       score: 35,
     }))
-    .also(log('warn', 'Skok vysokych hodnot: ${trigger.groupKey} = $${trigger.value}'))
+    .also(log('warn', 'Skok vysokých hodnot: ${trigger.groupKey} = $${trigger.value}'))
     .build()
 );
 
-// 3. Nove zarizeni + velky nakup (sekvence)
+// 3. Nové zařízení + velký nákup (sekvence)
 engine.registerRule(
   Rule.create('new-device-purchase')
     .priority(200)
@@ -607,11 +607,11 @@ engine.registerRule(
       category: 'new_device',
       score: 40,
     }))
-    .also(log('warn', 'Nakup z noveho zarizeni: ${trigger.events.0.userId}'))
+    .also(log('warn', 'Nákup z nového zařízení: ${trigger.events.0.userId}'))
     .build()
 );
 
-// 4. Agregace rizika (agregace nad skore rizika)
+// 4. Agregace rizika (agregace nad skóre rizika)
 engine.registerRule(
   Rule.create('fraud-alert')
     .priority(100)
@@ -633,36 +633,36 @@ engine.registerRule(
     .build()
 );
 
-// Odezva: zamceni uctu pri fraud alertu
+// Odezva: zamčení účtu při fraud alertu
 engine.registerRule(
   Rule.create('fraud-lockout')
     .priority(50)
     .tags('fraud', 'response')
     .when(onEvent('fraud.alert'))
     .then(setFact('user:${event.userId}:locked', true))
-    .also(log('error', 'Ucet zamcen kvuli podvodu: ${event.userId}'))
+    .also(log('error', 'Účet zamčen kvůli podvodu: ${event.userId}'))
     .build()
 );
 ```
 
-System pracuje ve vrstvach: tri detakcni pravidla (pocet, agregace, sekvence) kazde emituji udalosti `risk.score_added` s ruznymi skore. Agregacni pravidlo secte tato skore na uzivatele za 1 hodinu. Kdyz celkem prekroci 60, spusti se fraud alert a pravidlo odezvy zamkne ucet.
+Systém pracuje ve vrstvách: tři detekční pravidla (počet, agregace, sekvence) každé emitují události `risk.score_added` s různými skóre. Agregační pravidlo sečte tato skóre na uživatele za 1 hodinu. Když celkem překročí 60, spustí se fraud alert a pravidlo odezvy zamkne účet.
 
-Tato architektura je rozsiritelna — pridani noveho detakcniho vzoru vyzaduje pouze pridani noveho pravidla, ktere emituje `risk.score_added`. Zadna existujici pravidla se nemusi menit.
+Tato architektura je rozšiřitelná — přidání nového detekčního vzoru vyžaduje pouze přidání nového pravidla, které emituje `risk.score_added`. Žádná existující pravidla se nemusí měnit.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- CEP vzory produkcji udalosti, ktere mohou bezna pravidla konzumovat, coz umoznuje **vicestupnove pipeline**
-- Vzor **CEP → obohaceni → akce** oddeluje detekci od odezvy
-- **Podminky na faktech** u CEP pravidel pridavaji kontextove vedomy matching
-- Vrstvete vzory do **stupnu**: detekce → skorovani → agregace → odezva
-- Konfigurujte retenci **EventStore** na zaklade vaseho nejdelsiho casoveho okna
-- Sledujte **kardinalitu groupBy** — pole s vysokou kardinalitou vytvareji mnoho instanci
-- Pouzijte **kratka okna** a **filtry udalosti** pro minimalizaci pameti a CPU rezie
-- Debuggujte pomoci `getActiveInstances()` a `temporal.match` event listeneru
-- Bezne problemy: chybejici `groupBy`, spatne cesty `ref()`, nedostatecne casove okno
+- CEP vzory produkují události, které mohou běžná pravidla konzumovat, což umožňuje **vícestupňové pipeline**
+- Vzor **CEP → obohacení → akce** odděluje detekci od odezvy
+- **Podmínky na faktech** u CEP pravidel přidávají kontextově vědomý matching
+- Vrstvěte vzory do **stupňů**: detekce → skórování → agregace → odezva
+- Konfigurujte retenci **EventStore** na základě vašeho nejdelšího časového okna
+- Sledujte **kardinalitu groupBy** — pole s vysokou kardinalitou vytvářejí mnoho instancí
+- Použijte **krátká okna** a **filtry událostí** pro minimalizaci paměti a CPU režie
+- Debuggujte pomocí `getActiveInstances()` a `temporal.match` event listeneru
+- Běžné problémy: chybějící `groupBy`, špatné cesty `ref()`, nedostatečné časové okno
 
 ---
 
-Dalsi: [Skupiny a tagy pravidel](../06-organizace/01-skupiny-a-tagy.md)
+Další: [Skupiny a tagy pravidel](../06-organizace/01-skupiny-a-tagy.md)
