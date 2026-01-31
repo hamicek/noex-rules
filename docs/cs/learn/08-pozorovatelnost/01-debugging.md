@@ -1,19 +1,19 @@
 # Debugging pravidel
 
-Kdyz se pravidlo nespusti a nevite proc, potrebujete videt dovnitr enginu. noex-rules poskytuje tri nastroje pro debugging, ktere spolupracuji: **TraceCollector** zaznamenava kazdy krok vyhodnocovani do ring bufferu s rychlym vyhledavanim dle korelace, **DebugController** pridava IDE-podobne breakpointy a snapshoty nad trace daty a **HistoryService** umoznuje prozkoumavat kontext udalosti a sledovat retezce kauzality zpetne.
+Když se pravidlo nespustí a nevíte proč, potřebujete vidět dovnitř enginu. noex-rules poskytuje tři nástroje pro debugging, které spolupracují: **TraceCollector** zaznamenává každý krok vyhodnocování do ring bufferu s rychlým vyhledáváním dle korelace, **DebugController** přidává IDE-podobné breakpointy a snapshoty nad trace daty a **HistoryService** umožňuje prozkoumávat kontext událostí a sledovat řetězce kauzality zpětně.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak povolit `TraceCollector` a zaznamenavat trace zaznamy
-- Vsech 16 typu trace zaznamu a co zachycuji
-- Jak dotazovat trace dle korelace, pravidla, typu a casoveho rozsahu
-- Pouziti `DebugController` pro breakpointy, pause/resume a snapshoty
-- Prozkoumavani historie udalosti a retezcu kauzality s `HistoryService`
-- Export tracu jako JSON nebo Mermaid diagramy
+- Jak povolit `TraceCollector` a zaznamenávat trace záznamy
+- Všech 16 typů trace záznamů a co zachycují
+- Jak dotazovat trace dle korelace, pravidla, typu a časového rozsahu
+- Použití `DebugController` pro breakpointy, pause/resume a snapshoty
+- Prozkoumávání historie událostí a řetězců kauzality s `HistoryService`
+- Export traců jako JSON nebo Mermaid diagramy
 
 ## TraceCollector
 
-Trace collector je ring buffer, ktery zaznamenava kazdy vnitrni krok enginu — triggery pravidel, vyhodnocovani podminek, provadeni akci, zmeny faktu, operace casovcu a dalsi. Pouziva multi-indexove datove struktury pro rychle vyhledavani dle korelacniho ID, ID pravidla nebo typu zaznamu.
+Trace collector je ring buffer, který zaznamenává každý vnitřní krok enginu — triggery pravidel, vyhodnocování podmínek, provádění akcí, změny faktů, operace časovačů a další. Používá multi-indexové datové struktury pro rychlé vyhledávání dle korelačního ID, ID pravidla nebo typu záznamu.
 
 ```text
   ┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
@@ -29,94 +29,94 @@ Trace collector je ring buffer, ktery zaznamenava kazdy vnitrni krok enginu — 
               └───────────┘ └─────────┘ └─────────────┘
 ```
 
-### Povoleni tracingu
+### Povolení tracingu
 
-Predejte `tracing` do `RuleEngine.start()`:
+Předejte `tracing` do `RuleEngine.start()`:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
 
 const engine = await RuleEngine.start({
   tracing: {
-    enabled: true,      // Povolit sber tracu
-    maxEntries: 10_000, // Velikost ring bufferu (vychozi: 10 000)
+    enabled: true,      // Povolit sběr traců
+    maxEntries: 10_000, // Velikost ring bufferu (výchozí: 10 000)
   },
 });
 ```
 
-Kdyz je buffer plny, nejstarsi zaznamy jsou prepsany. Tim zustava pamet ohranicena bez ohledu na to, jak dlouho engine bezi.
+Když je buffer plný, nejstarší záznamy jsou přepsány. Tím zůstává paměť ohraničená bez ohledu na to, jak dlouho engine běží.
 
-### Typy trace zaznamu
+### Typy trace záznamů
 
-Kazdy zaznamy zaznam ma pole `type`, ktere kategorizuje, co se stalo:
+Každý zaznamenaný záznam má pole `type`, které kategorizuje, co se stalo:
 
-| Typ | Kdy se zaznamena |
+| Typ | Kdy se zaznamená |
 |-----|-------------------|
-| `rule_triggered` | Trigger pravidla odpovidal udalosti/faktu/casovaci |
-| `rule_executed` | Podminky pravidla prosly a akce se provedly |
-| `rule_skipped` | Podminky pravidla se vyhodnotily jako false |
-| `condition_evaluated` | Jedna podminka byla zkontrolovana (uspech/neusspech) |
-| `action_started` | Akce zacala provadeni |
-| `action_completed` | Akce uspesne dokoncena |
+| `rule_triggered` | Trigger pravidla odpovídal události/faktu/časovači |
+| `rule_executed` | Podmínky pravidla prošly a akce se provedly |
+| `rule_skipped` | Podmínky pravidla se vyhodnotily jako false |
+| `condition_evaluated` | Jedna podmínka byla zkontrolována (úspěch/neúspěch) |
+| `action_started` | Akce začala provádění |
+| `action_completed` | Akce úspěšně dokončena |
 | `action_failed` | Akce vyhodila chybu |
-| `fact_changed` | Fakt byl nastaven nebo smazan |
-| `event_emitted` | Udalost byla emitovana (vcetne z akci) |
-| `timer_set` | Casovac byl vytvoren |
-| `timer_cancelled` | Casovac byl zrusen |
-| `timer_expired` | Casovac vyprsel |
-| `lookup_resolved` | Vyhledani datoveho pozadavku dokonceno |
-| `backward_goal_evaluated` | Cil zpetneho retezeni byl vyhodnocen |
-| `backward_rule_explored` | Pravidlo zpetneho retezeni bylo prozkoumano |
+| `fact_changed` | Fakt byl nastaven nebo smazán |
+| `event_emitted` | Událost byla emitována (včetně z akcí) |
+| `timer_set` | Časovač byl vytvořen |
+| `timer_cancelled` | Časovač byl zrušen |
+| `timer_expired` | Časovač vypršel |
+| `lookup_resolved` | Vyhledání datového požadavku dokončeno |
+| `backward_goal_evaluated` | Cíl zpětného řetězení byl vyhodnocen |
+| `backward_rule_explored` | Pravidlo zpětného řetězení bylo prozkoumáno |
 
-### Struktura trace zaznamu
+### Struktura trace záznamu
 
-Kazdy zaznam nese kontext o tom, co se stalo:
+Každý záznam nese kontext o tom, co se stalo:
 
 ```typescript
 interface DebugTraceEntry {
-  id: string;                          // Unikatni ID zaznamu
+  id: string;                          // Unikátní ID záznamu
   timestamp: number;                   // Kdy se to stalo
-  type: TraceEntryType;                // Jeden z 16 typu vyse
-  correlationId?: string;              // Propojuje souvisejici zaznamy
-  causationId?: string;                // Co primo zpusobilo tento zaznam
-  ruleId?: string;                     // Ktere pravidlo bylo zapojeno
-  ruleName?: string;                   // Lidsky citelny nazev pravidla
-  details: Record<string, unknown>;    // Payload specificke pro typ
-  durationMs?: number;                 // Jak dlouho to trvalo (pro casovane zaznamy)
+  type: TraceEntryType;                // Jeden z 16 typů výše
+  correlationId?: string;              // Propojuje související záznamy
+  causationId?: string;                // Co přímo způsobilo tento záznam
+  ruleId?: string;                     // Které pravidlo bylo zapojeno
+  ruleName?: string;                   // Lidsky čitelný název pravidla
+  details: Record<string, unknown>;    // Payload specifické pro typ
+  durationMs?: number;                 // Jak dlouho to trvalo (pro časované záznamy)
 }
 ```
 
-`correlationId` je klic k pochopeni trace dat. Kdyz udalost spusti pravidlo, korelacni ID udalosti se propaguje pres vsechny vysledne trace — vyhodnoceni pravidla, kontroly podminek, akce, emitovane udalosti a jakakoliv kaskadove spustena pravidla.
+`correlationId` je klíč k pochopení trace dat. Když událost spustí pravidlo, korelační ID události se propaguje přes všechny výsledné trace — vyhodnocení pravidla, kontroly podmínek, akce, emitované události a jakákoliv kaskádově spuštěná pravidla.
 
-### Dotazovani tracu
+### Dotazování traců
 
-Collector poskytuje vice metod dotazovani:
+Collector poskytuje více metod dotazování:
 
 ```typescript
-// Ziskat vsechny trace pro konkretni retezec zpracovani udalosti
+// Získat všechny trace pro konkrétní řetězec zpracování události
 const chain = engine.traceCollector.getByCorrelation('corr-123');
 
-// Ziskat vsechny trace pro konkretni pravidlo
+// Získat všechny trace pro konkrétní pravidlo
 const ruleTraces = engine.traceCollector.getByRule('fraud-check');
 
-// Ziskat vsechna selhani akci
+// Získat všechna selhání akcí
 const failures = engine.traceCollector.getByType('action_failed');
 
-// Ziskat 50 nejnovejsich zaznamu
+// Získat 50 nejnovějších záznamů
 const recent = engine.traceCollector.getRecent(50);
 
-// Flexibilni dotaz s vice filtry
+// Flexibilní dotaz s více filtry
 const results = engine.traceCollector.query({
   ruleId: 'fraud-check',
   types: ['rule_executed', 'action_failed'],
-  fromTimestamp: Date.now() - 60_000,  // Posledni minuta
+  fromTimestamp: Date.now() - 60_000,  // Poslední minuta
   limit: 100,
 });
 ```
 
-### Realtime odber
+### Realtime odběr
 
-Prihlaste se k odberu trace zaznamu tak, jak jsou zaznamenavany:
+Přihlaste se k odběru trace záznamů tak, jak jsou zaznamenávány:
 
 ```typescript
 const unsubscribe = engine.traceCollector.subscribe((entry) => {
@@ -125,59 +125,59 @@ const unsubscribe = engine.traceCollector.subscribe((entry) => {
   }
 });
 
-// Pozdeji: ukoncit prijem zaznamu
+// Později: ukončit příjem záznamů
 unsubscribe();
 ```
 
 ## DebugController
 
-Debug controller poskytuje IDE-podobne schopnosti debugovani: breakpointy, pause/resume a snapshoty stavu enginu. Je navrzeny pro pouziti pri vyvoji, kde chcete zastavit engine v konkretnich bodech a prozkoumat jeho stav.
+Debug controller poskytuje IDE-podobné schopnosti debugování: breakpointy, pause/resume a snapshoty stavu enginu. Je navržený pro použití při vývoji, kde chcete zastavit engine v konkrétních bodech a prozkoumat jeho stav.
 
 ### Debug relace
 
-Veskery debugging se odehrava v ramci relaci. Relace drzi breakpointy, snapshoty a stav provadeni:
+Veškerý debugging se odehrává v rámci relací. Relace drží breakpointy, snapshoty a stav provádění:
 
 ```typescript
-// Vytvorit debug relaci
+// Vytvořit debug relaci
 const session = engine.debugController.createSession();
 console.log(session.id); // 'debug-session-abc123'
 
-// Vypsat vsechny aktivni relace
+// Vypsat všechny aktivní relace
 const sessions = engine.debugController.getSessions();
 
-// Ukoncit relaci (uklidí breakpointy)
+// Ukončit relaci (uklidí breakpointy)
 engine.debugController.endSession(session.id);
 ```
 
 ### Breakpointy
 
-Breakpointy zastaví nebo zalogují, kdyz jsou splneny konkretni podminky. Ctyri typy breakpointu ciluji na ruzne operace enginu:
+Breakpointy zastaví nebo zalogují, když jsou splněny konkrétní podmínky. Čtyři typy breakpointů cílují na různé operace enginu:
 
-| Typ | Pole podminky | Odpovida kdyz |
+| Typ | Pole podmínky | Odpovídá když |
 |-----|---------------|---------------|
-| `rule` | `ruleId` | Konkretni pravidlo je spusteno |
-| `event` | `topic` | Udalost s danym topicem je zpracovana |
-| `fact` | `factPattern` | Fakt odpovidajici vzoru se zmeni |
-| `action` | `actionType` | Akce daneho typu se provede |
+| `rule` | `ruleId` | Konkrétní pravidlo je spuštěno |
+| `event` | `topic` | Událost s daným topicem je zpracována |
+| `fact` | `factPattern` | Fakt odpovídající vzoru se změní |
+| `action` | `actionType` | Akce daného typu se provede |
 
-Kazdy breakpoint ma akci: `pause` zastavi provadeni, `log` zaznamena trace zaznam nebo `snapshot` zachyti stav enginu.
+Každý breakpoint má akci: `pause` zastaví provádění, `log` zaznamená trace záznam nebo `snapshot` zachytí stav enginu.
 
 ```typescript
-// Pozastavit, kdyz se spusti konkretni pravidlo
+// Pozastavit, když se spustí konkrétní pravidlo
 engine.debugController.addBreakpoint(session.id, {
   type: 'rule',
   condition: { ruleId: 'fraud-check' },
   action: 'pause',
 });
 
-// Zalogovat, kdyz prijde jakakoliv platebni udalost
+// Zalogovat, když přijde jakákoliv platební událost
 engine.debugController.addBreakpoint(session.id, {
   type: 'event',
   condition: { topic: 'payment.*' },
   action: 'log',
 });
 
-// Povidit snapshot, kdyz se zmeni jakykoliv fakt odpovdiajici 'user:*'
+// Pořídit snapshot, když se změní jakýkoliv fakt odpovídající 'user:*'
 engine.debugController.addBreakpoint(session.id, {
   type: 'fact',
   condition: { factPattern: 'user:*' },
@@ -187,69 +187,69 @@ engine.debugController.addBreakpoint(session.id, {
 
 ### Pause, resume a step
 
-Kdyz se spusti `pause` breakpoint, engine se pozastavi:
+Když se spustí `pause` breakpoint, engine se pozastaví:
 
 ```typescript
 // Zkontrolovat, zda je engine pozastaven
 if (engine.debugController.isPaused()) {
-  // Ziskat relaci pro zjisteni, ktery breakpoint byl zasazen
+  // Získat relaci pro zjištění, který breakpoint byl zasažen
   const session = engine.debugController.getSession(sessionId);
-  console.log(`Pozastaven: ${session.paused}, Celkem zasahu: ${session.totalHits}`);
+  console.log(`Pozastaven: ${session.paused}, Celkem zásahů: ${session.totalHits}`);
 
-  // Obnovit provadeni
+  // Obnovit provádění
   engine.debugController.resume(sessionId);
 
-  // Nebo pokrocit k dalsimu breakpointu
+  // Nebo pokročit k dalšímu breakpointu
   engine.debugController.step(sessionId);
 }
 ```
 
 ### Snapshoty
 
-Snapshot zachyti aktualni stav enginu — vsechna fakta a nedavne trace — v danem casovem bode:
+Snapshot zachytí aktuální stav enginu — všechna fakta a nedávné trace — v daném časovém bodě:
 
 ```typescript
-// Poridit manualni snapshot
+// Pořídit manuální snapshot
 const snapshot = engine.debugController.takeSnapshot(session.id, 'pred-fraud-checkem');
 
-console.log(snapshot.facts);         // Pole { key, value } paru
-console.log(snapshot.recentTraces);  // Nedavne DebugTraceEntry[]
+console.log(snapshot.facts);         // Pole { key, value } párů
+console.log(snapshot.recentTraces);  // Nedávné DebugTraceEntry[]
 console.log(snapshot.label);         // 'pred-fraud-checkem'
-console.log(snapshot.timestamp);     // Kdy byl snapshot porizen
+console.log(snapshot.timestamp);     // Kdy byl snapshot pořízen
 
-// Ziskat snapshot pozdeji
+// Získat snapshot později
 const retrieved = engine.debugController.getSnapshot(session.id, snapshot.id);
 
-// Smazat vsechny snapshoty
+// Smazat všechny snapshoty
 engine.debugController.clearSnapshots(session.id);
 ```
 
 ## HistoryService
 
-History service poskytuje dotazovani na urovni udalosti s plnym trace kontextem. Zatimco trace collector operuje na urovni zaznamu, history service odpovida na otazky vyssi urovne: "Ktera pravidla tato udalost spustila?" a "Co zpusobilo emitovani teto udalosti?"
+History service poskytuje dotazování na úrovni událostí s plným trace kontextem. Zatímco trace collector operuje na úrovni záznamů, history service odpovídá na otázky vyšší úrovně: "Která pravidla tato událost spustila?" a "Co způsobilo emitování této události?"
 
-### Dotazovani historie udalosti
+### Dotazování historie událostí
 
 ```typescript
-// Najit nedavne udalosti pro topic
+// Najít nedávné události pro topic
 const result = engine.historyService.query({
   topic: 'order.created',
-  from: Date.now() - 3600_000,  // Posledni hodina
+  from: Date.now() - 3600_000,  // Poslední hodina
   limit: 20,
-  includeContext: true,          // Pripojit trace a data pravidel
+  includeContext: true,          // Připojit trace a data pravidel
 });
 
 for (const event of result.events) {
   console.log(`${event.topic} v ${event.timestamp}`);
-  // S includeContext ma kazda udalost:
-  console.log(`  Spustena pravidla: ${event.triggeredRules?.length}`);
-  console.log(`  Zpusobene udalosti: ${event.causedEvents?.length}`);
+  // S includeContext má každá událost:
+  console.log(`  Spuštěná pravidla: ${event.triggeredRules?.length}`);
+  console.log(`  Způsobené události: ${event.causedEvents?.length}`);
 }
 ```
 
-### Korelacni casove osy
+### Korelační časové osy
 
-Sestavte slouceny timeline udalosti a tracu pro korelacni ID:
+Sestavte sloučený timeline událostí a traců pro korelační ID:
 
 ```typescript
 const timeline = engine.historyService.getCorrelationTimeline('corr-456');
@@ -264,28 +264,28 @@ for (const entry of timeline) {
 }
 ```
 
-### Retezce kauzality
+### Řetězce kauzality
 
-Sledujte retezec udalosti zpet pro nalezeni korenove priciny:
+Sledujte řetězec událostí zpět pro nalezení kořenové příčiny:
 
 ```typescript
-// Zacit od alertove udalosti a sledovat zpet k puvodnimu triggeru
+// Začít od alertové události a sledovat zpět k původnímu triggeru
 const chain = engine.historyService.getCausationChain('event-789');
 
 for (const event of chain) {
-  console.log(`${event.topic} -> zpusobeno: ${event.causationId}`);
+  console.log(`${event.topic} -> způsobeno: ${event.causationId}`);
 }
 ```
 
-### Export tracu
+### Export traců
 
-Exportujte korelacni retezec pro externi analyzu:
+Exportujte korelační řetězec pro externí analýzu:
 
 ```typescript
-// Export jako strukturovany JSON
+// Export jako strukturovaný JSON
 const jsonExport = engine.historyService.exportTrace('corr-456', 'json');
 
-// Export jako Mermaid sekvencni diagram
+// Export jako Mermaid sekvenční diagram
 const mermaid = engine.historyService.exportTrace('corr-456', 'mermaid');
 console.log(mermaid);
 // sequenceDiagram
@@ -296,9 +296,9 @@ console.log(mermaid);
 //   ...
 ```
 
-## Kompletni priklad: Debugging pipeline detekce podvodu
+## Kompletní příklad: Debugging pipeline detekce podvodu
 
-Tento priklad demonstruje pouziti vsech tri debugging nastroju dohromady pro vysetreni, proc se nespustil fraud alert:
+Tento příklad demonstruje použití všech tří debugging nástrojů dohromady pro vyšetření, proč se nespustil fraud alert:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -306,7 +306,7 @@ import {
   onEvent, emit, setFact, log, ref, event, fact,
 } from '@hamicek/noex-rules/dsl';
 
-// Spusteni enginu s povolenym tracingem
+// Spuštění enginu s povoleným tracingem
 const engine = await RuleEngine.start({
   tracing: { enabled: true, maxEntries: 50_000 },
 });
@@ -315,7 +315,7 @@ const engine = await RuleEngine.start({
 
 engine.registerRule(
   Rule.create('velocity-check')
-    .name('Kontrola rychlosti transakci')
+    .name('Kontrola rychlosti transakcí')
     .priority(10)
     .when(onEvent('transaction.completed'))
     .if(fact('user:${event.userId}:txCount30m').gt(5))
@@ -324,13 +324,13 @@ engine.registerRule(
       amount: ref('event.amount'),
       txCount: ref('fact.value'),
     }))
-    .also(log('Velocity alert pro uzivatele ${event.userId}: ${fact.value} txn za 30m'))
+    .also(log('Velocity alert pro uživatele ${event.userId}: ${fact.value} txn za 30m'))
     .build()
 );
 
 engine.registerRule(
   Rule.create('tx-counter')
-    .name('Pocitadlo transakci')
+    .name('Počítadlo transakcí')
     .priority(20)
     .when(onEvent('transaction.completed'))
     .then(setFact(
@@ -340,26 +340,26 @@ engine.registerRule(
     .build()
 );
 
-// --- Nastaveni debug relace ---
+// --- Nastavení debug relace ---
 
 const session = engine.debugController.createSession();
 
-// Snapshot kdyz se spusti velocity check
+// Snapshot když se spustí velocity check
 engine.debugController.addBreakpoint(session.id, {
   type: 'rule',
   condition: { ruleId: 'velocity-check' },
   action: 'snapshot',
 });
 
-// Odber realtime selhani tracu
+// Odběr realtime selhání traců
 engine.traceCollector.subscribe((entry) => {
   if (entry.type === 'rule_skipped' && entry.ruleId === 'velocity-check') {
-    console.log('Velocity check preskocen — podminky nesplneny');
+    console.log('Velocity check přeskočen — podmínky nesplněny');
     console.log('Detaily:', JSON.stringify(entry.details, null, 2));
   }
 });
 
-// --- Simulace transakci ---
+// --- Simulace transakcí ---
 
 for (let i = 0; i < 7; i++) {
   await engine.emit('transaction.completed', {
@@ -369,24 +369,24 @@ for (let i = 0; i < 7; i++) {
   });
 }
 
-// --- Vysetrovani s trace ---
+// --- Vyšetřování s trace ---
 
-// Najit vsechny trace pro pravidlo velocity-check
+// Najít všechny trace pro pravidlo velocity-check
 const velocityTraces = engine.traceCollector.getByRule('velocity-check');
 console.log(`Trace velocity check: ${velocityTraces.length}`);
 
 const executed = velocityTraces.filter(t => t.type === 'rule_executed');
 const skipped = velocityTraces.filter(t => t.type === 'rule_skipped');
-console.log(`  Provedeno: ${executed.length}, Preskoceno: ${skipped.length}`);
-// Provedeno: 1, Preskoceno: 6
-// (Pouze 7. transakce prekrocila prah 5)
+console.log(`  Provedeno: ${executed.length}, Přeskočeno: ${skipped.length}`);
+// Provedeno: 1, Přeskočeno: 6
+// (Pouze 7. transakce překročila práh 5)
 
-// --- Kontrola dat profilovani ---
+// --- Kontrola dat profilování ---
 
 const profile = engine.profiler.getRuleProfile('velocity-check');
 if (profile) {
-  console.log(`Uspesnost: ${(profile.passRate * 100).toFixed(1)}%`);
-  console.log(`Prumerny cas vyhodnoceni: ${profile.avgTimeMs.toFixed(2)}ms`);
+  console.log(`Úspěšnost: ${(profile.passRate * 100).toFixed(1)}%`);
+  console.log(`Průměrný čas vyhodnocení: ${profile.avgTimeMs.toFixed(2)}ms`);
 }
 
 // --- Inspekce snapshotu ---
@@ -401,7 +401,7 @@ if (snapshots?.length) {
   }
 }
 
-// --- Uklid ---
+// --- Úklid ---
 
 engine.debugController.endSession(session.id);
 await engine.stop();
@@ -409,66 +409,66 @@ await engine.stop();
 
 ## REST API endpointy
 
-Kdyz engine bezi s `RuleEngineServer`, vsechny debug funkce jsou pristupne pres HTTP:
+Když engine běží s `RuleEngineServer`, všechny debug funkce jsou přístupné přes HTTP:
 
 ### Tracing
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `GET` | `/debug/traces` | Ziskat nedavne trace zaznamy |
-| `GET` | `/debug/tracing` | Ziskat stav tracingu |
+| `GET` | `/debug/traces` | Získat nedávné trace záznamy |
+| `GET` | `/debug/tracing` | Získat stav tracingu |
 | `POST` | `/debug/tracing/enable` | Povolit tracing |
-| `POST` | `/debug/tracing/disable` | Zakzat tracing |
+| `POST` | `/debug/tracing/disable` | Zakázat tracing |
 
-### Historie udalosti
+### Historie událostí
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `GET` | `/debug/history` | Dotaz na historii udalosti |
-| `GET` | `/debug/history/:eventId` | Ziskat udalost s kontextem |
-| `GET` | `/debug/correlation/:id` | Ziskat korelacni retezec |
-| `GET` | `/debug/correlation/:id/timeline` | Vizualni timeline |
+| `GET` | `/debug/history` | Dotaz na historii událostí |
+| `GET` | `/debug/history/:eventId` | Získat událost s kontextem |
+| `GET` | `/debug/correlation/:id` | Získat korelační řetězec |
+| `GET` | `/debug/correlation/:id/timeline` | Vizuální timeline |
 | `GET` | `/debug/correlation/:id/export` | Export JSON/Mermaid |
 
 ### Debug relace
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `POST` | `/debug/sessions` | Vytvorit relaci |
-| `GET` | `/debug/sessions` | Ziskat vsechny relace |
-| `GET` | `/debug/sessions/:id` | Ziskat relaci |
-| `DELETE` | `/debug/sessions/:id` | Ukoncit relaci |
-| `POST` | `/debug/sessions/:id/resume` | Obnovit provadeni |
-| `POST` | `/debug/sessions/:id/step` | Krokovat provadeni |
-| `POST` | `/debug/sessions/:id/breakpoints` | Pridat breakpoint |
+| `POST` | `/debug/sessions` | Vytvořit relaci |
+| `GET` | `/debug/sessions` | Získat všechny relace |
+| `GET` | `/debug/sessions/:id` | Získat relaci |
+| `DELETE` | `/debug/sessions/:id` | Ukončit relaci |
+| `POST` | `/debug/sessions/:id/resume` | Obnovit provádění |
+| `POST` | `/debug/sessions/:id/step` | Krokovat provádění |
+| `POST` | `/debug/sessions/:id/breakpoints` | Přidat breakpoint |
 | `DELETE` | `/debug/sessions/:id/breakpoints/:bpId` | Odebrat breakpoint |
-| `POST` | `/debug/sessions/:id/snapshot` | Poridit snapshot |
-| `GET` | `/debug/sessions/:id/snapshots/:snapId` | Ziskat snapshot |
+| `POST` | `/debug/sessions/:id/snapshot` | Pořídit snapshot |
+| `GET` | `/debug/sessions/:id/snapshots/:snapId` | Získat snapshot |
 
 ### Live SSE stream
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `GET` | `/debug/stream` | SSE stream trace zaznamu |
-| `GET` | `/debug/stream/connections` | Aktivni SSE pripojeni |
+| `GET` | `/debug/stream` | SSE stream trace záznamů |
+| `GET` | `/debug/stream/connections` | Aktivní SSE připojení |
 
-SSE stream podporuje filtry pres query parametry: `?types=rule_executed,action_failed&ruleIds=fraud-check&minDurationMs=10`.
+SSE stream podporuje filtry přes query parametry: `?types=rule_executed,action_failed&ruleIds=fraud-check&minDurationMs=10`.
 
-## Cviceni
+## Cvičení
 
-Vybudujte debugging setup pro pipeline zpracovani objednavek:
+Vybudujte debugging setup pro pipeline zpracování objednávek:
 
-1. Vytvorte engine s povolenym tracingem (max 20 000 zaznamu)
-2. Zaregistrujte tri pravidla:
-   - `order-validator` ktery zkontroluje, ze `event.total > 0` a emituje `order.validated`
-   - `inventory-check` ktery emituje `order.ready` pri prijeti `order.validated` a fakt `inventory:${event.productId}:stock` je vetsi nez 0
-   - `order-fulfiller` ktery emituje `order.fulfilled` pri prijeti `order.ready`
-3. Vytvorte debug relaci s breakpointem, ktery poridi snapshot pri spusteni `inventory-check`
-4. Emitujte udalost `order.created` a pouzijte `getByCorrelation()` pro sledovani celeho retezce zpracovani
-5. Zkontrolujte snapshot pro zjisteni stavu faktu v dobe vyhodnoceni `inventory-check`
+1. Vytvořte engine s povoleným tracingem (max 20 000 záznamů)
+2. Zaregistrujte tři pravidla:
+   - `order-validator` který zkontroluje, že `event.total > 0` a emituje `order.validated`
+   - `inventory-check` který emituje `order.ready` při přijetí `order.validated` a fakt `inventory:${event.productId}:stock` je větší než 0
+   - `order-fulfiller` který emituje `order.fulfilled` při přijetí `order.ready`
+3. Vytvořte debug relaci s breakpointem, který pořídí snapshot při spuštění `inventory-check`
+4. Emitujte událost `order.created` a použijte `getByCorrelation()` pro sledování celého řetězce zpracování
+5. Zkontrolujte snapshot pro zjištění stavu faktů v době vyhodnocení `inventory-check`
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -480,10 +480,10 @@ const engine = await RuleEngine.start({
   tracing: { enabled: true, maxEntries: 20_000 },
 });
 
-// Pravidlo 1: Validace objednavky
+// Pravidlo 1: Validace objednávky
 engine.registerRule(
   Rule.create('order-validator')
-    .name('Validator objednavek')
+    .name('Validátor objednávek')
     .priority(10)
     .when(onEvent('order.created'))
     .if(event('total').gt(0))
@@ -509,10 +509,10 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 3: Vyrizeni objednavky
+// Pravidlo 3: Vyřízení objednávky
 engine.registerRule(
   Rule.create('order-fulfiller')
-    .name('Vyrizeni objednavky')
+    .name('Vyřízení objednávky')
     .priority(10)
     .when(onEvent('order.ready'))
     .then(emit('order.fulfilled', {
@@ -521,7 +521,7 @@ engine.registerRule(
     .build()
 );
 
-// Nastaveni debugovani
+// Nastavení debugování
 const session = engine.debugController.createSession();
 
 engine.debugController.addBreakpoint(session.id, {
@@ -530,23 +530,23 @@ engine.debugController.addBreakpoint(session.id, {
   action: 'snapshot',
 });
 
-// Nastaveni pocatecnich zasob
+// Nastavení počátečních zásob
 engine.setFact('inventory:prod-1:stock', 10);
 
-// Emitovani objednavky
+// Emitování objednávky
 await engine.emit('order.created', {
   orderId: 'ord-100',
   productId: 'prod-1',
   total: 49.99,
 });
 
-// Sledovani celeho retezce
+// Sledování celého řetězce
 const events = engine.traceCollector.getRecent(50);
 const correlationId = events.find(e => e.type === 'event_emitted')?.correlationId;
 
 if (correlationId) {
   const chain = engine.traceCollector.getByCorrelation(correlationId);
-  console.log(`Cely retezec (${chain.length} zaznamu):`);
+  console.log(`Celý řetězec (${chain.length} záznamů):`);
   for (const entry of chain) {
     const rule = entry.ruleName ? ` [${entry.ruleName}]` : '';
     console.log(`  ${entry.type}${rule} (${entry.durationMs ?? 0}ms)`);
@@ -557,7 +557,7 @@ if (correlationId) {
 const sess = engine.debugController.getSession(session.id);
 if (sess?.snapshots.length) {
   const snap = sess.snapshots[0];
-  console.log(`\nSnapshot pri inventory-check:`);
+  console.log(`\nSnapshot při inventory-check:`);
   for (const f of snap.facts) {
     console.log(`  ${f.key} = ${f.value}`);
   }
@@ -568,23 +568,23 @@ engine.debugController.endSession(session.id);
 await engine.stop();
 ```
 
-Korelacni retezec ukazuje kompletni tok: `order.created` -> `order-validator` -> `order.validated` -> `inventory-check` -> `order.ready` -> `order-fulfiller` -> `order.fulfilled`. Snapshot pri `inventory-check` zachycuje stav faktu presne v danem bode.
+Korelační řetězec ukazuje kompletní tok: `order.created` -> `order-validator` -> `order.validated` -> `inventory-check` -> `order.ready` -> `order-fulfiller` -> `order.fulfilled`. Snapshot při `inventory-check` zachycuje stav faktů přesně v daném bodě.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **`TraceCollector`** zaznamenava kazdy krok enginu do ohraniceneho ring bufferu (vychozi 10 000 zaznamu)
-- Povolte tracing pres `tracing: { enabled: true }` v `RuleEngine.start()`
-- **16 typu trace zaznamu** pokryva cely zivotni cyklus: triggery, podminky, akce, fakta, casovace a zpetne retezeni
-- **`correlationId`** propojuje vsechny trace zaznamy ze stejneho retezce zpracovani udalosti
-- Dotazujte trace dle korelace, pravidla, typu nebo casoveho rozsahu pomoci `getByCorrelation()`, `getByRule()`, `getByType()` a `query()`
-- **`DebugController`** pridava breakpointy (rule, event, fact, action) s akcemi pause, log nebo snapshot
-- **Snapshoty** zachycuji fakta enginu a nedavne trace v danem casovem bode
-- **`HistoryService`** poskytuje dotazy na urovni udalosti s retezci kauzality a pohledy na timeline
-- Exportujte trace jako **JSON nebo Mermaid diagramy** pro externi analyzu
-- Vsechny funkce jsou pristupne pres **REST API** endpointy pri pouziti `RuleEngineServer`
+- **`TraceCollector`** zaznamenává každý krok enginu do ohraničeného ring bufferu (výchozí 10 000 záznamů)
+- Povolte tracing přes `tracing: { enabled: true }` v `RuleEngine.start()`
+- **16 typů trace záznamů** pokrývá celý životní cyklus: triggery, podmínky, akce, fakta, časovače a zpětné řetězení
+- **`correlationId`** propojuje všechny trace záznamy ze stejného řetězce zpracování události
+- Dotazujte trace dle korelace, pravidla, typu nebo časového rozsahu pomocí `getByCorrelation()`, `getByRule()`, `getByType()` a `query()`
+- **`DebugController`** přidává breakpointy (rule, event, fact, action) s akcemi pause, log nebo snapshot
+- **Snapshoty** zachycují fakta enginu a nedávné trace v daném časovém bodě
+- **`HistoryService`** poskytuje dotazy na úrovni událostí s řetězci kauzality a pohledy na timeline
+- Exportujte trace jako **JSON nebo Mermaid diagramy** pro externí analýzu
+- Všechny funkce jsou přístupné přes **REST API** endpointy při použití `RuleEngineServer`
 
 ---
 
-Dalsi: [Profilovani vykonu](./02-profilaci.md)
+Další: [Profilování výkonu](./02-profilaci.md)

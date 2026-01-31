@@ -1,19 +1,19 @@
 # Metriky a tracing
 
-Debugging a profilovani vam daji prehled behem vyvoje. Audit logging vam da compliance zaznam. Ale pro produkcni dashboardy, alerting a distribuovany tracing napric sluzbami potrebujete standardni observability nastroje. noex-rules poskytuje **MetricsCollector**, ktery exportuje metriky kompatibilni s Prometheus, a **OpenTelemetryBridge**, ktery mapuje engine trace na OTel spany.
+Debugging a profilování vám dají přehled během vývoje. Audit logging vám dá compliance záznam. Ale pro produkční dashboardy, alerting a distribuovaný tracing napříč službami potřebujete standardní observability nástroje. noex-rules poskytuje **MetricsCollector**, který exportuje metriky kompatibilní s Prometheus, a **OpenTelemetryBridge**, který mapuje engine trace na OTel spany.
 
-## Co se naucite
+## Co se naučíte
 
 - Jak povolit a konfigurovat `MetricsCollector`
-- Vsechny dostupne citace, histogramy a gaugy
+- Všechny dostupné čítače, histogramy a gaugy
 - Prometheus text exposition format a endpoint `/metrics`
 - Jak `OpenTelemetryBridge` mapuje trace na OTel spany
-- Hierarchie spanu a mapovani atributu
+- Hierarchie spanů a mapování atributů
 - Integrace s Grafana, Prometheus a Jaeger
 
 ## MetricsCollector
 
-Metrics collector se prihlasi k odberu streamu `TraceCollector` a udrzuje metriky kompatibilni s Prometheus: citace pro pocty udalosti, histogramy pro distribuce latenci a gaugy pro aktualni stav.
+Metrics collector se přihlásí k odběru streamu `TraceCollector` a udržuje metriky kompatibilní s Prometheus: čítače pro počty událostí, histogramy pro distribuce latencí a gaugy pro aktuální stav.
 
 ```text
   ┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
@@ -24,7 +24,7 @@ Metrics collector se prihlasi k odberu streamu `TraceCollector` a udrzuje metrik
                                               ┌──────────┼──────────┐
                                               │          │          │
                                         ┌─────▼─────┐ ┌─▼────────┐ ┌▼───────────┐
-                                        │ Citace    │ │Histogramy│ │ Gaugy      │
+                                        │ Čítače    │ │Histogramy│ │ Gaugy      │
                                         └───────────┘ └──────────┘ └────────────┘
                                                          │
                                               ┌──────────▼──────────┐
@@ -33,19 +33,19 @@ Metrics collector se prihlasi k odberu streamu `TraceCollector` a udrzuje metrik
                                               └─────────────────────┘
 ```
 
-### Povoleni metrik
+### Povolení metrik
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
 
 const engine = await RuleEngine.start({
-  tracing: { enabled: true },  // Povinne: metriky se odvozuji z tracu
+  tracing: { enabled: true },  // Povinné: metriky se odvozují z traců
   metrics: {
     enabled: true,
-    prefix: 'noex_rules',          // Prefix nazvu metrik (vychozi)
-    perRuleMetrics: false,          // Stitky per-rule na histogramech (vychozi: false)
-    maxLabeledRules: 100,           // Limit kardinality pro per-rule (vychozi: 100)
-    histogramBuckets: [             // Vlastni buckety histogramu v sekundach
+    prefix: 'noex_rules',          // Prefix názvů metrik (výchozí)
+    perRuleMetrics: false,          // Štítky per-rule na histogramech (výchozí: false)
+    maxLabeledRules: 100,           // Limit kardinality pro per-rule (výchozí: 100)
+    histogramBuckets: [             // Vlastní buckety histogramů v sekundách
       0.001, 0.005, 0.01, 0.025, 0.05,
       0.1, 0.25, 0.5, 1, 2.5, 5, 10,
     ],
@@ -57,60 +57,60 @@ const engine = await RuleEngine.start({
 
 ```typescript
 interface MetricsConfig {
-  enabled?: boolean;           // Povolit sber metrik (vychozi: false)
-  perRuleMetrics?: boolean;    // Pridat stitky rule_id na histogramy (vychozi: false)
-  maxLabeledRules?: number;    // Max ruznych stitku rule_id (vychozi: 100)
-  histogramBuckets?: number[]; // Hranice bucketu histogramu v sekundach
-  prefix?: string;             // Prefix nazvu metrik (vychozi: 'noex_rules')
+  enabled?: boolean;           // Povolit sběr metrik (výchozí: false)
+  perRuleMetrics?: boolean;    // Přidat štítky rule_id na histogramy (výchozí: false)
+  maxLabeledRules?: number;    // Max různých štítků rule_id (výchozí: 100)
+  histogramBuckets?: number[]; // Hranice bucketů histogramů v sekundách
+  prefix?: string;             // Prefix názvů metrik (výchozí: 'noex_rules')
 }
 ```
 
-**Poznamka k `perRuleMetrics`:** Povoleni per-rule stitku na histogramech prida stitek `rule_id` ke kazdemu pozorovani. To poskytuje jemna data o latencich, ale zvysuje kardinalitu. Limit `maxLabeledRules` zabrannuje neomezenenemu rustu stitku, pokud jsou pravidla vytvavena dynamicky.
+**Poznámka k `perRuleMetrics`:** Povolení per-rule štítků na histogramech přidá štítek `rule_id` ke každému pozorování. To poskytuje jemná data o latencích, ale zvyšuje kardinalitu. Limit `maxLabeledRules` zabraňuje neomezenému růstu štítků, pokud jsou pravidla vytvářena dynamicky.
 
-## Dostupne metriky
+## Dostupné metriky
 
-### Citace
+### Čítače
 
-Citace sleduje kumulativni soucty, ktere pouze rostou:
+Čítače sledují kumulativní součty, které pouze rostou:
 
 | Metrika | Popis |
 |---------|-------|
-| `noex_rules_rules_triggered_total` | Celkovy pocet spusteni pravidel |
-| `noex_rules_rules_executed_total` | Celkovy pocet provedeni pravidel (podminky prosly) |
-| `noex_rules_rules_skipped_total` | Celkovy pocet preskoceni pravidel (podminky selhaly) |
-| `noex_rules_rules_failed_total` | Celkovy pocet selhani provadeni pravidel |
-| `noex_rules_events_processed_total` | Celkovy pocet zpracovanych udalosti |
-| `noex_rules_facts_changed_total` | Celkovy pocet zmen faktu |
-| `noex_rules_actions_executed_total` | Celkovy pocet uspesne provedenych akci |
-| `noex_rules_actions_failed_total` | Celkovy pocet selhani akci |
-| `noex_rules_conditions_evaluated_total` | Celkovy pocet vyhodnocenych podminek |
+| `noex_rules_rules_triggered_total` | Celkový počet spuštění pravidel |
+| `noex_rules_rules_executed_total` | Celkový počet provedení pravidel (podmínky prošly) |
+| `noex_rules_rules_skipped_total` | Celkový počet přeskočení pravidel (podmínky selhaly) |
+| `noex_rules_rules_failed_total` | Celkový počet selhání provádění pravidel |
+| `noex_rules_events_processed_total` | Celkový počet zpracovaných událostí |
+| `noex_rules_facts_changed_total` | Celkový počet změn faktů |
+| `noex_rules_actions_executed_total` | Celkový počet úspěšně provedených akcí |
+| `noex_rules_actions_failed_total` | Celkový počet selhání akcí |
+| `noex_rules_conditions_evaluated_total` | Celkový počet vyhodnocených podmínek |
 
 ### Histogramy
 
-Histogramy sleduju distribuce hodnot s konfigurovatelnymi hranicemi bucketu:
+Histogramy sledují distribuce hodnot s konfigurovatelnými hranicemi bucketů:
 
 | Metrika | Popis |
 |---------|-------|
-| `noex_rules_evaluation_duration_seconds` | Doba vyhodnoceni pravidla |
-| `noex_rules_condition_duration_seconds` | Doba vyhodnoceni podminky |
-| `noex_rules_action_duration_seconds` | Doba provadeni akce |
+| `noex_rules_evaluation_duration_seconds` | Doba vyhodnocení pravidla |
+| `noex_rules_condition_duration_seconds` | Doba vyhodnocení podmínky |
+| `noex_rules_action_duration_seconds` | Doba provádění akce |
 
-Kdyz je povoleno `perRuleMetrics`, `evaluation_duration_seconds` obsahuje stitek `rule_id` pro analyzu latence jednotlivych pravidel.
+Když je povoleno `perRuleMetrics`, `evaluation_duration_seconds` obsahuje štítek `rule_id` pro analýzu latence jednotlivých pravidel.
 
 ### Gaugy
 
-Gaugy sleduju aktualni hodnoty, ktere mohou rust i klesat. Vyhodnocuji se line pri scrapovani metrik:
+Gaugy sledují aktuální hodnoty, které mohou růst i klesat. Vyhodnocují se líně při scrapování metrik:
 
 | Metrika | Popis |
 |---------|-------|
-| `noex_rules_active_rules` | Aktualni pocet registrovanych pravidel |
-| `noex_rules_active_facts` | Aktualni pocet faktu ve fact store |
-| `noex_rules_active_timers` | Aktualni pocet aktivnich casovcu |
-| `noex_rules_trace_buffer_utilization` | Pomer vyuziti trace bufferu (0.0-1.0) |
+| `noex_rules_active_rules` | Aktuální počet registrovaných pravidel |
+| `noex_rules_active_facts` | Aktuální počet faktů ve fact store |
+| `noex_rules_active_timers` | Aktuální počet aktivních časovačů |
+| `noex_rules_trace_buffer_utilization` | Poměr využití trace bufferu (0.0-1.0) |
 
-## Prometheus textovy format
+## Prometheus textový formát
 
-Endpoint metrik vraci data ve formatu Prometheus text exposition (v0.0.4):
+Endpoint metrik vrací data ve formátu Prometheus text exposition (v0.0.4):
 
 ```text
 # HELP noex_rules_rules_triggered_total Total rules triggered
@@ -140,37 +140,37 @@ noex_rules_active_rules 12
 noex_rules_active_facts 347
 ```
 
-### Programaticky pristup k metrikam
+### Programatický přístup k metrikám
 
 ```typescript
-// Ziskat snapshoty citacu
+// Získat snapshoty čítačů
 const counters = engine.metricsCollector.getCounters();
-console.log(`Zpracovanych udalosti: ${counters.eventsProcessed}`);
-console.log(`Spustenych pravidel: ${counters.rulesTriggered}`);
-console.log(`Provedenych pravidel: ${counters.rulesExecuted}`);
-console.log(`Selhalych akci: ${counters.actionsFailed}`);
+console.log(`Zpracovaných událostí: ${counters.eventsProcessed}`);
+console.log(`Spuštěných pravidel: ${counters.rulesTriggered}`);
+console.log(`Provedených pravidel: ${counters.rulesExecuted}`);
+console.log(`Selhalých akcí: ${counters.actionsFailed}`);
 
-// Ziskat aktualni hodnoty gaugu
+// Získat aktuální hodnoty gaugu
 const gauges = engine.metricsCollector.getGauges();
-console.log(`Aktivni pravidla: ${gauges.activeRules}`);
-console.log(`Aktivni fakta: ${gauges.activeFacts}`);
-console.log(`Aktivni casovace: ${gauges.activeTimers}`);
-console.log(`Vyuziti bufferu: ${(gauges.traceBufferUtilization * 100).toFixed(1)}%`);
+console.log(`Aktivní pravidla: ${gauges.activeRules}`);
+console.log(`Aktivní fakta: ${gauges.activeFacts}`);
+console.log(`Aktivní časovače: ${gauges.activeTimers}`);
+console.log(`Využití bufferu: ${(gauges.traceBufferUtilization * 100).toFixed(1)}%`);
 
-// Ziskat snapshoty histogramu
+// Získat snapshoty histogramů
 const histograms = engine.metricsCollector.getHistograms();
 const evalHist = histograms.evaluationDuration;
-console.log(`Vyhodnoceni p50: ${evalHist.p50}s`);
-console.log(`Vyhodnoceni p99: ${evalHist.p99}s`);
+console.log(`Vyhodnocení p50: ${evalHist.p50}s`);
+console.log(`Vyhodnocení p99: ${evalHist.p99}s`);
 ```
 
 ## OpenTelemetryBridge
 
-OpenTelemetry bridge mapuje engine trace zaznamy na OTel spany a integruje se s distribuovanymi tracing systemy jako Jaeger, Zipkin nebo Grafana Tempo.
+OpenTelemetry bridge mapuje engine trace záznamy na OTel spany a integruje se s distribuovanými tracing systémy jako Jaeger, Zipkin nebo Grafana Tempo.
 
 ### Jak to funguje
 
-Bridge dynamicky importuje `@opentelemetry/api` za behu — neni zadna kompilacni zavislost. Pokud modul neni nainstalovany, bridge se tise stane no-op.
+Bridge dynamicky importuje `@opentelemetry/api` za běhu — není žádná kompilační závislost. Pokud modul není nainstalovaný, bridge se tiše stane no-op.
 
 ```text
   ┌──────────────┐     ┌─────────────────┐     ┌───────────────────┐
@@ -180,7 +180,7 @@ Bridge dynamicky importuje `@opentelemetry/api` za behu — neni zadna kompilacn
                                                           │
                                                ┌──────────▼──────────┐
                                                │  @opentelemetry/api │
-                                               │  (dynamicky import) │
+                                               │  (dynamický import) │
                                                └──────────┬──────────┘
                                                           │
                                                ┌──────────▼──────────┐
@@ -189,15 +189,15 @@ Bridge dynamicky importuje `@opentelemetry/api` za behu — neni zadna kompilacn
                                                └─────────────────────┘
 ```
 
-### Povoleni OpenTelemetry
+### Povolení OpenTelemetry
 
 ```typescript
 const engine = await RuleEngine.start({
   tracing: { enabled: true },
   opentelemetry: {
     enabled: true,
-    serviceName: 'my-rule-engine',    // Nazev OTel sluzby (vychozi: 'noex-rules')
-    traceConditions: false,           // Zahrnout spany podminek (vychozi: false)
+    serviceName: 'my-rule-engine',    // Název OTel služby (výchozí: 'noex-rules')
+    traceConditions: false,           // Zahrnout spany podmínek (výchozí: false)
   },
 });
 ```
@@ -206,51 +206,51 @@ const engine = await RuleEngine.start({
 
 ```typescript
 interface OpenTelemetryConfig {
-  enabled?: boolean;         // Povolit OTel bridge (vychozi: false)
-  serviceName?: string;      // Nazev OTel sluzby (vychozi: 'noex-rules')
-  traceConditions?: boolean; // Vytvaret spany pro kazdou podminku (vychozi: false)
+  enabled?: boolean;         // Povolit OTel bridge (výchozí: false)
+  serviceName?: string;      // Název OTel služby (výchozí: 'noex-rules')
+  traceConditions?: boolean; // Vytvářet spany pro každou podmínku (výchozí: false)
 }
 ```
 
-**Poznamka k `traceConditions`:** Vytvareni spanu pro kazde vyhodnoceni podminky pridava vyznamnou zatez. Povolte pouze pri vysetrovani konkretnich vykonnostnich problemu podminek.
+**Poznámka k `traceConditions`:** Vytváření spanů pro každé vyhodnocení podmínky přidává významnou zátěž. Povolte pouze při vyšetřování konkrétních výkonnostních problémů podmínek.
 
-### Hierarchie spanu
+### Hierarchie spanů
 
-Bridge vytvari hierarchickou strukturu spanu, ktera zrcadli tok zpracovani enginu:
+Bridge vytváří hierarchickou strukturu spanů, která zrcadlí tok zpracování enginu:
 
 ```text
 event_processing (correlationId)
   └─ rule_evaluation (ruleId)
-       ├─ condition_evaluation (opt-in, na podminku)
+       ├─ condition_evaluation (opt-in, na podmínku)
        └─ action_execution (na akci)
 ```
 
-### Atributy spanu
+### Atributy spanů
 
-Kazdy span nese noex-specificke atributy:
+Každý span nese noex-specifické atributy:
 
 | Atribut | Typ spanu | Hodnota |
 |---------|-----------|---------|
-| `noex.correlation_id` | Vsechny | Korelacni ID |
-| `noex.event.topic` | `event_processing` | Topic udalosti |
+| `noex.correlation_id` | Všechny | Korelační ID |
+| `noex.event.topic` | `event_processing` | Topic události |
 | `noex.rule.id` | `rule_evaluation` | ID pravidla |
-| `noex.rule.name` | `rule_evaluation` | Nazev pravidla |
-| `noex.rule.skipped` | `rule_evaluation` | Zda podminky selhaly |
-| `noex.rule.skip_reason` | `rule_evaluation` | Proc bylo pravidlo preskoceno |
+| `noex.rule.name` | `rule_evaluation` | Název pravidla |
+| `noex.rule.skipped` | `rule_evaluation` | Zda podmínky selhaly |
+| `noex.rule.skip_reason` | `rule_evaluation` | Proč bylo pravidlo přeskočeno |
 | `noex.action.type` | `action_execution` | Typ akce (emit_event atd.) |
 | `noex.action.index` | `action_execution` | Index akce v pravidle |
-| `noex.condition.index` | `condition_evaluation` | Index podminky v pravidle |
-| `noex.condition.passed` | `condition_evaluation` | Zda podminka prosla |
+| `noex.condition.index` | `condition_evaluation` | Index podmínky v pravidle |
+| `noex.condition.passed` | `condition_evaluation` | Zda podmínka prošla |
 
-### Predpoklady
+### Předpoklady
 
-Nainstalujte OpenTelemetry SDK pred pouzitim bridge:
+Nainstalujte OpenTelemetry SDK před použitím bridge:
 
 ```bash
 npm install @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node
 ```
 
-Nakonfigurujte OTel SDK pred spustenim enginu:
+Nakonfigurujte OTel SDK před spuštěním enginu:
 
 ```typescript
 import { NodeSDK } from '@opentelemetry/sdk-node';
@@ -262,7 +262,7 @@ const sdk = new NodeSDK({
 });
 sdk.start();
 
-// Pote spustte pravidlovy engine s povolenym OTel
+// Poté spusťte pravidlový engine s povoleným OTel
 const engine = await RuleEngine.start({
   tracing: { enabled: true },
   opentelemetry: {
@@ -272,9 +272,9 @@ const engine = await RuleEngine.start({
 });
 ```
 
-## Kompletni priklad: Produkcni observability stack
+## Kompletní příklad: Produkční observability stack
 
-Tento priklad nastavi kompletni observability stack: metriky pro Prometheus, audit logging pro compliance a tracing pro vyvoj:
+Tento příklad nastaví kompletní observability stack: metriky pro Prometheus, audit logging pro compliance a tracing pro vývoj:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -286,7 +286,7 @@ import {
 const adapter = await SQLiteAdapter.start({ path: './data/production.db' });
 
 const engine = await RuleEngine.start({
-  // Debug tracing (lze prepnout za behu pres REST API)
+  // Debug tracing (lze přepnout za běhu přes REST API)
   tracing: { enabled: true, maxEntries: 50_000 },
 
   // Prometheus metriky
@@ -297,13 +297,13 @@ const engine = await RuleEngine.start({
     maxLabeledRules: 50,
   },
 
-  // Persistentni audit logging
+  // Persistentní audit logging
   audit: {
     adapter,
-    retentionMs: 90 * 24 * 60 * 60 * 1000, // 90 dni
+    retentionMs: 90 * 24 * 60 * 60 * 1000, // 90 dní
   },
 
-  // OpenTelemetry (vyzaduje nainstalovanou @opentelemetry/api)
+  // OpenTelemetry (vyžaduje nainstalovanou @opentelemetry/api)
   opentelemetry: {
     enabled: true,
     serviceName: 'order-processing',
@@ -314,7 +314,7 @@ const engine = await RuleEngine.start({
 
 engine.registerRule(
   Rule.create('validate-order')
-    .name('Validace objednavky')
+    .name('Validace objednávky')
     .priority(10)
     .when(onEvent('order.created'))
     .if(event('total').gt(0))
@@ -336,13 +336,13 @@ engine.registerRule(
       orderId: ref('event.orderId'),
       amount: ref('event.total'),
     }))
-    .also(log('Fraud screening spusten pro objednavku ${event.orderId}'))
+    .also(log('Fraud screening spuštěn pro objednávku ${event.orderId}'))
     .build()
 );
 
 engine.registerRule(
   Rule.create('discount-check')
-    .name('Aplikace vernostni slevy')
+    .name('Aplikace věrnostní slevy')
     .priority(5)
     .when(onEvent('order.validated'))
     .if(fact('customer:${event.customerId}:tier').eq('vip'))
@@ -353,7 +353,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Simulace zateze ---
+// --- Simulace zátěže ---
 
 engine.setFact('customer:c-1:tier', 'vip');
 
@@ -366,28 +366,28 @@ for (let i = 0; i < 50; i++) {
   });
 }
 
-// --- Vystupy observability ---
+// --- Výstupy observability ---
 
 // 1. Prometheus metriky
 const counters = engine.metricsCollector.getCounters();
 console.log('=== Metriky ===');
-console.log(`Zpracovanych udalosti: ${counters.eventsProcessed}`);
-console.log(`Spustenych pravidel: ${counters.rulesTriggered}`);
-console.log(`Provedenych pravidel: ${counters.rulesExecuted}`);
-console.log(`Selhalych akci: ${counters.actionsFailed}`);
+console.log(`Zpracovaných událostí: ${counters.eventsProcessed}`);
+console.log(`Spuštěných pravidel: ${counters.rulesTriggered}`);
+console.log(`Provedených pravidel: ${counters.rulesExecuted}`);
+console.log(`Selhalých akcí: ${counters.actionsFailed}`);
 
-// 2. Shrnuti profilovani
+// 2. Shrnutí profilování
 const summary = engine.profiler.getSummary();
-console.log('\n=== Profilovani ===');
-console.log(`Prumerny cas pravidla: ${summary.avgRuleTimeMs.toFixed(3)}ms`);
+console.log('\n=== Profilování ===');
+console.log(`Průměrný čas pravidla: ${summary.avgRuleTimeMs.toFixed(3)}ms`);
 if (summary.slowestRule) {
-  console.log(`Nejpomalejsi: ${summary.slowestRule.ruleName}`);
+  console.log(`Nejpomalejší: ${summary.slowestRule.ruleName}`);
 }
 
 // 3. Audit trail
 const auditStats = engine.auditLog.getStats();
 console.log('\n=== Audit ===');
-console.log(`Celkem zaznamu: ${auditStats.totalEntries}`);
+console.log(`Celkem záznamů: ${auditStats.totalEntries}`);
 for (const [cat, count] of Object.entries(auditStats.entriesByCategory)) {
   if (count > 0) console.log(`  ${cat}: ${count}`);
 }
@@ -398,7 +398,7 @@ await engine.stop();
 
 ## REST API endpoint
 
-Pri pouziti `RuleEngineServer` je endpoint metrik dostupny na:
+Při použití `RuleEngineServer` je endpoint metrik dostupný na:
 
 | Metoda | Cesta | Content-Type | Popis |
 |--------|-------|-------------|-------|
@@ -406,7 +406,7 @@ Pri pouziti `RuleEngineServer` je endpoint metrik dostupny na:
 
 ### Konfigurace Prometheus
 
-Pridejte do vaseho `prometheus.yml`:
+Přidejte do vašeho `prometheus.yml`:
 
 ```yaml
 scrape_configs:
@@ -418,42 +418,42 @@ scrape_configs:
 
 ### Grafana dashboard dotazy
 
-Bezne PromQL dotazy pro Grafana dashboard:
+Běžné PromQL dotazy pro Grafana dashboard:
 
 ```promql
-# Mira provadeni pravidel (za sekundu)
+# Míra provádění pravidel (za sekundu)
 rate(noex_rules_rules_executed_total[5m])
 
-# Mira selhani pravidel
+# Míra selhání pravidel
 rate(noex_rules_rules_failed_total[5m])
 
-# p99 latence vyhodnoceni
+# p99 latence vyhodnocení
 histogram_quantile(0.99, rate(noex_rules_evaluation_duration_seconds_bucket[5m]))
 
-# Pomer uspesnosti akci
+# Poměr úspěšnosti akcí
 1 - (rate(noex_rules_actions_failed_total[5m]) / rate(noex_rules_actions_executed_total[5m]))
 
-# Aktivni pravidla (gauge)
+# Aktivní pravidla (gauge)
 noex_rules_active_rules
 ```
 
-## Cviceni
+## Cvičení
 
-Nastavte produkcne pripravenou observability konfiguraci pro pravidlovy engine zpracovani plateb:
+Nastavte produkčně připravenou observability konfiguraci pro pravidlový engine zpracování plateb:
 
-1. Spustte engine se vsemi observability funkcemi:
-   - Tracing (50 000 zaznamu)
+1. Spusťte engine se všemi observability funkcemi:
+   - Tracing (50 000 záznamů)
    - Metriky (s prefixem `payments`, per-rule metriky povoleny)
-   - Audit logging (SQLite, 180denni retence)
-2. Zaregistrujte tri pravidla:
-   - `payment-validator` ktery validuje `event.amount > 0` na `payment.initiated`
-   - `high-value-flag` ktery oznaci platby nad $10 000 na `payment.initiated`
-   - `payment-tracker` ktery aktualizuje citac faktu na `payment.initiated`
-3. Simulujte 100 plateb s nahodnymi castkami (100-20 000)
-4. Vytisknete citace metrik, shrnuti profilovani a audit statistiky
+   - Audit logging (SQLite, 180denní retence)
+2. Zaregistrujte tři pravidla:
+   - `payment-validator` který validuje `event.amount > 0` na `payment.initiated`
+   - `high-value-flag` který označí platby nad $10 000 na `payment.initiated`
+   - `payment-tracker` který aktualizuje čítač faktů na `payment.initiated`
+3. Simulujte 100 plateb s náhodnými částkami (100-20 000)
+4. Vytiskněte čítače metrik, shrnutí profilování a audit statistiky
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -471,14 +471,14 @@ const engine = await RuleEngine.start({
   },
   audit: {
     adapter,
-    retentionMs: 180 * 24 * 60 * 60 * 1000, // 180 dni
+    retentionMs: 180 * 24 * 60 * 60 * 1000, // 180 dní
   },
 });
 
 // Validace platby
 engine.registerRule(
   Rule.create('payment-validator')
-    .name('Validator plateb')
+    .name('Validátor plateb')
     .priority(10)
     .when(onEvent('payment.initiated'))
     .if(event('amount').gt(0))
@@ -489,10 +489,10 @@ engine.registerRule(
     .build()
 );
 
-// Oznaceni vysokych plateb
+// Označení vysokých plateb
 engine.registerRule(
   Rule.create('high-value-flag')
-    .name('Oznaceni vysoke hodnoty')
+    .name('Označení vysoké hodnoty')
     .priority(20)
     .when(onEvent('payment.initiated'))
     .if(event('amount').gt(10_000))
@@ -500,11 +500,11 @@ engine.registerRule(
       paymentId: ref('event.paymentId'),
       amount: ref('event.amount'),
     }))
-    .also(log('Platba vysoke hodnoty: $${event.amount}'))
+    .also(log('Platba vysoké hodnoty: $${event.amount}'))
     .build()
 );
 
-// Sledovani poctu plateb
+// Sledování počtu plateb
 engine.registerRule(
   Rule.create('payment-tracker')
     .name('Tracker plateb')
@@ -523,29 +523,29 @@ for (let i = 0; i < 100; i++) {
   });
 }
 
-// --- Vysledky ---
+// --- Výsledky ---
 
-console.log('=== Citace metrik ===');
+console.log('=== Čítače metrik ===');
 const counters = engine.metricsCollector.getCounters();
-console.log(`Zpracovanych udalosti: ${counters.eventsProcessed}`);
-console.log(`Spustenych pravidel: ${counters.rulesTriggered}`);
-console.log(`Provedenych pravidel: ${counters.rulesExecuted}`);
-console.log(`Preskocenych pravidel: ${counters.rulesSkipped}`);
-console.log(`Provedenych akci: ${counters.actionsExecuted}`);
-console.log(`Selhalych akci: ${counters.actionsFailed}`);
+console.log(`Zpracovaných událostí: ${counters.eventsProcessed}`);
+console.log(`Spuštěných pravidel: ${counters.rulesTriggered}`);
+console.log(`Provedených pravidel: ${counters.rulesExecuted}`);
+console.log(`Přeskočených pravidel: ${counters.rulesSkipped}`);
+console.log(`Provedených akcí: ${counters.actionsExecuted}`);
+console.log(`Selhalých akcí: ${counters.actionsFailed}`);
 
-console.log('\n=== Shrnuti profilovani ===');
+console.log('\n=== Shrnutí profilování ===');
 const summary = engine.profiler.getSummary();
-console.log(`Profilovanych pravidel: ${summary.totalRulesProfiled}`);
-console.log(`Celkem spusteni: ${summary.totalTriggers}`);
-console.log(`Prumerny cas: ${summary.avgRuleTimeMs.toFixed(3)}ms`);
+console.log(`Profilovaných pravidel: ${summary.totalRulesProfiled}`);
+console.log(`Celkem spuštění: ${summary.totalTriggers}`);
+console.log(`Průměrný čas: ${summary.avgRuleTimeMs.toFixed(3)}ms`);
 if (summary.slowestRule) {
-  console.log(`Nejpomalejsi: ${summary.slowestRule.ruleName} (${summary.slowestRule.avgTimeMs.toFixed(3)}ms)`);
+  console.log(`Nejpomalejší: ${summary.slowestRule.ruleName} (${summary.slowestRule.avgTimeMs.toFixed(3)}ms)`);
 }
 
 console.log('\n=== Audit statistiky ===');
 const auditStats = engine.auditLog.getStats();
-console.log(`Celkem zaznamu: ${auditStats.totalEntries}`);
+console.log(`Celkem záznamů: ${auditStats.totalEntries}`);
 for (const [cat, count] of Object.entries(auditStats.entriesByCategory)) {
   if (count > 0) console.log(`  ${cat}: ${count}`);
 }
@@ -554,24 +554,24 @@ await engine.auditLog.flush();
 await engine.stop();
 ```
 
-Pravidlo `high-value-flag` ukazuje nizsi uspesnost (zhruba 50 % v zavislosti na nahodnych castkach), zatimco `payment-validator` a `payment-tracker` se provedou pri kazde udalosti. Audit trail obsahuje zaznamy pro registraci pravidel, vsechna provedeni a zmeny faktu.
+Pravidlo `high-value-flag` ukazuje nižší úspěšnost (zhruba 50 % v závislosti na náhodných částkách), zatímco `payment-validator` a `payment-tracker` se provedou při každé události. Audit trail obsahuje záznamy pro registraci pravidel, všechna provedení a změny faktů.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **`MetricsCollector`** se prihlasi k odberu `TraceCollector` a udrzuje citace, histogramy a gaugy kompatibilni s Prometheus
-- Povolte pres `metrics: { enabled: true }` v `RuleEngine.start()` (vyzaduje povoleny tracing)
-- **9 citacu** sleduje kumulativni soucty: spusteni, provedeni, preskoceni, selhani, udalosti, fakta, akce a podminky
-- **3 histogramy** sleduju distribuce latenci pro vyhodnoceni pravidel, vyhodnoceni podminek a provadeni akci
-- **4 gaugy** reflektuji aktualni stav: aktivni pravidla, fakta, casovace a vyuziti trace bufferu
-- **`perRuleMetrics`** pridava stitky `rule_id` na histogramy (omezeno `maxLabeledRules`)
+- **`MetricsCollector`** se přihlásí k odběru `TraceCollector` a udržuje čítače, histogramy a gaugy kompatibilní s Prometheus
+- Povolte přes `metrics: { enabled: true }` v `RuleEngine.start()` (vyžaduje povolený tracing)
+- **9 čítačů** sleduje kumulativní součty: spuštění, provedení, přeskočení, selhání, události, fakta, akce a podmínky
+- **3 histogramy** sledují distribuce latencí pro vyhodnocení pravidel, vyhodnocení podmínek a provádění akcí
+- **4 gaugy** reflektují aktuální stav: aktivní pravidla, fakta, časovače a využití trace bufferu
+- **`perRuleMetrics`** přidává štítky `rule_id` na histogramy (omezeno `maxLabeledRules`)
 - **Endpoint `/metrics`** servuje Prometheus text exposition format pro scraping
-- **`OpenTelemetryBridge`** dynamicky nacita `@opentelemetry/api` a mapuje trace zaznamy na spany
-- Hierarchie spanu: `event_processing` -> `rule_evaluation` -> `condition_evaluation` / `action_execution`
-- Bridge je **no-op**, pokud `@opentelemetry/api` neni nainstalovana — zadne runtime chyby
-- Kombinujte metriky, audit a OTel pro **kompletni produkcni observability stack**
+- **`OpenTelemetryBridge`** dynamicky načítá `@opentelemetry/api` a mapuje trace záznamy na spany
+- Hierarchie spanů: `event_processing` -> `rule_evaluation` -> `condition_evaluation` / `action_execution`
+- Bridge je **no-op**, pokud `@opentelemetry/api` není nainstalována — žádné runtime chyby
+- Kombinujte metriky, audit a OTel pro **kompletní produkční observability stack**
 
 ---
 
-Dalsi: [Dopredne vs zpetne retezeni](../09-zpetne-retezeni/01-dopredu-vs-zpet.md)
+Další: [Dopředné vs zpětné řetězení](../09-zpetne-retezeni/01-dopredu-vs-zpet.md)

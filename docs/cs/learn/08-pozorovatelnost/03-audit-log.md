@@ -1,34 +1,34 @@
 # Audit logging
 
-Debugging a profilovani jsou vyvojarske nastroje. V produkci potrebujete neco jineho: permanentni, dotazovatelny zaznam vseho, co engine dela. **AuditLogService** poskytuje stale zapnute logovani s persistentnim ulozistem, pokryvajici 26 typu udalosti v 5 kategoriich — od registrace a provadeni pravidel az po zmeny faktu a udalosti zivotniho cyklu systemu.
+Debugging a profilování jsou vývojářské nástroje. V produkci potřebujete něco jiného: permanentní, dotazovatelný záznam všeho, co engine dělá. **AuditLogService** poskytuje stále zapnuté logování s persistentním úložištěm, pokrývající 26 typů událostí v 5 kategoriích — od registrace a provádění pravidel až po změny faktů a události životního cyklu systému.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak se `AuditLogService` lisi od `TraceCollector`
+- Jak se `AuditLogService` liší od `TraceCollector`
 - Konfigurace audit persistence s `AuditPersistenceConfig`
-- Vsech 26 typu audit udalosti a 5 kategorii
-- Dotazovani audit zaznamu s filtrovanim a paginaci
-- Realtime streaming pres SSE
-- Retencni politiky a cisteni
+- Všech 26 typů audit událostí a 5 kategorií
+- Dotazování audit záznamů s filtrováním a paginací
+- Realtime streaming přes SSE
+- Retenční politiky a čištění
 
 ## Audit vs tracing
 
-Audit logging i tracing zaznamenavaji aktivitu enginu, ale slouzi ruznym ucelum:
+Audit logging i tracing zaznamenávají aktivitu enginu, ale slouží různým účelům:
 
 | Aspekt | TraceCollector | AuditLogService |
 |--------|----------------|-----------------|
-| **Ucel** | Debugging pri vyvoji | Produkcni compliance |
-| **Vychozi stav** | Vypnuty | Zapnuty |
-| **Uloziste** | In-memory ring buffer | Persistentni (disk/DB) |
-| **Granularita** | Kazdy krok vyhodnocovani | Pouze vyznamne udalosti |
-| **Retence** | Omezeno velikosti bufferu | Casove zalozena (vychozi: 30 dni) |
-| **Model dotazovani** | Dle korelace/pravidla/typu | Dle kategorie/typu/pravidla/casu + paginace |
+| **Účel** | Debugging při vývoji | Produkční compliance |
+| **Výchozí stav** | Vypnutý | Zapnutý |
+| **Úložiště** | In-memory ring buffer | Persistentní (disk/DB) |
+| **Granularita** | Každý krok vyhodnocování | Pouze významné události |
+| **Retence** | Omezeno velikostí bufferu | Časově založená (výchozí: 30 dní) |
+| **Model dotazování** | Dle korelace/pravidla/typu | Dle kategorie/typu/pravidla/času + paginace |
 
-Pouzijte tracing pro debug chovani pravidel pri vyvoji. Pouzijte audit logging pro udrzovani compliance zaznamu v produkci.
+Použijte tracing pro debug chování pravidel při vývoji. Použijte audit logging pro udržování compliance záznamů v produkci.
 
 ## AuditPersistenceConfig
 
-Konfigurujte audit logging predanim `audit` do `RuleEngine.start()`:
+Konfigurujte audit logging předáním `audit` do `RuleEngine.start()`:
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -38,161 +38,161 @@ const adapter = await SQLiteAdapter.start({ path: './data/audit.db' });
 
 const engine = await RuleEngine.start({
   audit: {
-    adapter,                    // Povinne: storage backend
-    retentionMs: 30 * 24 * 60 * 60 * 1000,  // 30 dni (vychozi)
-    batchSize: 100,             // Zaznamu na flush davku (vychozi: 100)
-    flushIntervalMs: 5_000,     // Flush do storage kazdych 5s (vychozi: 5 000)
-    maxMemoryEntries: 50_000,   // Velikost in-memory ring bufferu (vychozi: 50 000)
+    adapter,                    // Povinné: storage backend
+    retentionMs: 30 * 24 * 60 * 60 * 1000,  // 30 dní (výchozí)
+    batchSize: 100,             // Záznamů na flush dávku (výchozí: 100)
+    flushIntervalMs: 5_000,     // Flush do storage každých 5s (výchozí: 5 000)
+    maxMemoryEntries: 50_000,   // Velikost in-memory ring bufferu (výchozí: 50 000)
   },
 });
 ```
 
 ### Bez persistence
 
-Pokud neposkytnete konfiguraci `audit`, audit sluzba stale bezi s in-memory bufferem. Muzete dotazovat nedavne zaznamy, ale nepreziji restart:
+Pokud neposkytnete konfiguraci `audit`, audit služba stále běží s in-memory bufferem. Můžete dotazovat nedávné záznamy, ale nepřežijí restart:
 
 ```typescript
-// Zadny adapter — pouze in-memory
+// Žádný adapter — pouze in-memory
 const engine = await RuleEngine.start({});
 
-// Audit sluzba je stale aktivni s 50 000 zaznamovym bufferem
+// Audit služba je stále aktivní s 50 000 záznamovým bufferem
 const stats = engine.auditLog.getStats();
 ```
 
-## Typy audit udalosti
+## Typy audit událostí
 
-Audit sluzba zaznamenava 26 typu udalosti organizovanych do 5 kategorii:
+Audit služba zaznamenává 26 typů událostí organizovaných do 5 kategorií:
 
-### Sprava pravidel (`rule_management`)
+### Správa pravidel (`rule_management`)
 
-| Typ udalosti | Kdy |
+| Typ události | Kdy |
 |-----------|------|
-| `rule_registered` | Pravidlo je pridano do enginu |
-| `rule_unregistered` | Pravidlo je odebrano z enginu |
+| `rule_registered` | Pravidlo je přidáno do enginu |
+| `rule_unregistered` | Pravidlo je odebráno z enginu |
 | `rule_enabled` | Pravidlo je povoleno |
-| `rule_disabled` | Pravidlo je zakazano |
-| `rule_rolled_back` | Verze pravidla je vracena zpet |
+| `rule_disabled` | Pravidlo je zakázáno |
+| `rule_rolled_back` | Verze pravidla je vrácena zpět |
 
-### Provadeni pravidel (`rule_execution`)
+### Provádění pravidel (`rule_execution`)
 
-| Typ udalosti | Kdy |
+| Typ události | Kdy |
 |-----------|------|
-| `rule_executed` | Podminky pravidla prosly a akce se dokoncily |
-| `rule_skipped` | Podminky pravidla neprosly |
+| `rule_executed` | Podmínky pravidla prošly a akce se dokončily |
+| `rule_skipped` | Podmínky pravidla neprošly |
 | `rule_failed` | Akce pravidla vyhodily chybu |
 
-### Zmeny faktu (`fact_change`)
+### Změny faktů (`fact_change`)
 
-| Typ udalosti | Kdy |
+| Typ události | Kdy |
 |-----------|------|
-| `fact_created` | Novy fakt je nastaven (klic drive neexistoval) |
-| `fact_updated` | Hodnota existujiciho faktu je zmenena |
-| `fact_deleted` | Fakt je odstranen |
+| `fact_created` | Nový fakt je nastaven (klíč dříve neexistoval) |
+| `fact_updated` | Hodnota existujícího faktu je změněna |
+| `fact_deleted` | Fakt je odstraněn |
 
-### Emitovani udalosti (`event_emitted`)
+### Emitování událostí (`event_emitted`)
 
-| Typ udalosti | Kdy |
+| Typ události | Kdy |
 |-----------|------|
-| `event_emitted` | Udalost je emitovana (uzivatelsky nebo akcne generovana) |
+| `event_emitted` | Událost je emitována (uživatelsky nebo akčně generovaná) |
 
-### System (`system`)
+### Systém (`system`)
 
-| Typ udalosti | Kdy |
+| Typ události | Kdy |
 |-----------|------|
 | `engine_started` | Engine startuje |
 | `engine_stopped` | Engine se zastavuje |
-| `group_created` | Skupina pravidel je vytvorena |
-| `group_updated` | Metadata skupiny pravidel jsou aktualizovana |
-| `group_deleted` | Skupina pravidel je smazana |
+| `group_created` | Skupina pravidel je vytvořena |
+| `group_updated` | Metadata skupiny pravidel jsou aktualizována |
+| `group_deleted` | Skupina pravidel je smazána |
 | `group_enabled` | Skupina pravidel je povolena |
-| `group_disabled` | Skupina pravidel je zakazana |
-| `hot_reload_started` | Cyklus hot reloadu zacina |
-| `hot_reload_completed` | Cyklus hot reloadu uspel |
+| `group_disabled` | Skupina pravidel je zakázána |
+| `hot_reload_started` | Cyklus hot reloadu začíná |
+| `hot_reload_completed` | Cyklus hot reloadu uspěl |
 | `hot_reload_failed` | Cyklus hot reloadu selhal |
-| `baseline_registered` | Baselinova metrika je registrovana |
-| `baseline_recalculated` | Baselinova metrika je prepocitana |
-| `baseline_anomaly_detected` | Baselinova anomalie je detekovana |
-| `backward_query_started` | Dotaz zpetneho retezeni zacina |
-| `backward_query_completed` | Dotaz zpetneho retezeni je dokoncen |
+| `baseline_registered` | Baselinová metrika je registrována |
+| `baseline_recalculated` | Baselinová metrika je přepočítána |
+| `baseline_anomaly_detected` | Baselinová anomálie je detekována |
+| `backward_query_started` | Dotaz zpětného řetězení začíná |
+| `backward_query_completed` | Dotaz zpětného řetězení je dokončen |
 
-## Struktura audit zaznamu
+## Struktura audit záznamu
 
-Kazdy audit zaznam obsahuje:
+Každý audit záznam obsahuje:
 
 ```typescript
 interface AuditEntry {
-  id: string;                          // Unikatni ID zaznamu
+  id: string;                          // Unikátní ID záznamu
   timestamp: number;                   // Kdy nastal
-  category: AuditCategory;            // Jedna z 5 kategorii
-  type: AuditEventType;               // Jeden z 26 typu
-  summary: string;                     // Lidsky citelny popis
-  source: string;                      // Ktera komponenta ho generovala
-  ruleId?: string;                     // Asociovane pravidlo (pokud relevantni)
-  ruleName?: string;                   // Lidsky citelny nazev pravidla
-  correlationId?: string;              // Propojeni s trace daty
-  details: Record<string, unknown>;    // Payload specificky pro typ
+  category: AuditCategory;            // Jedna z 5 kategorií
+  type: AuditEventType;               // Jeden z 26 typů
+  summary: string;                     // Lidsky čitelný popis
+  source: string;                      // Která komponenta ho generovala
+  ruleId?: string;                     // Asociované pravidlo (pokud relevantní)
+  ruleName?: string;                   // Lidsky čitelný název pravidla
+  correlationId?: string;              // Propojení s trace daty
+  details: Record<string, unknown>;    // Payload specifický pro typ
   durationMs?: number;                 // Jak dlouho operace trvala
 }
 ```
 
-## Dotazovani audit zaznamu
+## Dotazování audit záznamů
 
-Audit sluzba poskytuje flexibilni dotazovani s filtrovanim a paginaci:
+Audit služba poskytuje flexibilní dotazování s filtrováním a paginací:
 
 ```typescript
-// Dotaz na nedavna provedeni pravidel
+// Dotaz na nedávná provedení pravidel
 const result = engine.auditLog.query({
   category: 'rule_execution',
   limit: 50,
 });
 
-console.log(`Nalezeno ${result.totalCount} zaznamu (zobrazeno ${result.entries.length})`);
-console.log(`Dalsi zaznamy: ${result.hasMore}`);
-console.log(`Cas dotazu: ${result.queryTimeMs}ms`);
+console.log(`Nalezeno ${result.totalCount} záznamů (zobrazeno ${result.entries.length})`);
+console.log(`Další záznamy: ${result.hasMore}`);
+console.log(`Čas dotazu: ${result.queryTimeMs}ms`);
 
 for (const entry of result.entries) {
   console.log(`[${entry.type}] ${entry.summary}`);
 }
 ```
 
-### Moznosti filtrovani
+### Možnosti filtrování
 
 ```typescript
 interface AuditQuery {
   category?: AuditCategory;       // Filtr dle kategorie
-  types?: AuditEventType[];       // Filtr dle konkretniho typu udalosti
+  types?: AuditEventType[];       // Filtr dle konkrétního typu události
   ruleId?: string;                // Filtr dle ID pravidla
-  source?: string;                // Filtr dle zdrojove komponenty
-  correlationId?: string;         // Filtr dle korelacniho ID
-  from?: number;                  // Pocatecni casove razitko
-  to?: number;                    // Koncove casove razitko
-  limit?: number;                 // Max zaznamu k vraceni (vychozi: 100)
+  source?: string;                // Filtr dle zdrojové komponenty
+  correlationId?: string;         // Filtr dle korelačního ID
+  from?: number;                  // Počáteční časové razítko
+  to?: number;                    // Koncové časové razítko
+  limit?: number;                 // Max záznamů k vrácení (výchozí: 100)
   offset?: number;                // Offset paginace
 }
 ```
 
-### Bezne vzory dotazovani
+### Běžné vzory dotazování
 
 ```typescript
-// Vsechny zmeny konkretniho pravidla
+// Všechny změny konkrétního pravidla
 const ruleHistory = engine.auditLog.query({
   ruleId: 'fraud-check',
   types: ['rule_registered', 'rule_enabled', 'rule_disabled', 'rule_rolled_back'],
 });
 
-// Vsechny zmeny faktu za posledni hodinu
+// Všechny změny faktů za poslední hodinu
 const factChanges = engine.auditLog.query({
   category: 'fact_change',
   from: Date.now() - 3600_000,
 });
 
-// Selhani pravidel dnes
+// Selhání pravidel dnes
 const failures = engine.auditLog.query({
   types: ['rule_failed'],
   from: new Date().setHours(0, 0, 0, 0),
 });
 
-// Strankovat pres vsechny zaznamy
+// Stránkovat přes všechny záznamy
 let offset = 0;
 const pageSize = 50;
 let hasMore = true;
@@ -200,14 +200,14 @@ let hasMore = true;
 while (hasMore) {
   const page = engine.auditLog.query({ limit: pageSize, offset });
   for (const entry of page.entries) {
-    // zpracovat zaznam
+    // zpracovat záznam
   }
   offset += pageSize;
   hasMore = page.hasMore;
 }
 ```
 
-### Ziskani jednoho zaznamu
+### Získání jednoho záznamu
 
 ```typescript
 const entry = engine.auditLog.getById('audit-entry-123');
@@ -217,9 +217,9 @@ if (entry) {
 }
 ```
 
-## Realtime odber
+## Realtime odběr
 
-Prihlaste se k odberu audit zaznamu, jak jsou zaznamenavany:
+Přihlaste se k odběru audit záznamů, jak jsou zaznamenávány:
 
 ```typescript
 const unsubscribe = engine.auditLog.subscribe((entry) => {
@@ -228,22 +228,22 @@ const unsubscribe = engine.auditLog.subscribe((entry) => {
   }
 });
 
-// Pozdeji
+// Později
 unsubscribe();
 ```
 
 ## Audit statistiky
 
-Ziskejte prehled stavu audit sluzby:
+Získejte přehled stavu audit služby:
 
 ```typescript
 const stats = engine.auditLog.getStats();
 
-console.log(`Celkem zaznamu: ${stats.totalEntries}`);
-console.log(`Zaznamu v pameti: ${stats.memoryEntries}`);
-console.log(`Nejstarsi: ${stats.oldestEntry ? new Date(stats.oldestEntry).toISOString() : 'zadny'}`);
-console.log(`Nejnovejsi: ${stats.newestEntry ? new Date(stats.newestEntry).toISOString() : 'zadny'}`);
-console.log(`Odberatelu: ${stats.subscribersCount}`);
+console.log(`Celkem záznamů: ${stats.totalEntries}`);
+console.log(`Záznamů v paměti: ${stats.memoryEntries}`);
+console.log(`Nejstarší: ${stats.oldestEntry ? new Date(stats.oldestEntry).toISOString() : 'žádný'}`);
+console.log(`Nejnovější: ${stats.newestEntry ? new Date(stats.newestEntry).toISOString() : 'žádný'}`);
+console.log(`Odběratelů: ${stats.subscribersCount}`);
 
 console.log('Dle kategorie:');
 for (const [category, count] of Object.entries(stats.entriesByCategory)) {
@@ -253,37 +253,37 @@ for (const [category, count] of Object.entries(stats.entriesByCategory)) {
 
 ## Persistence a retence
 
-### Jak uloziste funguje
+### Jak úložiště funguje
 
-Audit sluzba pouziva casove rozdelovanou persistenci. Zaznamy se akumuluji v pameti a jsou flushovany do uloziste periodicky (vychozi: kazdych 5 sekund) v davkach (vychozi: 100 zaznamu na davku). Storage klice jsou organizovany po hodinach:
+Audit služba používá časově rozdělovanou persistenci. Záznamy se akumulují v paměti a jsou flushovány do úložiště periodicky (výchozí: každých 5 sekund) v dávkách (výchozí: 100 záznamů na dávku). Storage klíče jsou organizovány po hodinách:
 
 ```text
-audit:2025-01-15T14  →  [zaznamy od 14:00 do 14:59]
-audit:2025-01-15T15  →  [zaznamy od 15:00 do 15:59]
-audit:2025-01-15T16  →  [zaznamy od 16:00 do 16:59]
+audit:2025-01-15T14  →  [záznamy od 14:00 do 14:59]
+audit:2025-01-15T15  →  [záznamy od 15:00 do 15:59]
+audit:2025-01-15T16  →  [záznamy od 16:00 do 16:59]
 ```
 
-### Manualni flush
+### Manuální flush
 
-Vynutte flush cekajicich zaznamu do uloziste:
+Vynuťte flush čekajících záznamů do úložiště:
 
 ```typescript
 await engine.auditLog.flush();
 ```
 
-### Retencni cisteni
+### Retenční čištění
 
-Zaznamy starsi nez retencni perioda (vychozi: 30 dni) jsou odstraneny behem cisteni. Cisteni bezi automaticky, ale muzete ho spustit rucne:
+Záznamy starší než retenční perioda (výchozí: 30 dní) jsou odstraněny během čištění. Čištění běží automaticky, ale můžete ho spustit ručně:
 
 ```typescript
-// Odstranit zaznamy starsi nez konfigurovana retence
+// Odstranit záznamy starší než konfigurovaná retence
 await engine.auditLog.cleanup();
 
-// Nebo zadat vlastni maximalni stari
-await engine.auditLog.cleanup(7 * 24 * 60 * 60 * 1000); // 7 dni
+// Nebo zadat vlastní maximální stáří
+await engine.auditLog.cleanup(7 * 24 * 60 * 60 * 1000); // 7 dní
 ```
 
-## Kompletni priklad: Compliance dashboard pro financni pravidla
+## Kompletní příklad: Compliance dashboard pro finanční pravidla
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -297,16 +297,16 @@ const adapter = await SQLiteAdapter.start({ path: './data/compliance.db' });
 const engine = await RuleEngine.start({
   audit: {
     adapter,
-    retentionMs: 90 * 24 * 60 * 60 * 1000, // 90 dni pro financni compliance
-    flushIntervalMs: 2_000,                  // Flush kazdou 2 sekundy
+    retentionMs: 90 * 24 * 60 * 60 * 1000, // 90 dní pro finanční compliance
+    flushIntervalMs: 2_000,                  // Flush každou 2 sekundy
   },
 });
 
-// --- Transakcni pravidla ---
+// --- Transakční pravidla ---
 
 engine.registerRule(
   Rule.create('large-transaction-flag')
-    .name('Oznaceni velkych transakci')
+    .name('Označení velkých transakcí')
     .when(onEvent('transaction.completed'))
     .if(event('amount').gte(10_000))
     .then(emit('compliance.large_transaction', {
@@ -318,13 +318,13 @@ engine.registerRule(
       'user:${event.userId}:largeTransactionCount',
       '${(parseInt(fact.value || "0") + 1)}'
     ))
-    .also(log('Velka transakce oznacena: $${event.amount} uzivatelem ${event.userId}'))
+    .also(log('Velká transakce označena: $${event.amount} uživatelem ${event.userId}'))
     .build()
 );
 
 engine.registerRule(
   Rule.create('suspicious-pattern')
-    .name('Alert podezrele aktivity')
+    .name('Alert podezřelé aktivity')
     .when(onEvent('transaction.completed'))
     .if(fact('user:${event.userId}:largeTransactionCount').gte(3))
     .then(emit('compliance.suspicious_activity', {
@@ -334,7 +334,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Simulace transakci ---
+// --- Simulace transakcí ---
 
 for (let i = 0; i < 20; i++) {
   await engine.emit('transaction.completed', {
@@ -346,29 +346,29 @@ for (let i = 0; i < 20; i++) {
 
 // --- Compliance dotazy ---
 
-// 1. Vsechny zmeny spravy pravidel (kdo registroval/zmenil pravidla?)
+// 1. Všechny změny správy pravidel (kdo registroval/změnil pravidla?)
 const ruleChanges = engine.auditLog.query({
   category: 'rule_management',
 });
-console.log(`Udalosti spravy pravidel: ${ruleChanges.totalCount}`);
+console.log(`Události správy pravidel: ${ruleChanges.totalCount}`);
 
-// 2. Vsechna provedeni pravidla oznacovani
+// 2. Všechna provedení pravidla označování
 const flagExecutions = engine.auditLog.query({
   ruleId: 'large-transaction-flag',
   types: ['rule_executed'],
 });
-console.log(`Oznaceni velkych transakci: ${flagExecutions.totalCount}`);
+console.log(`Označení velkých transakcí: ${flagExecutions.totalCount}`);
 
-// 3. Nejaka selhani pravidel?
+// 3. Nějaká selhání pravidel?
 const failures = engine.auditLog.query({
   types: ['rule_failed'],
 });
-console.log(`Selhani pravidel: ${failures.totalCount}`);
+console.log(`Selhání pravidel: ${failures.totalCount}`);
 
 // 4. Audit statistiky
 const stats = engine.auditLog.getStats();
-console.log(`\nPrehled auditu:`);
-console.log(`  Celkem zaznamu: ${stats.totalEntries}`);
+console.log(`\nPřehled auditu:`);
+console.log(`  Celkem záznamů: ${stats.totalEntries}`);
 for (const [cat, count] of Object.entries(stats.entriesByCategory)) {
   if (count > 0) {
     console.log(`  ${cat}: ${count}`);
@@ -378,11 +378,11 @@ for (const [cat, count] of Object.entries(stats.entriesByCategory)) {
 // 5. Realtime monitoring
 engine.auditLog.subscribe((entry) => {
   if (entry.type === 'rule_failed') {
-    console.error(`[COMPLIANCE ALERT] Selhani pravidla: ${entry.summary}`);
+    console.error(`[COMPLIANCE ALERT] Selhání pravidla: ${entry.summary}`);
   }
 });
 
-// Zajistit, ze vse je flushnuto pred zastavenim
+// Zajistit, že vše je flushnuto před zastavením
 await engine.auditLog.flush();
 await engine.stop();
 ```
@@ -391,46 +391,46 @@ await engine.stop();
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `GET` | `/audit/entries` | Dotaz na audit zaznamy (podpora vsech filtrovacich parametru) |
-| `GET` | `/audit/entries/:id` | Ziskat jeden audit zaznam |
-| `GET` | `/audit/stats` | Ziskat statistiky audit sluzby |
-| `GET` | `/audit/stream` | SSE realtime stream audit zaznamu |
+| `GET` | `/audit/entries` | Dotaz na audit záznamy (podpora všech filtrovacích parametrů) |
+| `GET` | `/audit/entries/:id` | Získat jeden audit záznam |
+| `GET` | `/audit/stats` | Získat statistiky audit služby |
+| `GET` | `/audit/stream` | SSE realtime stream audit záznamů |
 | `GET` | `/audit/stream/stats` | Statistiky SSE streamu |
-| `GET` | `/audit/export` | Export zaznamu jako JSON nebo CSV |
-| `POST` | `/audit/cleanup` | Manualni cisteni starych zaznamu |
+| `GET` | `/audit/export` | Export záznamů jako JSON nebo CSV |
+| `POST` | `/audit/cleanup` | Manuální čištění starých záznamů |
 
 ### Filtry SSE streamu
 
-Audit SSE stream na `/audit/stream` podporuje filtry pres query parametry:
+Audit SSE stream na `/audit/stream` podporuje filtry přes query parametry:
 
 ```
 GET /audit/stream?categories=rule_execution&types=rule_failed&ruleIds=fraud-check
 ```
 
-Dostupne filtrovaci parametry:
-- `categories` — carkou oddelene hodnoty `AuditCategory`
-- `types` — carkou oddelene hodnoty `AuditEventType`
-- `ruleIds` — carkou oddelena ID pravidel
-- `sources` — carkou oddelene identifikatory zdroju
+Dostupné filtrovací parametry:
+- `categories` — čárkou oddělené hodnoty `AuditCategory`
+- `types` — čárkou oddělené hodnoty `AuditEventType`
+- `ruleIds` — čárkou oddělená ID pravidel
+- `sources` — čárkou oddělené identifikátory zdrojů
 
-## Cviceni
+## Cvičení
 
-Vybudujte compliance report zalozeny na auditu pro e-commerce pravidlovy engine:
+Vybudujte compliance report založený na auditu pro e-commerce pravidlový engine:
 
-1. Spustte engine s audit persistenci (SQLite, 60denni retence)
+1. Spusťte engine s audit persistencí (SQLite, 60denní retence)
 2. Zaregistrujte pravidla pro:
-   - Aplikovani slevy na objednavky nad $100
-   - VIP upgrade, kdyz celkove utraty presahnou $5 000
-3. Vytvorte skupinu pravidel `pricing` a priradte k ni slevove pravidlo
-4. Simulujte 50 objednavek s ruznymy celkovymi castkamy
-5. Vygenerujte compliance report, ktery ukaze:
-   - Celkovy pocet audit zaznamu dle kategorie
-   - Vsechny udalosti spravy pravidel (registrace pravidel, tvorba skupin)
-   - Celkovy pocet provedeni vs preskoceni pro kazde pravidlo
-   - Jakakoliv selhani pravidel
+   - Aplikování slevy na objednávky nad $100
+   - VIP upgrade, když celkové útraty přesáhnou $5 000
+3. Vytvořte skupinu pravidel `pricing` a přiřaďte k ní slevové pravidlo
+4. Simulujte 50 objednávek s různými celkovými částkami
+5. Vygenerujte compliance report, který ukáže:
+   - Celkový počet audit záznamů dle kategorie
+   - Všechny události správy pravidel (registrace pravidel, tvorba skupin)
+   - Celkový počet provedení vs přeskočení pro každé pravidlo
+   - Jakákoliv selhání pravidel
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -442,21 +442,21 @@ const adapter = await SQLiteAdapter.start({ path: './data/ecommerce-audit.db' })
 const engine = await RuleEngine.start({
   audit: {
     adapter,
-    retentionMs: 60 * 24 * 60 * 60 * 1000, // 60 dni
+    retentionMs: 60 * 24 * 60 * 60 * 1000, // 60 dní
   },
 });
 
-// Vytvoreni skupiny
+// Vytvoření skupiny
 engine.createGroup({
   id: 'pricing',
-  name: 'Cenova pravidla',
+  name: 'Cenová pravidla',
   enabled: true,
 });
 
-// Slevove pravidlo
+// Slevové pravidlo
 engine.registerRule(
   Rule.create('order-discount')
-    .name('Sleva na objednavku')
+    .name('Sleva na objednávku')
     .group('pricing')
     .when(onEvent('order.created'))
     .if(event('total').gte(100))
@@ -477,7 +477,7 @@ engine.registerRule(
     .build()
 );
 
-// Simulace objednavek
+// Simulace objednávek
 engine.setFact('customer:c-1:totalSpent', 4800);
 
 for (let i = 0; i < 50; i++) {
@@ -492,38 +492,38 @@ for (let i = 0; i < 50; i++) {
 
 console.log('=== E-Commerce compliance report ===\n');
 
-// 1. Prehled dle kategorie
+// 1. Přehled dle kategorie
 const stats = engine.auditLog.getStats();
-console.log('Zaznamy dle kategorie:');
+console.log('Záznamy dle kategorie:');
 for (const [cat, count] of Object.entries(stats.entriesByCategory)) {
   if (count > 0) console.log(`  ${cat}: ${count}`);
 }
 
-// 2. Udalosti spravy pravidel
+// 2. Události správy pravidel
 const mgmt = engine.auditLog.query({ category: 'rule_management' });
-console.log(`\nUdalosti spravy pravidel (${mgmt.totalCount}):`);
+console.log(`\nUdálosti správy pravidel (${mgmt.totalCount}):`);
 for (const entry of mgmt.entries) {
   console.log(`  [${entry.type}] ${entry.summary}`);
 }
 
-// 3. Systemove udalosti (tvorba skupin, zivotni cyklus enginu)
+// 3. Systémové události (tvorba skupin, životní cyklus enginu)
 const sys = engine.auditLog.query({ category: 'system' });
-console.log(`\nSystemove udalosti (${sys.totalCount}):`);
+console.log(`\nSystémové události (${sys.totalCount}):`);
 for (const entry of sys.entries) {
   console.log(`  [${entry.type}] ${entry.summary}`);
 }
 
-// 4. Statistiky provadeni pravidel
+// 4. Statistiky provádění pravidel
 for (const ruleId of ['order-discount', 'vip-upgrade']) {
   const executed = engine.auditLog.query({ ruleId, types: ['rule_executed'] });
   const skipped = engine.auditLog.query({ ruleId, types: ['rule_skipped'] });
   const failed = engine.auditLog.query({ ruleId, types: ['rule_failed'] });
-  console.log(`\n${ruleId}: provedeno=${executed.totalCount}, preskoceno=${skipped.totalCount}, selhano=${failed.totalCount}`);
+  console.log(`\n${ruleId}: provedeno=${executed.totalCount}, přeskočeno=${skipped.totalCount}, selháno=${failed.totalCount}`);
 }
 
-// 5. Nejaka selhani?
+// 5. Nějaká selhání?
 const failures = engine.auditLog.query({ types: ['rule_failed'] });
-console.log(`\nCelkem selhani pravidel: ${failures.totalCount}`);
+console.log(`\nCelkem selhání pravidel: ${failures.totalCount}`);
 
 await engine.auditLog.flush();
 await engine.stop();
@@ -531,19 +531,19 @@ await engine.stop();
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **`AuditLogService`** poskytuje stale zapnute, persistentni logovani vsech vyznamnych udalosti enginu
-- Na rozdil od `TraceCollector` je audit logging **ve vychozim stavu zapnuty** a navrzeny pro **produkcni compliance**
-- Konfigurujte persistentni uloziste pres `audit` v `RuleEngine.start()` s `StorageAdapter`
-- **26 typu audit udalosti** v **5 kategoriich**: sprava pravidel, provadeni pravidel, zmeny faktu, udalosti a system
-- Kazdy zaznam obsahuje `id`, `timestamp`, `category`, `type`, `summary`, `source` a volitelne `ruleId`/`correlationId`
-- Dotazujte zaznamy s **flexibilnim filtrovanim** dle kategorie, typu, pravidla, zdroje, casoveho rozsahu a **paginaci** pres `limit`/`offset`
-- **Prihlaste se** k odberu realtime audit zaznamu pro okamzite alertovani pri selhanich
-- Uloziste pouziva **hodinove casove buckety** s konfigurovatelnym davkovym flushem (vychozi: kazdych 5 sekund)
-- **Retence** je vychozi 30 dni — zaznamy jsou cisteny automaticky nebo pres `cleanup()`
-- Vsechna audit data jsou pristupna pres **REST API endpointy** a **SSE streaming**
+- **`AuditLogService`** poskytuje stále zapnuté, persistentní logování všech významných událostí enginu
+- Na rozdíl od `TraceCollector` je audit logging **ve výchozím stavu zapnutý** a navržený pro **produkční compliance**
+- Konfigurujte persistentní úložiště přes `audit` v `RuleEngine.start()` s `StorageAdapter`
+- **26 typů audit událostí** v **5 kategoriích**: správa pravidel, provádění pravidel, změny faktů, události a systém
+- Každý záznam obsahuje `id`, `timestamp`, `category`, `type`, `summary`, `source` a volitelně `ruleId`/`correlationId`
+- Dotazujte záznamy s **flexibilním filtrováním** dle kategorie, typu, pravidla, zdroje, časového rozsahu a **paginací** přes `limit`/`offset`
+- **Přihlaste se** k odběru realtime audit záznamů pro okamžité alertování při selháních
+- Úložiště používá **hodinové časové buckety** s konfigurovatelným dávkovým flushem (výchozí: každých 5 sekund)
+- **Retence** je výchozí 30 dní — záznamy jsou čištěny automaticky nebo přes `cleanup()`
+- Všechna audit data jsou přístupná přes **REST API endpointy** a **SSE streaming**
 
 ---
 
-Dalsi: [Metriky a tracing](./04-metriky.md)
+Další: [Metriky a tracing](./04-metriky.md)

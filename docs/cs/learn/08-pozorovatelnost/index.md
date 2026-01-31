@@ -1,50 +1,50 @@
-# Cast 8: Pozorovatelnost
+# Část 8: Pozorovatelnost
 
-Pravidlovy engine, do ktereho nevidite, je cerna skrinka. Kdyz se pravidlo nespusti, kdyz akce trvaji prilis dlouho, nebo kdyz potrebujete compliance zaznam kazde zmeny — potrebujete pozorovatelnost. noex-rules poskytuje ctyri komplementarni vrstvy: **debug tracing** pro inspekci pri vyvoji s breakpointy a snapshoty, **profilovani** pro analyzu vykonu jednotlivych pravidel, **audit logging** pro stale zapnuty persistentni zaznam pro compliance a **metriky** pro Prometheus scraping a export OpenTelemetry spanu.
+Pravidlový engine, do kterého nevidíte, je černá skříňka. Když se pravidlo nespustí, když akce trvají příliš dlouho, nebo když potřebujete compliance záznam každé změny — potřebujete pozorovatelnost. noex-rules poskytuje čtyři komplementární vrstvy: **debug tracing** pro inspekci při vývoji s breakpointy a snapshoty, **profilování** pro analýzu výkonu jednotlivých pravidel, **audit logging** pro stále zapnutý persistentní záznam pro compliance a **metriky** pro Prometheus scraping a export OpenTelemetry spanů.
 
 ## Kapitoly
 
 ### [8.1 Debugging pravidel](./01-debugging.md)
 
-Debugging pri vyvoji s IDE-podobnymi schopnostmi:
-- Ring buffer `TraceCollector` s vyhledavanim dle korelace
+Debugging při vývoji s IDE-podobnými schopnostmi:
+- Ring buffer `TraceCollector` s vyhledáváním dle korelace
 - `DebugController` s breakpointy, pause/resume a snapshoty
-- `HistoryService` pro kontext udalosti a retezce kauzality
-- Export tracu jako JSON nebo Mermaid diagramy
+- `HistoryService` pro kontext událostí a řetězce kauzality
+- Export traců jako JSON nebo Mermaid diagramy
 
-### [8.2 Profilovani vykonu](./02-profilaci.md)
+### [8.2 Profilování výkonu](./02-profilaci.md)
 
-Analyza vykonu jednotlivych pravidel z trace streamu:
-- `Profiler` s metrikami pro pravidla, podminky a akce
-- Hledani nejpomalejsich a nejaktivnejsich pravidel
-- Analyza uspesnosti a miry selhani
-- REST API endpointy pro data profilovani
+Analýza výkonu jednotlivých pravidel z trace streamu:
+- `Profiler` s metrikami pro pravidla, podmínky a akce
+- Hledání nejpomalejších a nejaktivnějších pravidel
+- Analýza úspěšnosti a míry selhání
+- REST API endpointy pro data profilování
 
 ### [8.3 Audit logging](./03-audit-log.md)
 
-Stale zapnuty, persistentni monitoring pro compliance a produkci:
-- `AuditLogService` s casove rozdelovanou persistenci
-- 26 typu audit udalosti v 5 kategoriich
-- Flexibilni dotazovani s paginaci a filtrovanim
-- Realtime SSE streaming audit zaznamu
+Stále zapnutý, persistentní monitoring pro compliance a produkci:
+- `AuditLogService` s časově rozdělovanou persistencí
+- 26 typů audit událostí v 5 kategoriích
+- Flexibilní dotazování s paginací a filtrováním
+- Realtime SSE streaming audit záznamů
 
 ### [8.4 Metriky a tracing](./04-metriky.md)
 
-Produkcni pozorovatelnost se standardnimi nastroji:
-- `MetricsCollector` s Prometheus text exposition formatem
-- Citace, histogramy a gaugy pro aktivitu enginu
-- `OpenTelemetryBridge` pro distribuovany tracing
-- Mapovani hierarchie spanu z trace zaznamu na OTel spany
+Produkční pozorovatelnost se standardními nástroji:
+- `MetricsCollector` s Prometheus text exposition formátem
+- Čítače, histogramy a gaugy pro aktivitu enginu
+- `OpenTelemetryBridge` pro distribuovaný tracing
+- Mapování hierarchie spanů z trace záznamů na OTel spany
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
-- Povolit tracing a nastavit breakpointy pro ladeni vyhodnocovani pravidel krok po kroku
-- Profilovat pravidla pro nalezeni vykonnostnich uzskych mist a nizkych uspesnosti
-- Konfigurovat persistentni audit logging pro compliance pozadavky
+Na konci této sekce budete schopni:
+- Povolit tracing a nastavit breakpointy pro ladění vyhodnocování pravidel krok po kroku
+- Profilovat pravidla pro nalezení výkonnostních úzkých míst a nízkých úspěšností
+- Konfigurovat persistentní audit logging pro compliance požadavky
 - Vystavit Prometheus metriky a integrovat s OpenTelemetry
-- Pouzivat REST API a SSE streamy pro realtime observability dashboardy
+- Používat REST API a SSE streamy pro realtime observability dashboardy
 
 ---
 
-Zacnete s: [Debugging pravidel](./01-debugging.md)
+Začněte s: [Debugging pravidel](./01-debugging.md)

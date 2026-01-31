@@ -1,19 +1,19 @@
-# Profilovani vykonu
+# Profilování výkonu
 
-Vedet, ze pravidla funguji spravne, je prvni krok. Druhy krok je vedet, jak rychle funguji. noex-rules obsahuje vestavenou tridu **Profiler**, ktera agreguje realtime vykonnostni metriky z trace streamu — casy provadeni jednotlivych pravidel, uspesnost podminek, uspesnost akci a identifikaci nejpomalejsich a nejcasteji spoustenych pravidel.
+Vědět, že pravidla fungují správně, je první krok. Druhý krok je vědět, jak rychle fungují. noex-rules obsahuje vestavěnou třídu **Profiler**, která agreguje realtime výkonnostní metriky z trace streamu — časy provádění jednotlivých pravidel, úspěšnost podmínek, úspěšnost akcí a identifikaci nejpomalejších a nejčastěji spouštěných pravidel.
 
-## Co se naucite
+## Co se naučíte
 
 - Jak `Profiler` odvozuje metriky z `TraceCollector`
-- Vykonnostni profily pro pravidla, podminky a akce
-- Hledani nejpomalejsich a nejaktivnejsich pravidel
-- Identifikace nizkych uspesnosti a vysokych mir selhani
-- Pouziti REST API pro data profilovani
-- Resetovani dat profilovani pro cilene benchmarky
+- Výkonnostní profily pro pravidla, podmínky a akce
+- Hledání nejpomalejších a nejaktivnějších pravidel
+- Identifikace nízkých úspěšností a vysokých měr selhání
+- Použití REST API pro data profilování
+- Resetování dat profilování pro cílené benchmarky
 
-## Jak profilovani funguje
+## Jak profilování funguje
 
-Profiler se prihlasi k odberu streamu `TraceCollector` a agreguje metriky v realnem case. Nepridava zatez k samotnemu vyhodnocovani pravidel — zpracovava pouze zaznamy, ktere trace collector uz zaznamenal.
+Profiler se přihlásí k odběru streamu `TraceCollector` a agreguje metriky v reálném čase. Nepřidává zátěž k samotnému vyhodnocování pravidel — zpracovává pouze záznamy, které trace collector už zaznamenal.
 
 ```text
   ┌──────────────┐     ┌─────────────────┐     ┌──────────────┐
@@ -25,39 +25,39 @@ Profiler se prihlasi k odberu streamu `TraceCollector` a agreguje metriky v real
                                             │          │          │
                                       ┌─────▼─────┐ ┌─▼────────┐ ┌▼───────────┐
                                       │ Profily   │ │ Profily  │ │ Profily    │
-                                      │ pravidel  │ │ podminek │ │ akci       │
+                                      │ pravidel  │ │ podmínek │ │ akcí       │
                                       └───────────┘ └──────────┘ └────────────┘
 ```
 
-Profilovani je automaticky aktivni, kdyz je povolen tracing — zadna dalsi konfigurace neni potreba:
+Profilování je automaticky aktivní, když je povolen tracing — žádná další konfigurace není potřeba:
 
 ```typescript
 const engine = await RuleEngine.start({
   tracing: { enabled: true },
 });
 
-// engine.profiler je k dispozici okamzite
+// engine.profiler je k dispozici okamžitě
 ```
 
 ## Profily pravidel
 
-Kazde pravidlo dostane individualni profil s casovymi a pocetnimi metrikami:
+Každé pravidlo dostane individuální profil s časovými a početními metrikami:
 
 ```typescript
 const profile = engine.profiler.getRuleProfile('fraud-check');
 
 if (profile) {
   console.log(`Pravidlo: ${profile.ruleName}`);
-  console.log(`Pocet spusteni: ${profile.triggerCount}`);
-  console.log(`Pocet provedeni: ${profile.executionCount}`);
-  console.log(`Pocet preskoceni: ${profile.skipCount}`);
-  console.log(`Uspesnost: ${(profile.passRate * 100).toFixed(1)}%`);
-  console.log(`Celkovy cas: ${profile.totalTimeMs.toFixed(2)}ms`);
-  console.log(`Prumerny cas: ${profile.avgTimeMs.toFixed(2)}ms`);
-  console.log(`Minimalni cas: ${profile.minTimeMs.toFixed(2)}ms`);
-  console.log(`Maximalni cas: ${profile.maxTimeMs.toFixed(2)}ms`);
-  console.log(`Cas vyhodnoceni podminek: ${profile.conditionEvalTimeMs.toFixed(2)}ms`);
-  console.log(`Cas provadeni akci: ${profile.actionExecTimeMs.toFixed(2)}ms`);
+  console.log(`Počet spuštění: ${profile.triggerCount}`);
+  console.log(`Počet provedení: ${profile.executionCount}`);
+  console.log(`Počet přeskočení: ${profile.skipCount}`);
+  console.log(`Úspěšnost: ${(profile.passRate * 100).toFixed(1)}%`);
+  console.log(`Celkový čas: ${profile.totalTimeMs.toFixed(2)}ms`);
+  console.log(`Průměrný čas: ${profile.avgTimeMs.toFixed(2)}ms`);
+  console.log(`Minimální čas: ${profile.minTimeMs.toFixed(2)}ms`);
+  console.log(`Maximální čas: ${profile.maxTimeMs.toFixed(2)}ms`);
+  console.log(`Čas vyhodnocení podmínek: ${profile.conditionEvalTimeMs.toFixed(2)}ms`);
+  console.log(`Čas provádění akcí: ${profile.actionExecTimeMs.toFixed(2)}ms`);
 }
 ```
 
@@ -67,35 +67,35 @@ if (profile) {
 interface RuleProfile {
   ruleId: string;
   ruleName: string;
-  triggerCount: number;          // Kolikrat bylo pravidlo spusteno
-  executionCount: number;        // Kolikrat podminky prosly a akce se provedly
-  skipCount: number;             // Kolikrat podminky selhaly
-  totalTimeMs: number;           // Celkovy cas vyhodnocovani
-  avgTimeMs: number;             // Prumerny cas na spusteni
-  minTimeMs: number;             // Nejrychlejsi vyhodnoceni
-  maxTimeMs: number;             // Nejpomalejsi vyhodnoceni
-  conditionEvalTimeMs: number;   // Cas straveny ve vyhodnocovani podminek
-  actionExecTimeMs: number;      // Cas straveny v provadeni akci
+  triggerCount: number;          // Kolikrát bylo pravidlo spuštěno
+  executionCount: number;        // Kolikrát podmínky prošly a akce se provedly
+  skipCount: number;             // Kolikrát podmínky selhaly
+  totalTimeMs: number;           // Celkový čas vyhodnocování
+  avgTimeMs: number;             // Průměrný čas na spuštění
+  minTimeMs: number;             // Nejrychlejší vyhodnocení
+  maxTimeMs: number;             // Nejpomalejší vyhodnocení
+  conditionEvalTimeMs: number;   // Čas strávený ve vyhodnocování podmínek
+  actionExecTimeMs: number;      // Čas strávený v provádění akcí
   conditionProfiles: ConditionProfile[];
   actionProfiles: ActionProfile[];
   passRate: number;              // executionCount / triggerCount
-  lastTriggeredAt: number;       // Casove razitko posledniho spusteni
-  lastExecutedAt: number | null; // Casove razitko posledniho provedeni
+  lastTriggeredAt: number;       // Časové razítko posledního spuštění
+  lastExecutedAt: number | null; // Časové razítko posledního provedení
 }
 ```
 
-## Profily podminek
+## Profily podmínek
 
-Kazda podminka v ramci pravidla je profilovana individualne. To odhali, ktere podminky jsou narocne nebo maji nizkou uspesnost:
+Každá podmínka v rámci pravidla je profilována individuálně. To odhalí, které podmínky jsou náročné nebo mají nízkou úspěšnost:
 
 ```typescript
 const profile = engine.profiler.getRuleProfile('fraud-check');
 
 for (const cond of profile?.conditionProfiles ?? []) {
-  console.log(`Podminka #${cond.conditionIndex}:`);
-  console.log(`  Vyhodnoceni: ${cond.evaluationCount}`);
-  console.log(`  Prumerny cas: ${cond.avgTimeMs.toFixed(3)}ms`);
-  console.log(`  Uspesnost: ${(cond.passRate * 100).toFixed(1)}%`);
+  console.log(`Podmínka #${cond.conditionIndex}:`);
+  console.log(`  Vyhodnocení: ${cond.evaluationCount}`);
+  console.log(`  Průměrný čas: ${cond.avgTimeMs.toFixed(3)}ms`);
+  console.log(`  Úspěšnost: ${(cond.passRate * 100).toFixed(1)}%`);
 }
 ```
 
@@ -103,31 +103,31 @@ for (const cond of profile?.conditionProfiles ?? []) {
 
 ```typescript
 interface ConditionProfile {
-  conditionIndex: number;     // Pozice v poli podminek pravidla
-  evaluationCount: number;    // Kolikrat byla tato podminka zkontrolovana
+  conditionIndex: number;     // Pozice v poli podmínek pravidla
+  evaluationCount: number;    // Kolikrát byla tato podmínka zkontrolována
   totalTimeMs: number;
   avgTimeMs: number;
-  passCount: number;          // Kolikrat prosla
-  failCount: number;          // Kolikrat selhala
+  passCount: number;          // Kolikrát prošla
+  failCount: number;          // Kolikrát selhala
   passRate: number;           // passCount / evaluationCount
 }
 ```
 
-Podminka s velmi nizkou uspesnosti, ktera je kontrolovana jako prvni, muze usetrit cas vyhodnocovani pro dalsi podminky. Podminka s vysokym casem vyhodnocovani by mohla benefitovat z optimalizace nebo prerazeni.
+Podmínka s velmi nízkou úspěšností, která je kontrolována jako první, může ušetřit čas vyhodnocování pro další podmínky. Podmínka s vysokým časem vyhodnocování by mohla benefitovat z optimalizace nebo přeřazení.
 
-## Profily akci
+## Profily akcí
 
-Kazda akce v ramci pravidla je profilovana pro cas provadeni a uspesnost:
+Každá akce v rámci pravidla je profilována pro čas provádění a úspěšnost:
 
 ```typescript
 const profile = engine.profiler.getRuleProfile('send-notification');
 
 for (const action of profile?.actionProfiles ?? []) {
   console.log(`Akce #${action.actionIndex} (${action.actionType}):`);
-  console.log(`  Provedeni: ${action.executionCount}`);
-  console.log(`  Prumerny cas: ${action.avgTimeMs.toFixed(2)}ms`);
+  console.log(`  Provedení: ${action.executionCount}`);
+  console.log(`  Průměrný čas: ${action.avgTimeMs.toFixed(2)}ms`);
   console.log(`  Min/Max: ${action.minTimeMs.toFixed(2)}ms / ${action.maxTimeMs.toFixed(2)}ms`);
-  console.log(`  Uspesnost: ${(action.successRate * 100).toFixed(1)}%`);
+  console.log(`  Úspěšnost: ${(action.successRate * 100).toFixed(1)}%`);
 }
 ```
 
@@ -135,7 +135,7 @@ for (const action of profile?.actionProfiles ?? []) {
 
 ```typescript
 interface ActionProfile {
-  actionIndex: number;       // Pozice v poli akci pravidla
+  actionIndex: number;       // Pozice v poli akcí pravidla
   actionType: string;        // 'emit_event', 'set_fact', 'call_service' atd.
   executionCount: number;
   totalTimeMs: number;
@@ -148,79 +148,79 @@ interface ActionProfile {
 }
 ```
 
-## Hledani uzskych mist
+## Hledání úzkých míst
 
-Profiler poskytuje razene dotazy pro bezne vykonnostni otazky:
+Profiler poskytuje řazené dotazy pro běžné výkonnostní otázky:
 
-### Nejpomalejsi pravidla
+### Nejpomalejší pravidla
 
 ```typescript
-// Ziskat 5 nejpomalejsich pravidel dle prumerneho casu vyhodnoceni
+// Získat 5 nejpomalejších pravidel dle průměrného času vyhodnocení
 const slowest = engine.profiler.getSlowestRules(5);
 
 for (const profile of slowest) {
-  console.log(`${profile.ruleName}: prumer ${profile.avgTimeMs.toFixed(2)}ms`);
+  console.log(`${profile.ruleName}: průměr ${profile.avgTimeMs.toFixed(2)}ms`);
 }
 ```
 
-### Nejaktivnejsi pravidla (nejcasteji spoustena)
+### Nejaktivnější pravidla (nejčastěji spouštěná)
 
 ```typescript
-// Ziskat 5 nejcasteji spoustenych pravidel
+// Získat 5 nejčastěji spouštěných pravidel
 const hottest = engine.profiler.getHottestRules(5);
 
 for (const profile of hottest) {
-  console.log(`${profile.ruleName}: ${profile.triggerCount} spusteni`);
+  console.log(`${profile.ruleName}: ${profile.triggerCount} spuštění`);
 }
 ```
 
-### Nejnizsi uspesnost
+### Nejnižší úspěšnost
 
-Pravidla s nizkou uspesnosti jsou spoustena casto, ale zridka se provedou. To muze indikovat prilis siroke triggery nebo prilis strikni podminky:
+Pravidla s nízkou úspěšností jsou spouštěna často, ale zřídka se provedou. To může indikovat příliš široké triggery nebo příliš striktní podmínky:
 
 ```typescript
 const lowPassRate = engine.profiler.getLowestPassRate(5);
 
 for (const profile of lowPassRate) {
-  console.log(`${profile.ruleName}: ${(profile.passRate * 100).toFixed(1)}% uspesnost`);
+  console.log(`${profile.ruleName}: ${(profile.passRate * 100).toFixed(1)}% úspěšnost`);
 }
 ```
 
-### Nejvyssi mira selhani akci
+### Nejvyšší míra selhání akcí
 
-Pravidla, kde akce casto selhavaji, vyzaduji pozornost — externi sluzby mohou byt nedostupne, cesty k faktum mohou byt spatne:
+Pravidla, kde akce často selhávají, vyžadují pozornost — externí služby mohou být nedostupné, cesty k faktům mohou být špatné:
 
 ```typescript
 const highFailure = engine.profiler.getHighestActionFailureRate(5);
 
 for (const profile of highFailure) {
-  console.log(`${profile.ruleName}: zkontrolujte miry selhani akci`);
+  console.log(`${profile.ruleName}: zkontrolujte míry selhání akcí`);
   for (const action of profile.actionProfiles) {
     if (action.failureCount > 0) {
-      console.log(`  ${action.actionType}: ${(action.successRate * 100).toFixed(1)}% uspesnost`);
+      console.log(`  ${action.actionType}: ${(action.successRate * 100).toFixed(1)}% úspěšnost`);
     }
   }
 }
 ```
 
-## Shrnuti profilovani
+## Shrnutí profilování
 
-Ziskejte celkovy prehled vsech dat profilovani:
+Získejte celkový přehled všech dat profilování:
 
 ```typescript
 const summary = engine.profiler.getSummary();
 
-console.log(`Profilovanych pravidel: ${summary.totalRulesProfiled}`);
-console.log(`Celkem spusteni: ${summary.totalTriggers}`);
-console.log(`Celkem provedeni: ${summary.totalExecutions}`);
-console.log(`Celkovy cas: ${summary.totalTimeMs.toFixed(2)}ms`);
-console.log(`Prumerny cas pravidla: ${summary.avgRuleTimeMs.toFixed(2)}ms`);
+console.log(`Profilovaných pravidel: ${summary.totalRulesProfiled}`);
+console.log(`Celkem spuštění: ${summary.totalTriggers}`);
+console.log(`Celkem provedení: ${summary.totalExecutions}`);
+console.log(`Celkový čas: ${summary.totalTimeMs.toFixed(2)}ms`);
+console.log(`Průměrný čas pravidla: ${summary.avgRuleTimeMs.toFixed(2)}ms`);
 
 if (summary.slowestRule) {
-  console.log(`Nejpomalejsi: ${summary.slowestRule.ruleName} (${summary.slowestRule.avgTimeMs.toFixed(2)}ms)`);
+  console.log(`Nejpomalejší: ${summary.slowestRule.ruleName} (${summary.slowestRule.avgTimeMs.toFixed(2)}ms)`);
 }
 if (summary.hottestRule) {
-  console.log(`Nejaktivnejsi: ${summary.hottestRule.ruleName} (${summary.hottestRule.triggerCount} spusteni)`);
+  console.log(`Nejaktivnější: ${summary.hottestRule.ruleName} (${summary.hottestRule.triggerCount} spuštění)`);
 }
 ```
 
@@ -240,25 +240,25 @@ interface ProfilingSummary {
 }
 ```
 
-## Resetovani dat profilovani
+## Resetování dat profilování
 
-Pro cilene benchmarky resetujte profilovani a zacnete znovu:
+Pro cílené benchmarky resetujte profilování a začněte znovu:
 
 ```typescript
-// Vymazat vsechny akumulovane metriky
+// Vymazat všechny akumulované metriky
 engine.profiler.reset();
 
-// Nyni spustte konkretni zatez
+// Nyní spusťte konkrétní zátěž
 for (let i = 0; i < 1000; i++) {
   await engine.emit('order.created', { orderId: `ord-${i}`, total: 50 });
 }
 
-// Zkontrolujte data profilovani pouze pro tuto zatez
+// Zkontrolujte data profilování pouze pro tuto zátěž
 const summary = engine.profiler.getSummary();
-console.log(`Prumerne zpracovani: ${summary.avgRuleTimeMs.toFixed(3)}ms na spusteni`);
+console.log(`Průměrné zpracování: ${summary.avgRuleTimeMs.toFixed(3)}ms na spuštění`);
 ```
 
-## Kompletni priklad: E-commerce vykonnostni dashboard
+## Kompletní příklad: E-commerce výkonnostní dashboard
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -274,7 +274,7 @@ const engine = await RuleEngine.start({
 
 engine.registerRule(
   Rule.create('order-discount')
-    .name('Kontrola slevy objednavky')
+    .name('Kontrola slevy objednávky')
     .priority(10)
     .when(onEvent('order.created'))
     .if(event('total').gte(100))
@@ -292,13 +292,13 @@ engine.registerRule(
     .when(onEvent('order.created'))
     .if(fact('customer:${event.customerId}:totalSpent').gte(1000))
     .then(setFact('customer:${event.customerId}:tier', 'vip'))
-    .also(log('Zakaznik ${event.customerId} povysen na VIP'))
+    .also(log('Zákazník ${event.customerId} povýšen na VIP'))
     .build()
 );
 
 engine.registerRule(
   Rule.create('inventory-alert')
-    .name('Alert nizkeho skladu')
+    .name('Alert nízkého skladu')
     .priority(1)
     .when(onEvent('order.created'))
     .if(fact('product:${event.productId}:stock').lt(5))
@@ -309,7 +309,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Simulace zateze ---
+// --- Simulace zátěže ---
 
 engine.setFact('customer:c-1:totalSpent', 500);
 engine.setFact('product:p-1:stock', 3);
@@ -323,35 +323,35 @@ for (let i = 0; i < 100; i++) {
   });
 }
 
-// --- Vykonnostni dashboard ---
+// --- Výkonnostní dashboard ---
 
-console.log('=== Vykonnostni dashboard ===\n');
+console.log('=== Výkonnostní dashboard ===\n');
 
 const summary = engine.profiler.getSummary();
-console.log(`Celkem spusteni: ${summary.totalTriggers}`);
-console.log(`Celkovy cas: ${summary.totalTimeMs.toFixed(2)}ms`);
-console.log(`Prumer na spusteni: ${summary.avgRuleTimeMs.toFixed(3)}ms\n`);
+console.log(`Celkem spuštění: ${summary.totalTriggers}`);
+console.log(`Celkový čas: ${summary.totalTimeMs.toFixed(2)}ms`);
+console.log(`Průměr na spuštění: ${summary.avgRuleTimeMs.toFixed(3)}ms\n`);
 
-console.log('--- Nejpomalejsi pravidla ---');
+console.log('--- Nejpomalejší pravidla ---');
 for (const rule of engine.profiler.getSlowestRules(5)) {
-  console.log(`  ${rule.ruleName}: ${rule.avgTimeMs.toFixed(3)}ms prumer`);
+  console.log(`  ${rule.ruleName}: ${rule.avgTimeMs.toFixed(3)}ms průměr`);
 }
 
-console.log('\n--- Nejaktivnejsi pravidla ---');
+console.log('\n--- Nejaktivnější pravidla ---');
 for (const rule of engine.profiler.getHottestRules(5)) {
-  console.log(`  ${rule.ruleName}: ${rule.triggerCount} spusteni`);
+  console.log(`  ${rule.ruleName}: ${rule.triggerCount} spuštění`);
 }
 
-console.log('\n--- Uspesnosti ---');
+console.log('\n--- Úspěšnosti ---');
 for (const profile of engine.profiler.getRuleProfiles()) {
   console.log(`  ${profile.ruleName}: ${(profile.passRate * 100).toFixed(1)}%`);
 }
 
-console.log('\n--- Rozpis podminek ---');
+console.log('\n--- Rozpis podmínek ---');
 const discountProfile = engine.profiler.getRuleProfile('order-discount');
 if (discountProfile) {
   for (const cond of discountProfile.conditionProfiles) {
-    console.log(`  Podminka #${cond.conditionIndex}: ${(cond.passRate * 100).toFixed(1)}% uspesnost, ${cond.avgTimeMs.toFixed(3)}ms prumer`);
+    console.log(`  Podmínka #${cond.conditionIndex}: ${(cond.passRate * 100).toFixed(1)}% úspěšnost, ${cond.avgTimeMs.toFixed(3)}ms průměr`);
   }
 }
 
@@ -362,28 +362,28 @@ await engine.stop();
 
 | Metoda | Cesta | Popis |
 |--------|-------|-------|
-| `GET` | `/debug/profile` | Ziskat vsechny profily pravidel |
-| `GET` | `/debug/profile/summary` | Ziskat shrnuti profilovani |
-| `GET` | `/debug/profile/slowest` | Ziskat nejpomalejsi pravidla (query: `?limit=10`) |
-| `GET` | `/debug/profile/hottest` | Ziskat nejaktivnejsi pravidla (query: `?limit=10`) |
-| `GET` | `/debug/profile/:ruleId` | Ziskat profil konkretniho pravidla |
-| `POST` | `/debug/profile/reset` | Resetovat vsechna data profilovani |
+| `GET` | `/debug/profile` | Získat všechny profily pravidel |
+| `GET` | `/debug/profile/summary` | Získat shrnutí profilování |
+| `GET` | `/debug/profile/slowest` | Získat nejpomalejší pravidla (query: `?limit=10`) |
+| `GET` | `/debug/profile/hottest` | Získat nejaktivnější pravidla (query: `?limit=10`) |
+| `GET` | `/debug/profile/:ruleId` | Získat profil konkrétního pravidla |
+| `POST` | `/debug/profile/reset` | Resetovat všechna data profilování |
 
-## Cviceni
+## Cvičení
 
-Vybudujte analyzu profilovani pro vicepravidlovy notifikacni system:
+Vybudujte analýzu profilování pro vícepravidlový notifikační systém:
 
-1. Vytvorte engine s povolenym tracingem
-2. Zaregistrujte ctyri pravidla:
-   - `email-notification` spoustene `order.shipped`, ktere se vzdy provede (zadne podminky)
-   - `sms-notification` spoustene `order.shipped`, ktere se spusti pouze kdyz `event.priority` je `'high'`
-   - `push-notification` spoustene `order.shipped`, ktere se spusti pouze kdyz fakt `customer:${event.customerId}:pushEnabled` je `true`
-   - `analytics-tracker` spoustene `order.shipped`, ktere se vzdy provede
-3. Simulujte 200 udalosti, kde ~30 % ma vysokou prioritu
-4. Vytisknete uspesnost pro kazde pravidlo a identifikujte, ktere pravidlo je spousteno nejvice, ale provadi se nejmene
+1. Vytvořte engine s povoleným tracingem
+2. Zaregistrujte čtyři pravidla:
+   - `email-notification` spouštěné `order.shipped`, které se vždy provede (žádné podmínky)
+   - `sms-notification` spouštěné `order.shipped`, které se spustí pouze když `event.priority` je `'high'`
+   - `push-notification` spouštěné `order.shipped`, které se spustí pouze když fakt `customer:${event.customerId}:pushEnabled` je `true`
+   - `analytics-tracker` spouštěné `order.shipped`, které se vždy provede
+3. Simulujte 200 událostí, kde ~30 % má vysokou prioritu
+4. Vytiskněte úspěšnost pro každé pravidlo a identifikujte, které pravidlo je spouštěno nejvíce, ale provádí se nejméně
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -395,10 +395,10 @@ const engine = await RuleEngine.start({
   tracing: { enabled: true },
 });
 
-// Pravidlo 1: Vzdy se provede
+// Pravidlo 1: Vždy se provede
 engine.registerRule(
   Rule.create('email-notification')
-    .name('Emailova notifikace')
+    .name('Emailová notifikace')
     .when(onEvent('order.shipped'))
     .then(emit('notification.email', {
       orderId: ref('event.orderId'),
@@ -407,7 +407,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 2: Pouze pro objednavky s vysokou prioritou (~30 %)
+// Pravidlo 2: Pouze pro objednávky s vysokou prioritou (~30 %)
 engine.registerRule(
   Rule.create('sms-notification')
     .name('SMS notifikace')
@@ -419,7 +419,7 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 3: Pouze kdyz je push povolen (nastaveno pro ~50 % zakazniku)
+// Pravidlo 3: Pouze když je push povolen (nastaveno pro ~50 % zákazníků)
 engine.registerRule(
   Rule.create('push-notification')
     .name('Push notifikace')
@@ -431,21 +431,21 @@ engine.registerRule(
     .build()
 );
 
-// Pravidlo 4: Vzdy se provede
+// Pravidlo 4: Vždy se provede
 engine.registerRule(
   Rule.create('analytics-tracker')
-    .name('Analyticky tracker')
+    .name('Analytický tracker')
     .when(onEvent('order.shipped'))
     .then(setFact('analytics:shipped:count', '${(parseInt(fact.value || "0") + 1)}'))
     .build()
 );
 
-// Nastavit push pro polovinu zakazniku
+// Nastavit push pro polovinu zákazníků
 for (let i = 0; i < 50; i++) {
   engine.setFact(`customer:c-${i}:pushEnabled`, true);
 }
 
-// Simulace 200 objednavek
+// Simulace 200 objednávek
 for (let i = 0; i < 200; i++) {
   await engine.emit('order.shipped', {
     orderId: `ord-${i}`,
@@ -454,48 +454,48 @@ for (let i = 0; i < 200; i++) {
   });
 }
 
-// Analyza
-console.log('=== Profilovani notifikacniho systemu ===\n');
+// Analýza
+console.log('=== Profilování notifikačního systému ===\n');
 
 const profiles = engine.profiler.getRuleProfiles();
 for (const profile of profiles) {
   console.log(`${profile.ruleName}:`);
-  console.log(`  Spusteno: ${profile.triggerCount}`);
+  console.log(`  Spuštěno: ${profile.triggerCount}`);
   console.log(`  Provedeno: ${profile.executionCount}`);
-  console.log(`  Preskoceno: ${profile.skipCount}`);
-  console.log(`  Uspesnost: ${(profile.passRate * 100).toFixed(1)}%`);
-  console.log(`  Prumerny cas: ${profile.avgTimeMs.toFixed(3)}ms`);
+  console.log(`  Přeskočeno: ${profile.skipCount}`);
+  console.log(`  Úspěšnost: ${(profile.passRate * 100).toFixed(1)}%`);
+  console.log(`  Průměrný čas: ${profile.avgTimeMs.toFixed(3)}ms`);
   console.log();
 }
 
-// Identifikace: nejvice spoustene, ale nejmene provadene
+// Identifikace: nejvíce spouštěné, ale nejméně prováděné
 const lowestPass = engine.profiler.getLowestPassRate(1);
 if (lowestPass.length) {
-  console.log(`Nejnizsi uspesnost: ${lowestPass[0].ruleName} na ${(lowestPass[0].passRate * 100).toFixed(1)}%`);
-  // sms-notification na ~30 % (pouze objednavky s vysokou prioritou)
+  console.log(`Nejnižší úspěšnost: ${lowestPass[0].ruleName} na ${(lowestPass[0].passRate * 100).toFixed(1)}%`);
+  // sms-notification na ~30 % (pouze objednávky s vysokou prioritou)
 }
 
 await engine.stop();
 ```
 
-SMS notifikacni pravidlo ma nejnizsi uspesnost (~30 %), protoze pouze objednavky s vysokou prioritou ho spusti. Push notifikacni pravidlo prochazi v ~50 % pripadu (odpovida zakaznikum s povolenym push). Email a analytika se vzdy provedou na 100 %.
+SMS notifikační pravidlo má nejnižší úspěšnost (~30 %), protože pouze objednávky s vysokou prioritou ho spustí. Push notifikační pravidlo prochází v ~50 % případů (odpovídá zákazníkům s povoleným push). Email a analytika se vždy provedou na 100 %.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **`Profiler`** se prihlasi k odberu `TraceCollector` a agreguje metriky vykonu pro jednotliva pravidla v realnem case
-- Profilovani je **automaticke**, kdyz je povolen tracing — zadna dalsi konfigurace neni potreba
-- **`RuleProfile`** zachycuje pocet spusteni, provedeni, preskoceni, casovani (prumer/min/max) a rozpisy podminek/akci
-- **`ConditionProfile`** odhaluje uspesnosti a casy vyhodnocovani pro jednotlive podminky
-- **`ActionProfile`** sleduje casy provadeni a miry uspechu/selhani pro jednotlive akce
-- Pouzijte `getSlowestRules()` a `getHottestRules()` pro nalezeni vykonnostnich uzkych mist
-- Pouzijte `getLowestPassRate()` pro identifikaci pravidel s prilis sirokymi triggery
-- Pouzijte `getHighestActionFailureRate()` pro nalezeni pravidel se selhavajicimi externimi volanimi
-- **`getSummary()`** poskytuje celkovy prehled s nejpomalejsim a nejaktivnejsim pravidlem
-- **Resetujte** data profilovani pomoci `reset()` pro cilene benchmarkove behy
-- Vsechna data profilovani jsou dostupna pres **REST API endpointy** pod `/debug/profile`
+- **`Profiler`** se přihlásí k odběru `TraceCollector` a agreguje metriky výkonu pro jednotlivá pravidla v reálném čase
+- Profilování je **automatické**, když je povolen tracing — žádná další konfigurace není potřeba
+- **`RuleProfile`** zachycuje počet spuštění, provedení, přeskočení, časování (průměr/min/max) a rozpisy podmínek/akcí
+- **`ConditionProfile`** odhaluje úspěšnosti a časy vyhodnocování pro jednotlivé podmínky
+- **`ActionProfile`** sleduje časy provádění a míry úspěchu/selhání pro jednotlivé akce
+- Použijte `getSlowestRules()` a `getHottestRules()` pro nalezení výkonnostních úzkých míst
+- Použijte `getLowestPassRate()` pro identifikaci pravidel s příliš širokými triggery
+- Použijte `getHighestActionFailureRate()` pro nalezení pravidel se selhávajícími externími voláními
+- **`getSummary()`** poskytuje celkový přehled s nejpomalejším a nejaktivnějším pravidlem
+- **Resetujte** data profilování pomocí `reset()` pro cílené benchmarkové běhy
+- Všechna data profilování jsou dostupná přes **REST API endpointy** pod `/debug/profile`
 
 ---
 
-Dalsi: [Audit logging](./03-audit-log.md)
+Další: [Audit logging](./03-audit-log.md)
