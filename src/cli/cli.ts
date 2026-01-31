@@ -40,6 +40,21 @@ import {
 /** CLI instance */
 const cli = cac('noex-rules');
 
+/**
+ * Promise z běžící async akce.
+ * CAC neawaituje async action handlery — musíme to udělat sami.
+ */
+let _actionPromise: Promise<void> | undefined;
+
+/** Obalí async action handler tak, aby se jeho Promise dala awaitovat v run(). */
+function tracked<T extends unknown[]>(
+  fn: (...args: T) => Promise<void>
+): (...args: T) => void {
+  return (...args: T) => {
+    _actionPromise = fn(...args);
+  };
+}
+
 /** Zpracuje globální options */
 function processGlobalOptions(options: Record<string, unknown>): GlobalOptions {
   const configPath = options['config'] as string | undefined;
@@ -82,7 +97,7 @@ function registerValidateCommand(): void {
   cli
     .command('validate <file>', 'Validate rules file')
     .option('-s, --strict', 'Enable strict validation mode')
-    .action(async (file: string, options: Record<string, unknown>) => {
+    .action(tracked(async (file: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const validateOptions: ValidateOptions = {
         ...globalOptions,
@@ -94,7 +109,7 @@ function registerValidateCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje příkaz import */
@@ -105,7 +120,7 @@ function registerImportCommand(): void {
     .option('-m, --merge', 'Merge with existing rules instead of replacing')
     .option('--no-validate', 'Skip validation')
     .option('-s, --strict', 'Strict validation mode')
-    .action(async (file: string, options: Record<string, unknown>) => {
+    .action(tracked(async (file: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const importOptions: ImportCommandOptions = {
         ...globalOptions,
@@ -120,7 +135,7 @@ function registerImportCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje příkaz export */
@@ -130,7 +145,7 @@ function registerExportCommand(): void {
     .option('-p, --pretty', 'Pretty print JSON output')
     .option('-t, --tags <tags>', 'Filter by tags (comma-separated)')
     .option('-e, --enabled', 'Export only enabled rules')
-    .action(async (output: string | undefined, options: Record<string, unknown>) => {
+    .action(tracked(async (output: string | undefined, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const tags = options['tags'] as string | undefined;
       const enabled = options['enabled'] as boolean | undefined;
@@ -146,7 +161,7 @@ function registerExportCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje příkaz test */
@@ -157,7 +172,7 @@ function registerTestCommand(): void {
     .option('-v, --verbose', 'Show detailed test output')
     .option('-r, --rules <path>', 'Path to rules file')
     .option('-t, --timeout <ms>', 'Test timeout in milliseconds')
-    .action(async (file: string, options: Record<string, unknown>) => {
+    .action(tracked(async (file: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const testOptions: TestCommandOptions = {
         ...globalOptions,
@@ -172,7 +187,7 @@ function registerTestCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje server příkazy */
@@ -183,7 +198,7 @@ function registerServerCommands(): void {
     .option('-H, --host <host>', 'Server host', { default: '0.0.0.0' })
     .option('--no-swagger', 'Disable Swagger documentation')
     .option('--no-logger', 'Disable request logging')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const serverStartOptions: ServerStartOptions = {
         ...globalOptions,
@@ -198,12 +213,12 @@ function registerServerCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('server status', 'Show server status')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const serverStatusOptions: ServerStatusOptions = {
@@ -216,7 +231,7 @@ function registerServerCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje rule příkazy */
@@ -225,7 +240,7 @@ function registerRuleCommands(): void {
   cli
     .command('rule list', 'List all rules')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const ruleOptions: RuleCommandOptions = {
@@ -238,12 +253,12 @@ function registerRuleCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('rule get <id>', 'Get rule details')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (id: string, options: Record<string, unknown>) => {
+    .action(tracked(async (id: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const ruleOptions: RuleCommandOptions = {
@@ -256,12 +271,12 @@ function registerRuleCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('rule enable <id>', 'Enable a rule')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (id: string, options: Record<string, unknown>) => {
+    .action(tracked(async (id: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const ruleOptions: RuleCommandOptions = {
@@ -274,12 +289,12 @@ function registerRuleCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('rule disable <id>', 'Disable a rule')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (id: string, options: Record<string, unknown>) => {
+    .action(tracked(async (id: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const ruleOptions: RuleCommandOptions = {
@@ -292,12 +307,12 @@ function registerRuleCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('rule delete <id>', 'Delete a rule')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (id: string, options: Record<string, unknown>) => {
+    .action(tracked(async (id: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const ruleOptions: RuleCommandOptions = {
@@ -310,7 +325,7 @@ function registerRuleCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
 }
 
@@ -319,7 +334,7 @@ function registerStatsCommand(): void {
   cli
     .command('stats', 'Show engine statistics')
     .option('-u, --url <url>', 'Server URL')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const statsOptions: StatsCommandOptions = {
@@ -332,7 +347,7 @@ function registerStatsCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje init příkaz */
@@ -343,7 +358,7 @@ function registerInitCommand(): void {
     .option('--server-url <url>', 'Server URL')
     .option('--storage-adapter <adapter>', 'Storage adapter (memory, sqlite, file)')
     .option('--storage-path <path>', 'Storage file path')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const initOptions: InitCommandOptions = {
         ...globalOptions,
@@ -358,7 +373,7 @@ function registerInitCommand(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 }
 
 /** Registruje audit příkazy */
@@ -373,7 +388,7 @@ function registerAuditCommands(): void {
     .option('--from <from>', 'From timestamp or ISO date')
     .option('--to <to>', 'To timestamp or ISO date')
     .option('-l, --limit <limit>', 'Max entries to return')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const category = options['category'] as string | undefined;
@@ -398,7 +413,7 @@ function registerAuditCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('audit search <query>', 'Search audit log entries')
@@ -409,7 +424,7 @@ function registerAuditCommands(): void {
     .option('--from <from>', 'From timestamp or ISO date')
     .option('--to <to>', 'To timestamp or ISO date')
     .option('-l, --limit <limit>', 'Max entries to search')
-    .action(async (query: string, options: Record<string, unknown>) => {
+    .action(tracked(async (query: string, options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const sCategory = options['category'] as string | undefined;
@@ -434,7 +449,7 @@ function registerAuditCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
 
   cli
     .command('audit export', 'Export audit log entries')
@@ -446,7 +461,7 @@ function registerAuditCommands(): void {
     .option('--rule-id <ruleId>', 'Filter by rule ID')
     .option('--from <from>', 'From timestamp or ISO date')
     .option('--to <to>', 'To timestamp or ISO date')
-    .action(async (options: Record<string, unknown>) => {
+    .action(tracked(async (options: Record<string, unknown>) => {
       const globalOptions = processGlobalOptions(options);
       const config = loadConfig(options['config'] as string | undefined);
       const eOutput = options['output'] as string | undefined;
@@ -473,7 +488,28 @@ function registerAuditCommands(): void {
         printError(formatError(err));
         process.exit(getExitCode(err));
       }
-    });
+    }));
+}
+
+/**
+ * CAC rozpoznává multi-word příkazy (např. "server start") jen pokud
+ * je celý název v jednom argv elementu. V process.argv jsou ale vždy
+ * jako oddělené položky. Tato funkce je sloučí zpět.
+ */
+const SUB_COMMAND_PREFIXES = ['server', 'rule', 'audit'] as const;
+
+function mergeSubcommandArgs(args: string[]): string[] {
+  // args[0] = node, args[1] = script, args[2..] = user args
+  if (args.length < 4) return args;
+  const first = args[2]!;
+  const second = args[3]!;
+  if (
+    SUB_COMMAND_PREFIXES.includes(first as typeof SUB_COMMAND_PREFIXES[number]) &&
+    !second.startsWith('-')
+  ) {
+    return [...args.slice(0, 2), `${first} ${second}`, ...args.slice(4)];
+  }
+  return args;
 }
 
 /** Inicializuje a spustí CLI */
@@ -494,7 +530,10 @@ export async function run(args: string[] = process.argv): Promise<void> {
   cli.version(version);
 
   try {
-    cli.parse(args);
+    cli.parse(mergeSubcommandArgs(args));
+    if (_actionPromise) {
+      await _actionPromise;
+    }
   } catch (err) {
     printError(formatError(err));
     process.exit(getExitCode(err));

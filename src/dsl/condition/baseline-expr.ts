@@ -95,13 +95,17 @@ export class BaselineExpr implements ConditionBuilder {
       );
     }
 
+    const source: RuleCondition['source'] = {
+      type: 'baseline',
+      metric: this.metric,
+      comparison: this.comparison,
+    };
+    if (this.sensitivity !== undefined) {
+      source.sensitivity = this.sensitivity;
+    }
+
     return {
-      source: {
-        type: 'baseline',
-        metric: this.metric,
-        comparison: this.comparison,
-        sensitivity: this.sensitivity,
-      },
+      source,
       operator: 'eq',
       value: true,
     };

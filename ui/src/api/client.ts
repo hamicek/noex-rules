@@ -7,7 +7,7 @@ function resolveServerUrl(): string {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return stored;
   }
-  return import.meta.env.VITE_SERVER_URL || '';
+  return import.meta.env.VITE_SERVER_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 }
 
 export const graphqlClient = new GraphQLClient(

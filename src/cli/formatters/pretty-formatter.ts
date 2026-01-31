@@ -132,6 +132,8 @@ export class PrettyFormatter implements OutputFormatter {
         return `ctx.${this.color(source.key, 'green')}`;
       case 'lookup':
         return `lookup(${this.color(source.name, 'green')}${source.field ? '.' + this.color(source.field, 'green') : ''})`;
+      case 'baseline':
+        return `baseline(${this.color(source.metric, 'green')})`;
     }
   }
 
