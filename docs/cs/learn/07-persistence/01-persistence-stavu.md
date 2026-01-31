@@ -1,18 +1,18 @@
-# Persistence pravidel a faktu
+# Persistence pravidel a faktů
 
-Bez persistence kazdy restart enginu znamena znovu registraci vsech pravidel z kodu. To funguje pro vyvoj, ale v produkci — kde jsou pravidla vytvavena dynamicky pres API, admin rozhrani nebo hot reload — potrebujete, aby pravidla prezila restarty. noex-rules se integruje s rozhranim `StorageAdapter` z `@hamicek/noex` pro automaticke ukladani a obnovu pravidel a skupin.
+Bez persistence každý restart enginu znamená znovu registraci všech pravidel z kódu. To funguje pro vývoj, ale v produkci — kde jsou pravidla vytvářena dynamicky přes API, admin rozhraní nebo hot reload — potřebujete, aby pravidla přežila restarty. noex-rules se integruje s rozhraním `StorageAdapter` z `@hamicek/noex` pro automatické ukládání a obnovu pravidel a skupin.
 
-## Co se naucite
+## Co se naučíte
 
 - Jak `PersistenceConfig` propojuje engine se storage backendem
-- Automaticky zivotni cyklus ulozeni/obnovy
-- Jak debounced persistence sdruzi rychle zmeny
-- Verzovani schematu pro bezpecne migrace
-- Vnitrni fungování tridy `RulePersistence`
+- Automatický životní cyklus uložení/obnovy
+- Jak debounced persistence sdruží rychlé změny
+- Verzování schématu pro bezpečné migrace
+- Vnitřní fungování třídy `RulePersistence`
 
-## Rozhrani StorageAdapter
+## Rozhraní StorageAdapter
 
-noex-rules neimplementuje vlastni storage vrstvu. Misto toho deleguje na rozhrani `StorageAdapter` z `@hamicek/noex`, ktere poskytuje zapojitelne storage backendy:
+noex-rules neimplementuje vlastní storage vrstvu. Místo toho deleguje na rozhraní `StorageAdapter` z `@hamicek/noex`, které poskytuje zapojitelné storage backendy:
 
 ```text
   ┌──────────────┐       ┌──────────────────┐
@@ -20,7 +20,7 @@ noex-rules neimplementuje vlastni storage vrstvu. Misto toho deleguje na rozhran
   └──────────────┘       └────────┬─────────┘
                                   │
                          ┌────────▼─────────┐
-                         │  StorageAdapter   │ (rozhrani z @hamicek/noex)
+                         │  StorageAdapter   │ (rozhraní z @hamicek/noex)
                          └────────┬─────────┘
                                   │
                     ┌─────────────┼─────────────┐
@@ -31,26 +31,26 @@ noex-rules neimplementuje vlastni storage vrstvu. Misto toho deleguje na rozhran
               └───────────┘ └─────────┘ └─────────────┘
 ```
 
-Jakykoliv adapter implementujici `save()`, `load()`, `delete()` a `exists()` funguje. Nejcastejsi volbou je `SQLiteAdapter` z `@hamicek/noex`.
+Jakýkoliv adapter implementující `save()`, `load()`, `delete()` a `exists()` funguje. Nejčastější volbou je `SQLiteAdapter` z `@hamicek/noex`.
 
 ## PersistenceConfig
 
-Pro povoleni persistence predejte volbu `persistence` do `RuleEngine.start()`:
+Pro povolení persistence předejte volbu `persistence` do `RuleEngine.start()`:
 
 ```typescript
 interface PersistenceConfig {
-  /** Storage adapter (napr. SQLiteAdapter z @hamicek/noex) */
+  /** Storage adapter (např. SQLiteAdapter z @hamicek/noex) */
   adapter: StorageAdapter;
 
-  /** Klic pro ulozeni v databazi (vychozi: 'rules') */
+  /** Klíč pro uložení v databázi (výchozí: 'rules') */
   key?: string;
 
-  /** Verze schematu pro migrace (vychozi: 1) */
+  /** Verze schématu pro migrace (výchozí: 1) */
   schemaVersion?: number;
 }
 ```
 
-### Minimalni nastaveni
+### Minimální nastavení
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -63,111 +63,111 @@ const engine = await RuleEngine.start({
 });
 ```
 
-To je vse. Engine bude:
-1. Obnovovat drive ulozena pravidla a skupiny pri startu
-2. Automaticky ukladat pravidla pri kazde zmene (debounced)
-3. Provadet finalni ulozeni pri `engine.stop()`
+To je vše. Engine bude:
+1. Obnovovat dříve uložená pravidla a skupiny při startu
+2. Automaticky ukládat pravidla při každé změně (debounced)
+3. Provádět finální uložení při `engine.stop()`
 
-### Vlastni klic a verze schematu
+### Vlastní klíč a verze schématu
 
-Pokud provozujete vice enginu proti stejne databazi, pouzijte ruzne klice:
+Pokud provozujete více enginů proti stejné databázi, použijte různé klíče:
 
 ```typescript
 const engine = await RuleEngine.start({
   persistence: {
     adapter,
-    key: 'pricing-rules',       // Oddeleny jmenny prostor
+    key: 'pricing-rules',       // Oddělený jmenný prostor
     schemaVersion: 2,           // Ignorovat data z verze 1
   },
 });
 ```
 
-Kdyz `schemaVersion` neodpovida persistovanym datum, engine startuje s prazdnou sadou pravidel. To poskytuje bezpecnou migracni cestu: zvyste verzi, kdyz se zmeni format pravidel.
+Když `schemaVersion` neodpovídá persistovaným datům, engine startuje s prázdnou sadou pravidel. To poskytuje bezpečnou migrační cestu: zvyšte verzi, když se změní formát pravidel.
 
-## Zivotni cyklus ulozeni/obnovy
+## Životní cyklus uložení/obnovy
 
-Zivotni cyklus persistence je plne automaticky:
+Životní cyklus persistence je plně automatický:
 
 ```text
   RuleEngine.start()
        │
        ▼
   ┌─────────────────┐
-  │ Vytvoreni adapt. │
-  │ Vytvoreni RuleP. │
+  │ Vytvoření adapt. │
+  │ Vytvoření RuleP. │
   └────────┬────────┘
            │
            ▼
   ┌─────────────────┐     ┌──────────────────────────────┐
-  │ restore()       │────▶│ Nacteni pravidel + skupin z DB │
-  │                 │     │ Registrace skupin jako prvni   │
+  │ restore()       │────▶│ Načtení pravidel + skupin z DB │
+  │                 │     │ Registrace skupin jako první   │
   │                 │     │ Registrace pravidel (ref. sk.) │
   └────────┬────────┘     └──────────────────────────────┘
            │
            ▼
   ┌─────────────────┐
-  │ Engine bezi      │◀──── registerRule(), disableGroup() atd.
+  │ Engine běží      │◀──── registerRule(), disableGroup() atd.
   │                 │────▶ schedulePersist() (10ms debounce)
   └────────┬────────┘
            │
            ▼ engine.stop()
   ┌─────────────────┐
-  │ persist()       │────▶ Finalni ulozeni vsech pravidel + skupin
+  │ persist()       │────▶ Finální uložení všech pravidel + skupin
   └─────────────────┘
 ```
 
-### Automaticka debounced persistence
+### Automatická debounced persistence
 
-Kazda mutace spusti debounced ulozeni s 10ms zpozdenem:
+Každá mutace spustí debounced uložení s 10ms zpožděním:
 
-- `registerRule()` — ulozi po pridani noveho pravidla
-- `unregisterRule()` — ulozi po odebrani pravidla
-- `enableRule()` / `disableRule()` — ulozi po zmene stavu pravidla
-- `createGroup()` / `deleteGroup()` — ulozi po zmene skupiny
-- `enableGroup()` / `disableGroup()` — ulozi po zmene stavu skupiny
-- `updateGroup()` — ulozi po zmene metadat skupiny
+- `registerRule()` — uloží po přidání nového pravidla
+- `unregisterRule()` — uloží po odebrání pravidla
+- `enableRule()` / `disableRule()` — uloží po změně stavu pravidla
+- `createGroup()` / `deleteGroup()` — uloží po změně skupiny
+- `enableGroup()` / `disableGroup()` — uloží po změně stavu skupiny
+- `updateGroup()` — uloží po změně metadat skupiny
 
-10ms debounce sdruzi rychle zmeny (napr. registrace 50 pravidel ve smycce) do jednoho zapisu. Pokud se engine zastavi pred vystrelenim debounce, `engine.stop()` vynuti okamzite ulozeni.
+10ms debounce sdruží rychlé změny (např. registrace 50 pravidel ve smyčce) do jednoho zápisu. Pokud se engine zastaví před vystřelením debounce, `engine.stop()` vynutí okamžité uložení.
 
-### Poradi obnovy
+### Pořadí obnovy
 
-Pri startu obnovovaci proces nacte skupiny pred pravidly. To je dulezite, protoze pravidla mohou odkazovat na skupiny pres pole `group`. Pokud pravidlo odkazuje na skupinu `"pricing"`, tato skupina uz musi existovat, aby reference byla platna.
+Při startu obnovovací proces načte skupiny před pravidly. To je důležité, protože pravidla mohou odkazovat na skupiny přes pole `group`. Pokud pravidlo odkazuje na skupinu `"pricing"`, tato skupina už musí existovat, aby reference byla platná.
 
-Obnova take sleduje nejvyssi cislo verze mezi nactenymi pravidly a nastavi `nextVersion = maxVersion + 1`, coz zajistuje, ze nova pravidla vzdy dostanou vyssi verzi nez obnovena.
+Obnova také sleduje nejvyšší číslo verze mezi načtenými pravidly a nastaví `nextVersion = maxVersion + 1`, což zajišťuje, že nová pravidla vždy dostanou vyšší verzi než obnovená.
 
 ## Co se persistuje
 
-Engine persistuje kompletni stav vsech pravidel a skupin:
+Engine persistuje kompletní stav všech pravidel a skupin:
 
 ```typescript
-// Vnitrne RulePersistence uklada tuto strukturu:
+// Vnitřně RulePersistence ukládá tuto strukturu:
 interface PersistedRulesState {
   state: {
-    rules: Rule[];        // Vsechna registrovana pravidla
-    groups?: RuleGroup[]; // Vsechny skupiny (vynechano pokud prazdne)
+    rules: Rule[];        // Všechna registrovaná pravidla
+    groups?: RuleGroup[]; // Všechny skupiny (vynecháno pokud prázdné)
   };
   metadata: {
-    persistedAt: number;      // Casove razitko
-    serverId: 'rule-engine';  // Fixni identifikator
-    schemaVersion: number;    // Pro bezpecnost migraci
+    persistedAt: number;      // Časové razítko
+    serverId: 'rule-engine';  // Fixní identifikátor
+    schemaVersion: number;    // Pro bezpečnost migrací
   };
 }
 ```
 
 **Co SE persistuje:**
 - Definice pravidel (id, name, trigger, conditions, actions, priority, tags, group, enabled)
-- Skupiny pravidel (id, name, description, enabled, casova razitka)
-- Metadata schematu pro verzovani
+- Skupiny pravidel (id, name, description, enabled, časová razítka)
+- Metadata schématu pro verzování
 
 **Co se NEPERSISTUJE:**
-- Fakta (fact store je in-memory; pro persistence faktu pouzijte separatni strategii)
-- Historie udalosti (udalosti jsou designem efemerni)
-- Casovace (pro ty pouzijte `timerPersistence` — viz dalsi kapitola)
-- Runtime stav (fronta zpracovani, odberatele, data profileru)
+- Fakta (fact store je in-memory; pro persistence faktů použijte separátní strategii)
+- Historie událostí (události jsou designem efemerní)
+- Časovače (pro ty použijte `timerPersistence` — viz další kapitola)
+- Runtime stav (fronta zpracování, odběratelé, data profileru)
 
-## Kompletni priklad: Onboarding uzivatelu s persistentnimi pravidly
+## Kompletní příklad: Onboarding uživatelů s persistentními pravidly
 
-Tento priklad demonstruje onboardingovy system, kde jsou pravidla vytvavena dynamicky a musi prezit restarty:
+Tento příklad demonstruje onboardingový systém, kde jsou pravidla vytvářena dynamicky a musí přežít restarty:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -176,7 +176,7 @@ import {
   onEvent, onFact, emit, setFact, setTimer, log, ref, event, fact,
 } from '@hamicek/noex-rules/dsl';
 
-// --- Nastaveni s persistenci ---
+// --- Nastavení s persistencí ---
 
 const adapter = await SQLiteAdapter.start({ path: './data/onboarding.db' });
 
@@ -184,20 +184,20 @@ const engine = await RuleEngine.start({
   persistence: { adapter },
 });
 
-// --- Vytvoreni skupiny pro onboarding pravidla ---
+// --- Vytvoření skupiny pro onboarding pravidla ---
 
 engine.createGroup({
   id: 'onboarding',
-  name: 'Onboarding uzivatelu',
-  description: 'Uvitaci tok a pripominky',
+  name: 'Onboarding uživatelů',
+  description: 'Uvítací tok a připomínky',
   enabled: true,
 });
 
-// --- Pravidlo 1: Uvitaci email pri registraci ---
+// --- Pravidlo 1: Uvítací email při registraci ---
 
 engine.registerRule(
   Rule.create('welcome-email')
-    .name('Odeslani uvitaciho emailu')
+    .name('Odeslání uvítacího emailu')
     .group('onboarding')
     .tags('onboarding', 'email')
     .when(onEvent('user.registered'))
@@ -207,15 +207,15 @@ engine.registerRule(
       name: ref('event.name'),
     }))
     .also(setFact('user:${event.userId}:onboardingStep', 'registered'))
-    .also(log('Uzivatel ${event.userId} registrovan, uvitaci email zarazen'))
+    .also(log('Uživatel ${event.userId} registrován, uvítací email zařazen'))
     .build()
 );
 
-// --- Pravidlo 2: Nastaveni casovace pripominky pokud profil nedokonchen ---
+// --- Pravidlo 2: Nastavení časovače připomínky pokud profil nedokončen ---
 
 engine.registerRule(
   Rule.create('profile-reminder-timer')
-    .name('Naplanovani pripominky dokonceni profilu')
+    .name('Naplánování připomínky dokončení profilu')
     .group('onboarding')
     .tags('onboarding', 'reminders')
     .when(onEvent('user.registered'))
@@ -230,11 +230,11 @@ engine.registerRule(
     .build()
 );
 
-// --- Pravidlo 3: Zruseni pripominky pri dokonceni profilu ---
+// --- Pravidlo 3: Zrušení připomínky při dokončení profilu ---
 
 engine.registerRule(
   Rule.create('profile-completed')
-    .name('Zruseni pripominky pri dokonceni profilu')
+    .name('Zrušení připomínky při dokončení profilu')
     .group('onboarding')
     .tags('onboarding', 'reminders')
     .when(onFact('user:*:profileCompleted'))
@@ -242,11 +242,11 @@ engine.registerRule(
     .build()
 );
 
-// --- Pravidlo 4: Odeslani pripominkovoho emailu ---
+// --- Pravidlo 4: Odeslání připomínkového emailu ---
 
 engine.registerRule(
   Rule.create('send-reminder')
-    .name('Odeslani emailu s pripominkou profilu')
+    .name('Odeslání emailu s připomínkou profilu')
     .group('onboarding')
     .tags('onboarding', 'email', 'reminders')
     .when(onEvent('onboarding.reminder_due'))
@@ -256,13 +256,13 @@ engine.registerRule(
       template: 'profile-reminder',
       userId: ref('event.userId'),
     }))
-    .also(log('Pripominka profilu odeslana uzivateli ${event.userId}'))
+    .also(log('Připomínka profilu odeslána uživateli ${event.userId}'))
     .build()
 );
 
-// --- Simulace pouziti ---
+// --- Simulace použití ---
 
-// Registrace uzivatele
+// Registrace uživatele
 await engine.emit('user.registered', {
   userId: 'u-42',
   email: 'alice@example.com',
@@ -273,57 +273,57 @@ console.log(engine.getStats().rules.total);
 // 4
 
 // --- Simulace restartu ---
-// Pri pristim startu RuleEngine.start() se stejnym adapterem
-// se vsechna 4 pravidla a skupina 'onboarding' obnovi automaticky.
+// Při příštím startu RuleEngine.start() se stejným adapterem
+// se všechna 4 pravidla a skupina 'onboarding' obnoví automaticky.
 
 await engine.stop();
 ```
 
-Po `engine.stop()` jsou ctyri pravidla a skupina `onboarding` ulozena do SQLite. Pri pristim `RuleEngine.start()` se stejnym adapterem se obnovi automaticky — neni potreba znovu registrovat z kodu.
+Po `engine.stop()` jsou čtyři pravidla a skupina `onboarding` uložena do SQLite. Při příštím `RuleEngine.start()` se stejným adapterem se obnoví automaticky — není potřeba znovu registrovat z kódu.
 
 ## API reference
 
-### Trida RulePersistence
+### Třída RulePersistence
 
-Engine ji vytvari vnitrne, kdyz je nakonfigurovana `persistence`. Neinstanciujete ji sami, ale porozumeni API pomaha pri debugovani:
+Engine ji vytváří vnitřně, když je nakonfigurována `persistence`. Neinstanciujete ji sami, ale porozumění API pomáhá při debugování:
 
 | Metoda | Popis |
 |--------|-------|
-| `save(rules, groups?)` | Persistuje vsechna pravidla a skupiny do storage |
-| `load()` | Vrati `{ rules: Rule[], groups: RuleGroup[] }` |
-| `clear()` | Smaze vsechna persistovana data. Vrati `true` pri uspechu |
-| `exists()` | Zkontroluje, zda existuji persistovana data |
-| `getKey()` | Vrati storage klic (vychozi: `'rules'`) |
-| `getSchemaVersion()` | Vrati verzi schematu (vychozi: `1`) |
+| `save(rules, groups?)` | Persistuje všechna pravidla a skupiny do storage |
+| `load()` | Vrátí `{ rules: Rule[], groups: RuleGroup[] }` |
+| `clear()` | Smaže všechna persistovaná data. Vrátí `true` při úspěchu |
+| `exists()` | Zkontroluje, zda existují persistovaná data |
+| `getKey()` | Vrátí storage klíč (výchozí: `'rules'`) |
+| `getSchemaVersion()` | Vrátí verzi schématu (výchozí: `1`) |
 
-### Chovani verze schematu
+### Chování verze schématu
 
-| Persistovana verze | Verze v konfiguraci | Vysledek |
+| Persistovaná verze | Verze v konfiguraci | Výsledek |
 |:-:|:-:|:--|
-| 1 | 1 | Pravidla obnovena normalne |
-| 1 | 2 | Prazdna obnova (nesoulad verzi) |
-| — (zadna data) | jakakoliv | Prazdna obnova (zatim zadna data) |
+| 1 | 1 | Pravidla obnovena normálně |
+| 1 | 2 | Prázdná obnova (nesoulad verzí) |
+| — (žádná data) | jakákoliv | Prázdná obnova (zatím žádná data) |
 
-## Cviceni
+## Cvičení
 
-Vybudujte persistentni system notifikacnich pravidel:
+Vybudujte persistentní systém notifikačních pravidel:
 
-1. Vytvorte `SQLiteAdapter` a spustte engine s persistenci
-2. Vytvorte skupinu `notifications` se tremi pravidly:
-   - Pravidlo, ktere emituje `notification.email` pri prijeti `order.shipped`
-   - Pravidlo, ktere emituje `notification.sms` pri prijeti `delivery.failed`
-   - Pravidlo, ktere nastavi fakt `customer:{customerId}:lastNotified` pri jakoliv notifikacni udalosti
-3. Zastavte engine, spustte novou instanci se stejnym adapterem a overte, ze vsechna pravidla byla obnovena
+1. Vytvořte `SQLiteAdapter` a spusťte engine s persistencí
+2. Vytvořte skupinu `notifications` se třemi pravidly:
+   - Pravidlo, které emituje `notification.email` při přijetí `order.shipped`
+   - Pravidlo, které emituje `notification.sms` při přijetí `delivery.failed`
+   - Pravidlo, které nastaví fakt `customer:{customerId}:lastNotified` při jakékoliv notifikační události
+3. Zastavte engine, spusťte novou instanci se stejným adapterem a ověřte, že všechna pravidla byla obnovena
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
 import { SQLiteAdapter } from '@hamicek/noex';
 import { onEvent, emit, setFact, ref, event } from '@hamicek/noex-rules/dsl';
 
-// Prvni beh: vytvoreni a persistovani pravidel
+// První běh: vytvoření a persistování pravidel
 const adapter = await SQLiteAdapter.start({ path: './data/notifications.db' });
 
 const engine = await RuleEngine.start({
@@ -332,14 +332,14 @@ const engine = await RuleEngine.start({
 
 engine.createGroup({
   id: 'notifications',
-  name: 'Zakaznicke notifikace',
-  description: 'Pravidla emailovych a SMS notifikaci',
+  name: 'Zákaznické notifikace',
+  description: 'Pravidla emailových a SMS notifikací',
   enabled: true,
 });
 
 engine.registerRule(
   Rule.create('ship-email')
-    .name('Emailova notifikace o odeslani')
+    .name('Emailová notifikace o odeslání')
     .group('notifications')
     .tags('notifications', 'email', 'shipping')
     .when(onEvent('order.shipped'))
@@ -353,20 +353,20 @@ engine.registerRule(
 
 engine.registerRule(
   Rule.create('delivery-sms')
-    .name('SMS o selhani doruceni')
+    .name('SMS o selhání doručení')
     .group('notifications')
     .tags('notifications', 'sms', 'delivery')
     .when(onEvent('delivery.failed'))
     .then(emit('notification.sms', {
       customerId: ref('event.customerId'),
-      message: 'Doruceni selhalo pro objednavku ${event.orderId}',
+      message: 'Doručení selhalo pro objednávku ${event.orderId}',
     }))
     .build()
 );
 
 engine.registerRule(
   Rule.create('track-notification')
-    .name('Sledovani posledni notifikace')
+    .name('Sledování poslední notifikace')
     .group('notifications')
     .tags('notifications', 'tracking')
     .when(onEvent('notification.*'))
@@ -377,12 +377,12 @@ engine.registerRule(
     .build()
 );
 
-console.log(`Pravidla pred zastavenim: ${engine.getStats().rules.total}`);
-// Pravidla pred zastavenim: 3
+console.log(`Pravidla před zastavením: ${engine.getStats().rules.total}`);
+// Pravidla před zastavením: 3
 
 await engine.stop();
 
-// Druhy beh: obnova z persistence
+// Druhý běh: obnova z persistence
 const engine2 = await RuleEngine.start({
   persistence: { adapter },
 });
@@ -397,20 +397,20 @@ console.log(`Skupiny: ${groups.map(g => g.id).join(', ')}`);
 await engine2.stop();
 ```
 
-Klicovy poznatek: druha instance enginu neregistruje zadna pravidla rucne. Vse se obnovi z databaze.
+Klíčový poznatek: druhá instance enginu neregistruje žádná pravidla ručně. Vše se obnoví z databáze.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
 - **`PersistenceConfig`** propojuje engine se `StorageAdapter` pro persistenci pravidel
-- Pravidla a skupiny jsou **automaticky obnovena** pri `RuleEngine.start()` a **ulozena pri `engine.stop()`**
-- Kazda mutace pravidla/skupiny spusti **debounced ulozeni** (10ms), coz sdruzi rychle zmeny
-- Skupiny se obnovuji pred pravidly, aby reference na skupiny zustaly platne
-- **`schemaVersion`** poskytuje bezpecnostni sit pro migrace — nesoulad verzi znamena cisty start
-- Fakta, udalosti a casovace **nejsou persistovany** timto mechanismem (casovace maji vlastni — viz dalsi kapitola)
-- Pouzijte ruzne hodnoty `key` pro izolaci vice enginu sdilicich stejnou databazi
+- Pravidla a skupiny jsou **automaticky obnovena** při `RuleEngine.start()` a **uložena při `engine.stop()`**
+- Každá mutace pravidla/skupiny spustí **debounced uložení** (10ms), což sdruží rychlé změny
+- Skupiny se obnovují před pravidly, aby reference na skupiny zůstaly platné
+- **`schemaVersion`** poskytuje bezpečnostní síť pro migrace — nesoulad verzí znamená čistý start
+- Fakta, události a časovače **nejsou persistovány** tímto mechanismem (časovače mají vlastní — viz další kapitola)
+- Použijte různé hodnoty `key` pro izolaci více enginů sdílejících stejnou databázi
 
 ---
 
-Dalsi: [Trvanlive casovace](./02-persistence-casovcu.md)
+Další: [Trvanlivé časovače](./02-persistence-casovcu.md)

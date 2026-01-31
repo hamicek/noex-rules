@@ -1,58 +1,58 @@
-# Trvanlive casovace
+# Trvanlivé časovače
 
-Pravidlo, ktere naplanovalo timeout platby na 30 minut, je k nicemu, pokud casovac zmizi pri restartu procesu. Ve vychozim stavu noex-rules pouziva `setTimeout` pro casovace — rychle a jednoduche, ale volatilni. Kdyz potrebujete casovace, ktere preziji pady a restarty, povolte **durable rezim** pres `TimerPersistenceConfig`.
+Pravidlo, které naplánovalo timeout platby na 30 minut, je k ničemu, pokud časovač zmizí při restartu procesu. Ve výchozím stavu noex-rules používá `setTimeout` pro časovače — rychlé a jednoduché, ale volatilní. Když potřebujete časovače, které přežijí pády a restarty, povolte **durable režim** přes `TimerPersistenceConfig`.
 
-## Co se naucite
+## Co se naučíte
 
-- Rozdil mezi fallback (volatilnim) a durable rezimem casovcu
+- Rozdíl mezi fallback (volatilním) a durable režimem časovačů
 - Jak konfigurovat `TimerPersistenceConfig`
-- Jak se metadata casovcu ukladaji a obnovuji
-- Opakovane casovace se sledovanim poctu spusteni v durable rezimu
-- Kdy pouzit trvanlive casovace a kdy staci volatilni
+- Jak se metadata časovačů ukládají a obnovují
+- Opakované časovače se sledováním počtu spuštění v durable režimu
+- Kdy použít trvanlivé časovače a kdy stačí volatilní
 
-## Dva rezimy casovcu
+## Dva režimy časovačů
 
-`TimerManager` funguje v jednom ze dvou rezimu podle toho, zda je poskytnout storage adapter:
+`TimerManager` funguje v jednom ze dvou režimů podle toho, zda je poskytnut storage adapter:
 
 ```text
   ┌─────────────────────────────────────────────────────────┐
   │                     TimerManager                         │
   │                                                         │
   │  ┌───────────────────┐    ┌───────────────────────────┐ │
-  │  │  Fallback rezim   │    │      Durable rezim        │ │
+  │  │  Fallback režim   │    │      Durable režim        │ │
   │  │                   │    │                           │ │
   │  │  setTimeout()     │    │  TimerService (noex)      │ │
-  │  │  Pouze v pameti   │    │  Zalozen na StorageAdapt. │ │
-  │  │  Ztracen restartem│    │  Prezije restarty         │ │
-  │  │                   │    │  GenServer prijimac       │ │
-  │  │  Bez adapteru     │    │  Vyzaduje adapter         │ │
+  │  │  Pouze v paměti   │    │  Založen na StorageAdapt. │ │
+  │  │  Ztracen restartem│    │  Přežije restarty         │ │
+  │  │                   │    │  GenServer přijímač       │ │
+  │  │  Bez adaptéru     │    │  Vyžaduje adaptér         │ │
   │  └───────────────────┘    └───────────────────────────┘ │
   └─────────────────────────────────────────────────────────┘
 ```
 
-| Aspekt | Fallback rezim | Durable rezim |
+| Aspekt | Fallback režim | Durable režim |
 |--------|:---:|:---:|
-| Uloziste | V pameti (`setTimeout`) | `StorageAdapter` pres `TimerService` |
-| Prezije restart | Ne | Ano |
-| Sledovani opakujicich se casovcu | Omezene | Plne (pocet spusteni, maxCount) |
-| Konfigurace | Zadny adapter | `timerPersistence.adapter` vyzadovan |
-| Pouziti | Vyvoj, kratkodoba casovani | Produkce, kriticke timeouty |
+| Úložiště | V paměti (`setTimeout`) | `StorageAdapter` přes `TimerService` |
+| Přežije restart | Ne | Ano |
+| Sledování opakujících se časovačů | Omezené | Plné (počet spuštění, maxCount) |
+| Konfigurace | Žádný adapter | `timerPersistence.adapter` vyžadován |
+| Použití | Vývoj, krátkodobá časování | Produkce, kritické timeouty |
 
 ## TimerPersistenceConfig
 
-Povolte trvanlive casovace predanim `timerPersistence` do `RuleEngine.start()`:
+Povolte trvanlivé časovače předáním `timerPersistence` do `RuleEngine.start()`:
 
 ```typescript
 interface TimerPersistenceConfig {
-  /** Storage adapter pro ukladani timer metadat */
+  /** Storage adapter pro ukládání timer metadat */
   adapter: StorageAdapter;
 
-  /** Interval kontroly expirovanych casovcu v ms (vychozi: dle TimerService) */
+  /** Interval kontroly expirovaných časovačů v ms (výchozí: dle TimerService) */
   checkIntervalMs?: number;
 }
 ```
 
-### Nastaveni
+### Nastavení
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -61,22 +61,22 @@ import { SQLiteAdapter } from '@hamicek/noex';
 const adapter = await SQLiteAdapter.start({ path: './data/engine.db' });
 
 const engine = await RuleEngine.start({
-  // Persistence pravidel (oddelena starost)
+  // Persistence pravidel (oddělená starost)
   persistence: { adapter },
 
-  // Persistence casovcu
+  // Persistence časovačů
   timerPersistence: {
     adapter,
-    checkIntervalMs: 1000,  // Kontrola expirovanych casovcu kazdou sekundu
+    checkIntervalMs: 1000,  // Kontrola expirovaných časovačů každou sekundu
   },
 });
 ```
 
-Muzete sdilet stejnou instanci `StorageAdapter` pro persistenci pravidel i casovcu — vnitrne pouzivaji ruzne storage klice (`'rules'` vs `'timer-manager:metadata'`).
+Můžete sdílet stejnou instanci `StorageAdapter` pro persistenci pravidel i časovačů — vnitřně používají různé storage klíče (`'rules'` vs `'timer-manager:metadata'`).
 
-## Jak funguje durable rezim
+## Jak funguje durable režim
 
-Kdyz je durable rezim aktivni, `TimerManager` deleguje planovani na `TimerService` z `@hamicek/noex` a persistuje metadata casovcu pro obnovu:
+Když je durable režim aktivní, `TimerManager` deleguje plánování na `TimerService` z `@hamicek/noex` a persistuje metadata časovačů pro obnovu:
 
 ```text
   setTimer('payment-timeout', '30m')
@@ -84,7 +84,7 @@ Kdyz je durable rezim aktivni, `TimerManager` deleguje planovani na `TimerServic
        ▼
   ┌──────────────────┐
   │ TimerManager      │
-  │ (durable rezim)  │
+  │ (durable režim)  │
   └────────┬─────────┘
            │
      ┌─────┼──────────────────────┐
@@ -97,16 +97,16 @@ Kdyz je durable rezim aktivni, `TimerManager` deleguje planovani na `TimerServic
                   │                    │
                   ▼                    ▼
            ┌────────────┐      ┌──────────────┐
-           │ Trvanlive  │      │ StorageAdapter│
-           │ planovani  │      │ klic: timer-  │
-           │ (prezije   │      │ manager:      │
+           │ Trvanlivé  │      │ StorageAdapter│
+           │ plánování  │      │ klíč: timer-  │
+           │ (přežije   │      │ manager:      │
            │  restart)  │      │ metadata      │
            └──────┬─────┘      └──────────────┘
                   │
-                  ▼ (pri expiraci)
+                  ▼ (při expiraci)
            ┌────────────┐
            │ GenServer   │
-           │ prijimac    │
+           │ přijímač    │
            │ handleCast  │
            └──────┬─────┘
                   │
@@ -114,55 +114,55 @@ Kdyz je durable rezim aktivni, `TimerManager` deleguje planovani na `TimerServic
            onExpireCallback(timer)
 ```
 
-### Metadata casovcu
+### Metadata časovačů
 
-Pro kazdy aktivni casovac manager persistuje metadata potrebna pro obnovu:
+Pro každý aktivní časovač manager persistuje metadata potřebná pro obnovu:
 
 ```typescript
 interface TimerMetadata {
-  name: string;            // Nazev casovace (vyhledavaci klic)
+  name: string;            // Název časovače (vyhledávací klíč)
   durableTimerId: string;  // ID z TimerService
-  timerId: string;         // noex-rules ID casovace
-  onExpire: {              // Co emitovat pri expiraci
+  timerId: string;         // noex-rules ID časovače
+  onExpire: {              // Co emitovat při expiraci
     topic: string;
     data: Record<string, unknown>;
   };
-  fireCount: number;       // Kolikrat se casovac spustil
-  correlationId?: string;  // Volitelna korelace
-  maxCount?: number;       // Max opakovani (pro opakujici se)
-  repeatIntervalMs?: number; // Interval opakovani (pro opakujici se)
+  fireCount: number;       // Kolikrát se časovač spustil
+  correlationId?: string;  // Volitelná korelace
+  maxCount?: number;       // Max opakování (pro opakující se)
+  repeatIntervalMs?: number; // Interval opakování (pro opakující se)
 }
 ```
 
 ### Proces obnovy
 
-Pri startu se storage adapterem timer manager:
+Při startu se storage adapterem timer manager:
 
-1. Spusti GenServer prijimac pro zpravy o expiraci casovcu
-2. Spusti `TimerService` s adapterem
-3. Nacte persistovana metadata z klice `'timer-manager:metadata'`
-4. Pro kazdou persistovanou polozku casovce:
-   - Vyhledai trvanliva casovac v `TimerService`
-   - Zrusi stary casovac (cilil na predchozi prijimac)
-   - Vypocita zbyvajici cas: `max(0, fireAt - now)`
-   - Preplanuje s aktualnim prijimacem
-   - Obnovi in-memory `Timer` a `TimerMetadata`
-5. Persistuje aktualizovana metadata (nova ID trvanlivych casovcu)
+1. Spustí GenServer přijímač pro zprávy o expiraci časovačů
+2. Spustí `TimerService` s adapterem
+3. Načte persistovaná metadata z klíče `'timer-manager:metadata'`
+4. Pro každou persistovanou položku časovače:
+   - Vyhledá trvanlivý časovač v `TimerService`
+   - Zruší starý časovač (cílil na předchozí přijímač)
+   - Vypočítá zbývající čas: `max(0, fireAt - now)`
+   - Přeplánuje s aktuálním přijímačem
+   - Obnoví in-memory `Timer` a `TimerMetadata`
+5. Persistuje aktualizovaná metadata (nová ID trvanlivých časovačů)
 
-To znamena, ze casovace pokracuji tam, kde skoncily. 30minutovy casovac, kteremu zbyvalalo 10 minut pred padem, se spusti po tech zbyvajicich 10 minutach po restartu.
+To znamená, že časovače pokračují tam, kde skončily. 30minutový časovač, kterému zbývalo 10 minut před pádem, se spustí po těch zbývajících 10 minutách po restartu.
 
-## Opakujici se casovace v durable rezimu
+## Opakující se časovače v durable režimu
 
-Durable rezim poskytuje plne sledovani pro opakujici se casovace:
+Durable režim poskytuje plné sledování pro opakující se časovače:
 
 ```typescript
 import { Rule } from '@hamicek/noex-rules';
 import { onEvent, setTimer, ref } from '@hamicek/noex-rules/dsl';
 
-// Naplanovani opakovane kontroly zdravi kazdych 5 minut, max 12x (1 hodina)
+// Naplánování opakované kontroly zdraví každých 5 minut, max 12× (1 hodina)
 engine.registerRule(
   Rule.create('schedule-health-check')
-    .name('Planovani periodicke kontroly zdravi')
+    .name('Plánování periodické kontroly zdraví')
     .when(onEvent('monitoring.started'))
     .then(setTimer({
       name: 'health-check:${event.serviceId}',
@@ -180,13 +180,13 @@ engine.registerRule(
 );
 ```
 
-V durable rezimu je `fireCount` sledovan v persistovanych metadatech. Pokud se proces restartuje po 6 spustenich, casovac pokracuje a spusti se jeste 6krat pred dosazenim `maxCount: 12`.
+V durable režimu je `fireCount` sledován v persistovaných metadatech. Pokud se proces restartuje po 6 spuštěních, časovač pokračuje a spustí se ještě 6krát před dosažením `maxCount: 12`.
 
-Ve fallback rezimu sledovani `maxCount` neni plne podporovano — pocet spusteni se resetuje pri restartu.
+Ve fallback režimu sledování `maxCount` není plně podporováno — počet spuštění se resetuje při restartu.
 
-## Kompletni priklad: Timeout platby s trvanlivymi casovaci
+## Kompletní příklad: Timeout platby s trvanlivými časovači
 
-Platebni tok, kde objednavky musi byt zaplaceny do 15 minut, s pripominkou po 10 minutach:
+Platební tok, kde objednávky musí být zaplaceny do 15 minut, s připomínkou po 10 minutách:
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -203,10 +203,10 @@ const engine = await RuleEngine.start({
   timerPersistence: { adapter, checkIntervalMs: 1000 },
 });
 
-// Pravidlo 1: Start casovace platby pri vytvoreni objednavky
+// Pravidlo 1: Start časovače platby při vytvoření objednávky
 engine.registerRule(
   Rule.create('start-payment-timer')
-    .name('Start casovace platby')
+    .name('Start časovače platby')
     .tags('payments', 'timers')
     .when(onEvent('order.created'))
     .then(setTimer({
@@ -229,43 +229,43 @@ engine.registerRule(
       },
     }))
     .also(setFact('order:${event.orderId}:status', 'awaiting_payment'))
-    .also(log('Casovace platby nastaveny pro objednavku ${event.orderId}'))
+    .also(log('Časovače platby nastaveny pro objednávku ${event.orderId}'))
     .build()
 );
 
-// Pravidlo 2: Zruseni casovcu pri prijeti platby
+// Pravidlo 2: Zrušení časovačů při přijetí platby
 engine.registerRule(
   Rule.create('payment-received')
-    .name('Platba prijata - zruseni casovcu')
+    .name('Platba přijata - zrušení časovačů')
     .tags('payments', 'timers')
     .priority(100)
     .when(onEvent('payment.completed'))
     .then(cancelTimer('payment-timeout:${event.orderId}'))
     .also(cancelTimer('payment-reminder:${event.orderId}'))
     .also(setFact('order:${event.orderId}:status', 'paid'))
-    .also(log('Platba prijata pro objednavku ${event.orderId}, casovace zruseny'))
+    .also(log('Platba přijata pro objednávku ${event.orderId}, časovače zrušeny'))
     .build()
 );
 
-// Pravidlo 3: Odeslani pripominky pri spusteni 10minutoveho casovace
+// Pravidlo 3: Odeslání připomínky při spuštění 10minutového časovače
 engine.registerRule(
   Rule.create('payment-reminder')
-    .name('Odeslani pripominky platby')
+    .name('Odeslání připomínky platby')
     .tags('payments', 'notifications')
     .when(onEvent('payment.reminder'))
     .then(emit('notification.send', {
       type: 'payment-reminder',
       orderId: ref('event.orderId'),
       customerId: ref('event.customerId'),
-      message: 'Vase objednavka ceka na platbu. Zbyva 5 minut.',
+      message: 'Vaše objednávka čeká na platbu. Zbývá 5 minut.',
     }))
     .build()
 );
 
-// Pravidlo 4: Zruseni objednavky pri vyprseni timeoutu platby
+// Pravidlo 4: Zrušení objednávky při vypršení timeoutu platby
 engine.registerRule(
   Rule.create('payment-timeout')
-    .name('Zruseni objednavky pri vyprseni platby')
+    .name('Zrušení objednávky při vypršení platby')
     .tags('payments', 'orders')
     .when(onEvent('payment.timeout'))
     .if(fact('order:${event.orderId}:status').eq('awaiting_payment'))
@@ -274,11 +274,11 @@ engine.registerRule(
       orderId: ref('event.orderId'),
       reason: 'payment_timeout',
     }))
-    .also(log('Objednavka ${event.orderId} zrusena kvuli vyprseni platby'))
+    .also(log('Objednávka ${event.orderId} zrušena kvůli vypršení platby'))
     .build()
 );
 
-// --- Pouziti ---
+// --- Použití ---
 
 await engine.emit('order.created', {
   orderId: 'ord-100',
@@ -287,40 +287,40 @@ await engine.emit('order.created', {
 });
 
 // Pokud proces spadne a restartuje se do 15 minut,
-// casovace payment-timeout a payment-reminder se obnovi
-// se zbyvajicimi trvanimi. Zadne objednavky nepropadnou.
+// časovače payment-timeout a payment-reminder se obnoví
+// se zbývajícími trváními. Žádné objednávky nepropadnou.
 
 await engine.stop();
 ```
 
-Bez `timerPersistence` by restart procesu tise zahodil oba casovace. Objednavka by zustala ve stavu `awaiting_payment` navzdy — zadna pripominka, zadne zruseni.
+Bez `timerPersistence` by restart procesu tiše zahodil oba časovače. Objednávka by zůstala ve stavu `awaiting_payment` navždy — žádná připomínka, žádné zrušení.
 
-## Kdy pouzit trvanlive casovace
+## Kdy použít trvanlivé časovače
 
-| Scenar | Trvanlive? | Proc |
+| Scénář | Trvanlivé? | Proč |
 |--------|:---:|-------|
-| Timeouty plateb | Ano | Zmeskou timeout znamena ztraceny prijem nebo zasekle objednavky |
-| Eskalace poruseni SLA | Ano | Poruseni SLA se musi spustit i po nasazeni |
-| Expirace relace | Mozna | Casto je prijatelne resetovat pri restartu |
-| Cooldown rate limitu | Ne | Kratkodoba, resety jsou v poradku |
-| Vyvoj/testovani | Ne | Pridava slozitost bez uzitku |
-| Debounce casovace | Ne | Sub-sekundove casovace, nestoji za persistenci |
+| Timeouty plateb | Ano | Zmeškaný timeout znamená ztracený příjem nebo zaseklé objednávky |
+| Eskalace porušení SLA | Ano | Porušení SLA se musí spustit i po nasazení |
+| Expirace relace | Možná | Často je přijatelné resetovat při restartu |
+| Cooldown rate limitu | Ne | Krátkodobá, resety jsou v pořádku |
+| Vývoj/testování | Ne | Přidává složitost bez užitku |
+| Debounce časovače | Ne | Sub-sekundové časovače, nestojí za persistenci |
 
-Dobre pravidlo: pokud zmeskou casovace znamena **nekonzistenci dat nebo dopad na byznys**, pouzijte durable rezim.
+Dobré pravidlo: pokud zmeškaný časovač znamená **nekonzistenci dat nebo dopad na byznys**, použijte durable režim.
 
-## Cviceni
+## Cvičení
 
-Vybudujte system obnovy predplatneho s trvanlivymi casovaci:
+Vybudujte systém obnovy předplatného s trvanlivými časovači:
 
-1. Spustte engine s persistenci pravidel i casovcu
-2. Vytvorte pravidlo, ktere nastavi 30denni casovac obnovy pri prijeti `subscription.activated`
-3. Vytvorte pravidlo, ktere nastavi 7denni casovac pripominky ze stejne udalosti
-4. Vytvorte pravidlo, ktere zpracuje pripominku (emituje udalost `notification.renewal_reminder`)
-5. Vytvorte pravidlo, ktere zpracuje timeout obnovy (emituje `subscription.expired` a aktualizuje fakt)
-6. Otestujte, ze zastaveni a restartovani enginu zachova casovace
+1. Spusťte engine s persistencí pravidel i časovačů
+2. Vytvořte pravidlo, které nastaví 30denní časovač obnovy při přijetí `subscription.activated`
+3. Vytvořte pravidlo, které nastaví 7denní časovač připomínky ze stejné události
+4. Vytvořte pravidlo, které zpracuje připomínku (emituje událost `notification.renewal_reminder`)
+5. Vytvořte pravidlo, které zpracuje timeout obnovy (emituje `subscription.expired` a aktualizuje fakt)
+6. Otestujte, že zastavení a restartování enginu zachová časovače
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngine, Rule } from '@hamicek/noex-rules';
@@ -337,10 +337,10 @@ const engine = await RuleEngine.start({
   timerPersistence: { adapter, checkIntervalMs: 5000 },
 });
 
-// Pravidlo 1: Nastaveni casovcu obnovy a pripominky
+// Pravidlo 1: Nastavení časovačů obnovy a připomínky
 engine.registerRule(
   Rule.create('subscription-timers')
-    .name('Nastaveni casovcu predplatneho')
+    .name('Nastavení časovačů předplatného')
     .tags('subscriptions', 'timers')
     .when(onEvent('subscription.activated'))
     .then(setTimer({
@@ -366,29 +366,29 @@ engine.registerRule(
       },
     }))
     .also(setFact('subscription:${event.subscriptionId}:status', 'active'))
-    .also(log('Predplatne ${event.subscriptionId} aktivovano, casovace nastaveny'))
+    .also(log('Předplatné ${event.subscriptionId} aktivováno, časovače nastaveny'))
     .build()
 );
 
-// Pravidlo 2: Odeslani pripominky obnovy
+// Pravidlo 2: Odeslání připomínky obnovy
 engine.registerRule(
   Rule.create('renewal-reminder')
-    .name('Odeslani pripominky obnovy')
+    .name('Odeslání připomínky obnovy')
     .tags('subscriptions', 'notifications')
     .when(onEvent('subscription.reminder_due'))
     .if(fact('subscription:${event.subscriptionId}:status').eq('active'))
     .then(emit('notification.renewal_reminder', {
       subscriptionId: ref('event.subscriptionId'),
       customerId: ref('event.customerId'),
-      message: 'Vase predplatne vyprsi za 7 dni.',
+      message: 'Vaše předplatné vyprší za 7 dní.',
     }))
     .build()
 );
 
-// Pravidlo 3: Zpracovani timeoutu obnovy
+// Pravidlo 3: Zpracování timeoutu obnovy
 engine.registerRule(
   Rule.create('renewal-timeout')
-    .name('Expirace predplatneho')
+    .name('Expirace předplatného')
     .tags('subscriptions', 'lifecycle')
     .when(onEvent('subscription.renewal_due'))
     .if(fact('subscription:${event.subscriptionId}:status').eq('active'))
@@ -397,20 +397,20 @@ engine.registerRule(
       subscriptionId: ref('event.subscriptionId'),
       customerId: ref('event.customerId'),
     }))
-    .also(log('Predplatne ${event.subscriptionId} expirovalo'))
+    .also(log('Předplatné ${event.subscriptionId} expirovalo'))
     .build()
 );
 
-// Pravidlo 4: Zruseni casovcu pri rucni obnove
+// Pravidlo 4: Zrušení časovačů při ruční obnově
 engine.registerRule(
   Rule.create('manual-renewal')
-    .name('Zruseni casovcu pri rucni obnove')
+    .name('Zrušení časovačů při ruční obnově')
     .tags('subscriptions', 'timers')
     .when(onEvent('subscription.renewed'))
     .then(cancelTimer('renewal:${event.subscriptionId}'))
     .also(cancelTimer('renewal-reminder:${event.subscriptionId}'))
     .also(setFact('subscription:${event.subscriptionId}:status', 'active'))
-    .also(log('Predplatne ${event.subscriptionId} obnoveno, casovace resetovany'))
+    .also(log('Předplatné ${event.subscriptionId} obnoveno, časovače resetovány'))
     .build()
 );
 
@@ -422,8 +422,8 @@ await engine.emit('subscription.activated', {
   plan: 'premium',
 });
 
-console.log(`Aktivni casovace: ${engine.getTimers().length}`);
-// Aktivni casovace: 2
+console.log(`Aktivní časovače: ${engine.getTimers().length}`);
+// Aktivní časovače: 2
 
 // Simulace restartu
 await engine.stop();
@@ -436,28 +436,28 @@ const engine2 = await RuleEngine.start({
 console.log(`Pravidla po restartu: ${engine2.getStats().rules.total}`);
 // Pravidla po restartu: 4
 
-// Casovace jsou obnoveny se zbyvajicimi trvanimi
-console.log(`Casovace po restartu: ${engine2.getTimers().length}`);
-// Casovace po restartu: 2
+// Časovače jsou obnoveny se zbývajícími trváními
+console.log(`Časovače po restartu: ${engine2.getTimers().length}`);
+// Časovače po restartu: 2
 
 await engine2.stop();
 ```
 
-Pravidla (pres `persistence`) i casovace (pres `timerPersistence`) preziji restart. System predplatneho funguje korektne napric hranicemi procesu.
+Pravidla (přes `persistence`) i časovače (přes `timerPersistence`) přežijí restart. Systém předplatného funguje korektně napříč hranicemi procesu.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- noex-rules ma dva rezimy casovcu: **fallback** (`setTimeout`, volatilni) a **durable** (`TimerService`, persistentni)
-- Povolte durable rezim predanim `timerPersistence: { adapter }` do `RuleEngine.start()`
-- Trvanlive casovace persistuji metadata pod klicem `'timer-manager:metadata'` ve storage adapteru
-- Pri restartu se casovace obnovi s jejich **zbyvajicim trvanim** — 30minutovy casovac s 10 minutami zbyva se spusti po 10 minutach
-- Opakujici se casovace sleduji `fireCount` v durable rezimu, coz zajistuje respektovani `maxCount` napric restarty
-- Muzete sdilet stejny `StorageAdapter` pro persistenci pravidel i casovcu
-- Pouzijte trvanlive casovace, kdyz zmeskanx casovac znamena dopad na byznys (timeouty plateb, eskalace SLA)
-- Pro kratkodoba nebo vyvojova casovani staci fallback rezim
+- noex-rules má dva režimy časovačů: **fallback** (`setTimeout`, volatilní) a **durable** (`TimerService`, persistentní)
+- Povolte durable režim předáním `timerPersistence: { adapter }` do `RuleEngine.start()`
+- Trvanlivé časovače persistují metadata pod klíčem `'timer-manager:metadata'` ve storage adaptéru
+- Při restartu se časovače obnoví s jejich **zbývajícím trváním** — 30minutový časovač s 10 zbývajícími minutami se spustí po 10 minutách
+- Opakující se časovače sledují `fireCount` v durable režimu, což zajišťuje respektování `maxCount` napříč restarty
+- Můžete sdílet stejný `StorageAdapter` pro persistenci pravidel i časovačů
+- Použijte trvanlivé časovače, když zmeškaný časovač znamená dopad na byznys (timeouty plateb, eskalace SLA)
+- Pro krátkodobá nebo vývojová časování stačí fallback režim
 
 ---
 
-Dalsi: [Hot reload](./03-hot-reload.md)
+Další: [Hot reload](./03-hot-reload.md)
