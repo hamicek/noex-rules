@@ -1,63 +1,63 @@
 # REST API
 
-noex-rules obsahuje produkcne pripravenym HTTP server postaveny na Fastify. Jednim volanim `RuleEngineServer.start()` ziskate kompletni REST API pro spravu pravidel, faktu, eventu, casovacu a skupin — plus automatickou Swagger dokumentaci, CORS handling a health checky. Tato kapitola prochazi nastaveni serveru, kazdy endpoint a prakticke curl priklady, ktere muzete spustit proti bezicimu serveru.
+noex-rules obsahuje produkčně připraveným HTTP server postavený na Fastify. Jedním voláním `RuleEngineServer.start()` získáte kompletní REST API pro správu pravidel, faktů, eventů, časovačů a skupin — plus automatickou Swagger dokumentaci, CORS handling a health checky. Tato kapitola prochází nastavení serveru, každý endpoint a praktické curl příklady, které můžete spustit proti běžícímu serveru.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak spustit a nakonfigurovat HTTP server pomoci `RuleEngineServer.start()`
-- Kompletni referencni prehled REST endpointu: pravidla, fakta, eventy, casovace, skupiny, health
-- Jak pouzit Swagger/OpenAPI dokumentaci na `/documentation`
-- Moznosti konfigurace CORS pro cross-origin pristup
-- Prakticke curl priklady pro vytvareni pravidel, emitovani eventu a dotazovani faktu
+- Jak spustit a nakonfigurovat HTTP server pomocí `RuleEngineServer.start()`
+- Kompletní referenční přehled REST endpointů: pravidla, fakta, eventy, časovače, skupiny, health
+- Jak použít Swagger/OpenAPI dokumentaci na `/documentation`
+- Možnosti konfigurace CORS pro cross-origin přístup
+- Praktické curl příklady pro vytváření pravidel, emitování eventů a dotazování faktů
 
-## Spusteni serveru
+## Spuštění serveru
 
-Nejjednodussi zpusob spusteni serveru:
+Nejjednodušší způsob spuštění serveru:
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
 
 const server = await RuleEngineServer.start();
 
-console.log(`Server bezi na ${server.address}`);
-// Server bezi na http://0.0.0.0:7226
+console.log(`Server běží na ${server.address}`);
+// Server běží na http://0.0.0.0:7226
 ```
 
-Toto spusti Fastify HTTP server na portu 7226 se vsemi vychozimi hodnotami: CORS povoleny, Swagger povoleny, GraphQL povoleny a logovani requestu povoleno. Server automaticky vytvori instanci `RuleEngine`, spusti ji a provaze vsechny routy.
+Toto spustí Fastify HTTP server na portu 7226 se všemi výchozími hodnotami: CORS povolený, Swagger povolený, GraphQL povolený a logování requestů povoleno. Server automaticky vytvoří instanci `RuleEngine`, spustí ji a prováže všechny routy.
 
 ### Konfigurace
 
-Kazdy aspekt serveru je konfigurovatelny:
+Každý aspekt serveru je konfigurovatelný:
 
 ```typescript
 const server = await RuleEngineServer.start({
   server: {
-    port: 3000,              // Vychozi: 7226
-    host: 'localhost',       // Vychozi: '0.0.0.0'
-    apiPrefix: '/api/v2',    // Vychozi: '/api/v1'
-    cors: true,              // Vychozi: true (viz sekce CORS nize)
-    swagger: true,           // Vychozi: true
-    logger: true,            // Vychozi: true
-    graphql: true,           // Vychozi: true (viz kapitola 10.3)
+    port: 3000,              // Výchozí: 7226
+    host: 'localhost',       // Výchozí: '0.0.0.0'
+    apiPrefix: '/api/v2',    // Výchozí: '/api/v1'
+    cors: true,              // Výchozí: true (viz sekce CORS níže)
+    swagger: true,           // Výchozí: true
+    logger: true,            // Výchozí: true
+    graphql: true,           // Výchozí: true (viz kapitola 10.3)
   },
 
-  // Varianta A: Predejte existujici engine
+  // Varianta A: Předejte existující engine
   engine: myExistingEngine,
 
-  // Varianta B: Nechte server vytvorit novy (ignorovano pokud je engine predan)
+  // Varianta B: Nechte server vytvořit nový (ignorováno pokud je engine předán)
   engineConfig: {
     persistence: { adapter: sqliteAdapter },
     backwardChaining: { maxDepth: 15 },
   },
 
-  // Nastaveni dorucovani webhooku (viz kapitola 10.2)
+  // Nastavení doručování webhooků (viz kapitola 10.2)
   webhookConfig: {
     maxRetries: 3,
     retryBaseDelay: 1000,
     defaultTimeout: 10000,
   },
 
-  // Nastaveni SSE heartbeatu (viz kapitola 10.2)
+  // Nastavení SSE heartbeatu (viz kapitola 10.2)
   sseConfig: {
     heartbeatInterval: 30000,
   },
@@ -69,114 +69,114 @@ const server = await RuleEngineServer.start({
 });
 ```
 
-### Zivotni cyklus serveru
+### Životní cyklus serveru
 
 ```typescript
-// Pristup k podkladovemu enginu
+// Přístup k podkladovému enginu
 const engine = server.getEngine();
 
-// Pristup k adrese a portu serveru
+// Přístup k adrese a portu serveru
 console.log(server.address); // http://localhost:3000
 console.log(server.port);    // 3000
 
-// Elegantni ukonceni: zastavi SSE, zavre HTTP spojeni, zastavi engine
+// Elegantní ukončení: zastaví SSE, zavře HTTP spojení, zastaví engine
 await server.stop();
 ```
 
-Pokud predate vlastni instanci `engine`, `server.stop()` zavre HTTP server, ale **nezastavi** engine — ten spravujete oddelene. Pokud server vytvoril engine interni, zastavi oba.
+Pokud předáte vlastní instanci `engine`, `server.stop()` zavře HTTP server, ale **nezastaví** engine — ten spravujete odděleně. Pokud server vytvořil engine interně, zastaví oba.
 
-## Reference endpointu
+## Reference endpointů
 
-Vsechny endpointy pouzivaji nakonfigurovany API prefix (vychozi: `/api/v1`).
+Všechny endpointy používají nakonfigurovaný API prefix (výchozí: `/api/v1`).
 
 ### Pravidla
 
 | Metoda | Endpoint | Popis | Status |
 |--------|----------|-------|--------|
-| GET | `/rules` | Vypis vsech pravidel | 200 |
-| GET | `/rules/:id` | Ziskani pravidla podle ID | 200 / 404 |
-| POST | `/rules` | Vytvoreni noveho pravidla | 201 |
+| GET | `/rules` | Výpis všech pravidel | 200 |
+| GET | `/rules/:id` | Získání pravidla podle ID | 200 / 404 |
+| POST | `/rules` | Vytvoření nového pravidla | 201 |
 | POST | `/rules/validate` | Validace pravidla (dry-run, bez registrace) | 200 |
-| PUT | `/rules/:id` | Castecna aktualizace | 200 / 404 |
-| DELETE | `/rules/:id` | Smazani pravidla | 204 / 404 |
-| POST | `/rules/:id/enable` | Povoleni pravidla | 200 / 404 |
-| POST | `/rules/:id/disable` | Zakazani pravidla | 200 / 404 |
+| PUT | `/rules/:id` | Částečná aktualizace | 200 / 404 |
+| DELETE | `/rules/:id` | Smazání pravidla | 204 / 404 |
+| POST | `/rules/:id/enable` | Povolení pravidla | 200 / 404 |
+| POST | `/rules/:id/disable` | Zakázání pravidla | 200 / 404 |
 
 ### Verze pravidel
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| GET | `/rules/:id/versions` | Historie verzi pravidla |
-| GET | `/rules/:id/versions/:version` | Ziskani konkretniho snapshotu verze |
-| POST | `/rules/:id/rollback` | Rollback na predchozi verzi |
-| GET | `/rules/:id/diff` | Diff dvou verzi |
+| GET | `/rules/:id/versions` | Historie verzí pravidla |
+| GET | `/rules/:id/versions/:version` | Získání konkrétního snapshotu verze |
+| POST | `/rules/:id/rollback` | Rollback na předchozí verzi |
+| GET | `/rules/:id/diff` | Diff dvou verzí |
 
 ### Skupiny
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| GET | `/groups` | Vypis vsech skupin |
-| GET | `/groups/:id` | Ziskani skupiny podle ID |
-| POST | `/groups` | Vytvoreni nove skupiny |
+| GET | `/groups` | Výpis všech skupin |
+| GET | `/groups/:id` | Získání skupiny podle ID |
+| POST | `/groups` | Vytvoření nové skupiny |
 | PUT | `/groups/:id` | Aktualizace skupiny |
-| DELETE | `/groups/:id` | Smazani skupiny |
-| POST | `/groups/:id/enable` | Povoleni skupiny |
-| POST | `/groups/:id/disable` | Zakazani skupiny |
-| GET | `/groups/:id/rules` | Vypis pravidel ve skupine |
+| DELETE | `/groups/:id` | Smazání skupiny |
+| POST | `/groups/:id/enable` | Povolení skupiny |
+| POST | `/groups/:id/disable` | Zakázání skupiny |
+| GET | `/groups/:id/rules` | Výpis pravidel ve skupině |
 
 ### Fakta
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| GET | `/facts` | Vypis vsech faktu |
-| GET | `/facts/:key` | Ziskani faktu podle klice |
-| PUT | `/facts/:key` | Nastaveni/aktualizace hodnoty faktu |
-| DELETE | `/facts/:key` | Smazani faktu |
+| GET | `/facts` | Výpis všech faktů |
+| GET | `/facts/:key` | Získání faktu podle klíče |
+| PUT | `/facts/:key` | Nastavení/aktualizace hodnoty faktu |
+| DELETE | `/facts/:key` | Smazání faktu |
 | POST | `/facts/query` | Dotaz na fakta podle glob patternu |
 
 ### Eventy
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| POST | `/events` | Emitovani eventu |
-| POST | `/events/correlated` | Emitovani korelovaneho eventu se sledovacimi ID |
+| POST | `/events` | Emitování eventu |
+| POST | `/events/correlated` | Emitování korelovaného eventu se sledovacími ID |
 
-### Casovace
+### Časovače
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| GET | `/timers` | Vypis vsech aktivnich casovacu |
-| GET | `/timers/:name` | Ziskani casovace podle jmena |
-| POST | `/timers` | Vytvoreni casovace |
-| DELETE | `/timers/:name` | Zruseni casovace |
+| GET | `/timers` | Výpis všech aktivních časovačů |
+| GET | `/timers/:name` | Získání časovače podle jména |
+| POST | `/timers` | Vytvoření časovače |
+| DELETE | `/timers/:name` | Zrušení časovače |
 
 ### Health a statistiky
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
 | GET | `/health` | Health check (status, uptime, verze) |
-| GET | `/stats` | Agregovane statistiky enginu |
+| GET | `/stats` | Agregované statistiky enginu |
 | GET | `/metrics` | Prometheus metriky (text/plain) |
 
 ### Audit, debug a streaming
 
-Tyto endpointy jsou detailne popsany v predchozich kapitolach ([8.1 Debugging](../08-pozorovatelnost/01-debugging.md), [8.3 Audit logging](../08-pozorovatelnost/03-audit-log.md)) a v dalsi kapitole ([10.2 Notifikace v realnem case](./02-realtime.md)):
+Tyto endpointy jsou detailně popsány v předchozích kapitolách ([8.1 Debugging](../08-pozorovatelnost/01-debugging.md), [8.3 Audit logging](../08-pozorovatelnost/03-audit-log.md)) a v další kapitole ([10.2 Notifikace v reálném čase](./02-realtime.md)):
 
 | Metoda | Endpoint | Popis |
 |--------|----------|-------|
-| GET | `/audit/entries` | Dotaz na audit zaznamy s filtry |
-| GET | `/audit/export` | Export audit zaznamu (JSON/CSV) |
+| GET | `/audit/entries` | Dotaz na audit záznamy s filtry |
+| GET | `/audit/export` | Export audit záznamů (JSON/CSV) |
 | GET | `/audit/stream` | SSE real-time audit stream |
 | GET | `/stream/events` | SSE event stream |
-| GET | `/webhooks` | Vypis registrovanych webhooku |
-| POST | `/webhooks` | Registrace noveho webhooku |
-| GET | `/debug/history` | Dotaz na historii eventu |
-| GET | `/debug/profile` | Vsechna profilovaci data pravidel |
-| GET | `/debug/traces` | Posledni trace zaznamy |
+| GET | `/webhooks` | Výpis registrovaných webhooků |
+| POST | `/webhooks` | Registrace nového webhooku |
+| GET | `/debug/history` | Dotaz na historii eventů |
+| GET | `/debug/profile` | Všechna profilovací data pravidel |
+| GET | `/debug/traces` | Poslední trace záznamy |
 
-## Curl priklady
+## Curl příklady
 
-Spustte server a spustte tyto priklady proti nemu:
+Spusťte server a spusťte tyto příklady proti němu:
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -186,7 +186,7 @@ const server = await RuleEngineServer.start({
 });
 ```
 
-### Vytvoreni pravidla
+### Vytvoření pravidla
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/rules \
@@ -194,7 +194,7 @@ curl -X POST http://localhost:7226/api/v1/rules \
   -d '{
     "id": "order-alert",
     "name": "Order Alert",
-    "description": "Upozorneni pri objednavce vysoke hodnoty",
+    "description": "Upozornění při objednávce vysoké hodnoty",
     "priority": 10,
     "enabled": true,
     "tags": ["orders", "alerts"],
@@ -213,7 +213,7 @@ curl -X POST http://localhost:7226/api/v1/rules \
   }'
 ```
 
-### Vypis pravidel
+### Výpis pravidel
 
 ```bash
 curl http://localhost:7226/api/v1/rules | jq
@@ -232,7 +232,7 @@ curl -X POST http://localhost:7226/api/v1/rules/validate \
   }'
 ```
 
-### Emitovani eventu
+### Emitování eventu
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/events \
@@ -243,7 +243,7 @@ curl -X POST http://localhost:7226/api/v1/events \
   }'
 ```
 
-### Emitovani korelovaneho eventu
+### Emitování korelovaného eventu
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/events/correlated \
@@ -256,7 +256,7 @@ curl -X POST http://localhost:7226/api/v1/events/correlated \
   }'
 ```
 
-### Nastaveni faktu
+### Nastavení faktu
 
 ```bash
 curl -X PUT http://localhost:7226/api/v1/facts/customer:c-42:tier \
@@ -272,7 +272,7 @@ curl -X POST http://localhost:7226/api/v1/facts/query \
   -d '{ "pattern": "customer:c-42:*" }'
 ```
 
-### Vytvoreni casovace
+### Vytvoření časovače
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/timers \
@@ -293,7 +293,7 @@ curl -X POST http://localhost:7226/api/v1/timers \
 curl http://localhost:7226/api/v1/health | jq
 ```
 
-Odpoved:
+Odpověď:
 
 ```json
 {
@@ -310,23 +310,23 @@ Odpoved:
 
 ## Swagger / OpenAPI dokumentace
 
-Kdyz je `swagger: true` (vychozi), server registruje Swagger UI na:
+Když je `swagger: true` (výchozí), server registruje Swagger UI na:
 
 ```
 http://localhost:7226/documentation
 ```
 
 UI poskytuje:
-- Interaktivni prohledavac endpointu s funkcionalitou "Try it out"
-- Dokumentaci schemat requestu/responsu pro kazdy endpoint
-- Zobrazeni doby trvani requestu
-- Deep linking pro sdileni konkretnich URL endpointu
+- Interaktivní prohledávač endpointů s funkcionalitou "Try it out"
+- Dokumentaci schémat requestů/responsů pro každý endpoint
+- Zobrazení doby trvání requestu
+- Deep linking pro sdílení konkrétních URL endpointů
 
-OpenAPI 3.0.3 specifikace je generovana ze schemat rout automaticky. Muzete ji pouzit s nastroji jako Postman, Insomnia nebo generatory kodu.
+OpenAPI 3.0.3 specifikace je generována ze schémat rout automaticky. Můžete ji použít s nástroji jako Postman, Insomnia nebo generátory kódu.
 
 ## Konfigurace CORS
 
-Ve vychozim nastaveni jsou povoleny vsechny origins. Pro produkci pristup omezte:
+Ve výchozím nastavení jsou povoleny všechny origins. Pro produkci přístup omezte:
 
 ```typescript
 const server = await RuleEngineServer.start({
@@ -343,7 +343,7 @@ const server = await RuleEngineServer.start({
 });
 ```
 
-Pro uplne vypnuti CORS:
+Pro úplné vypnutí CORS:
 
 ```typescript
 const server = await RuleEngineServer.start({
@@ -351,24 +351,24 @@ const server = await RuleEngineServer.start({
 });
 ```
 
-## Kompletni priklad: API pro spravu objednavek
+## Kompletní příklad: API pro správu objednávek
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
 import { Rule } from '@hamicek/noex-rules';
 import { onEvent, emit, setFact, event } from '@hamicek/noex-rules/dsl';
 
-// Spusteni serveru s vlastnim portem
+// Spuštění serveru s vlastním portem
 const server = await RuleEngineServer.start({
   server: { port: 3000 },
 });
 
 const engine = server.getEngine();
 
-// Registrace pravidel programaticky (nebo pres POST /rules)
+// Registrace pravidel programaticky (nebo přes POST /rules)
 engine.registerRule(
   Rule.create('track-order')
-    .name('Sledovani stavu objednavky')
+    .name('Sledování stavu objednávky')
     .when(onEvent('order.created'))
     .then(setFact('order:${event.orderId}:status', 'pending'))
     .also(setFact('order:${event.orderId}:total', '${event.total}'))
@@ -377,7 +377,7 @@ engine.registerRule(
 
 engine.registerRule(
   Rule.create('high-value-alert')
-    .name('Upozorneni na objednavku vysoke hodnoty')
+    .name('Upozornění na objednávku vysoké hodnoty')
     .priority(10)
     .tags(['orders', 'alerts'])
     .when(onEvent('order.created'))
@@ -391,7 +391,7 @@ engine.registerRule(
 
 engine.registerRule(
   Rule.create('payment-received')
-    .name('Platba prijata')
+    .name('Platba přijata')
     .when(onEvent('payment.completed'))
     .then(setFact('order:${event.orderId}:status', 'paid'))
     .also(emit('order.status-changed', {
@@ -401,27 +401,27 @@ engine.registerRule(
     .build()
 );
 
-console.log(`API pro spravu objednavek bezi na ${server.address}`);
+console.log(`API pro správu objednávek běží na ${server.address}`);
 console.log(`Swagger dokumentace: ${server.address}/documentation`);
 
-// Externi sluzby nyni mohou:
+// Externí služby nyní mohou:
 // POST /api/v1/events  { "topic": "order.created", "data": { ... } }
 // GET  /api/v1/facts/order:ord-1:status
 // GET  /api/v1/rules
 ```
 
-## Cviceni
+## Cvičení
 
-1. Spustte server na portu 4000 se zapnutym Swaggerem
-2. Pomoci curl (nebo Swagger UI) vytvorte pravidlo, ktere nastavi fakt `sensor:{sensorId}:alert` na `true`, kdyz event `sensor.reading` ma `temperature > 80`
+1. Spusťte server na portu 4000 se zapnutým Swaggerem
+2. Pomocí curl (nebo Swagger UI) vytvořte pravidlo, které nastaví fakt `sensor:{sensorId}:alert` na `true`, když event `sensor.reading` má `temperature > 80`
 3. Emitujte event `sensor.reading` s `{ "sensorId": "s-1", "temperature": 95 }`
-4. Dotazte se na fakt `sensor:s-1:alert` pres REST API a overte, ze je `true`
-5. Deaktivujte pravidlo pres `POST /rules/:id/disable` a emitujte dalsi event — overte, ze novy alert nevznikl
+4. Dotažte se na fakt `sensor:s-1:alert` přes REST API a ověřte, že je `true`
+5. Deaktivujte pravidlo přes `POST /rules/:id/disable` a emitujte další event — ověřte, že nový alert nevznikl
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-Spusteni serveru:
+Spuštění serveru:
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -430,17 +430,17 @@ const server = await RuleEngineServer.start({
   server: { port: 4000 },
 });
 
-console.log(`Server bezi na ${server.address}`);
+console.log(`Server běží na ${server.address}`);
 ```
 
-Vytvoreni pravidla:
+Vytvoření pravidla:
 
 ```bash
 curl -X POST http://localhost:4000/api/v1/rules \
   -H "Content-Type: application/json" \
   -d '{
     "id": "temp-alert",
-    "name": "Teplotni alert",
+    "name": "Teplotní alert",
     "trigger": { "type": "event", "topic": "sensor.reading" },
     "conditions": [{
       "source": "event",
@@ -456,7 +456,7 @@ curl -X POST http://localhost:4000/api/v1/rules \
   }'
 ```
 
-Emitovani eventu:
+Emitování eventu:
 
 ```bash
 curl -X POST http://localhost:4000/api/v1/events \
@@ -467,7 +467,7 @@ curl -X POST http://localhost:4000/api/v1/events \
   }'
 ```
 
-Overeni faktu:
+Ověření faktu:
 
 ```bash
 curl http://localhost:4000/api/v1/facts/sensor:s-1:alert | jq
@@ -480,7 +480,7 @@ Deaktivace pravidla:
 curl -X POST http://localhost:4000/api/v1/rules/temp-alert/disable
 ```
 
-Emitovani dalsiho eventu a overeni, ze novy fakt nevznikl:
+Emitování dalšího eventu a ověření, že nový fakt nevznikl:
 
 ```bash
 curl -X DELETE http://localhost:4000/api/v1/facts/sensor:s-1:alert
@@ -493,23 +493,23 @@ curl -X POST http://localhost:4000/api/v1/events \
   }'
 
 curl http://localhost:4000/api/v1/facts/sensor:s-1:alert
-# 404 — fakt neni nastaven, protoze pravidlo je deaktivovane
+# 404 — fakt není nastaven, protože pravidlo je deaktivované
 ```
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- `RuleEngineServer.start()` spusti Fastify HTTP server s REST, GraphQL, SSE, Swaggerem a CORS
-- Vychozi konfigurace: port 7226, vsechny origins povoleny, Swagger na `/documentation`, GraphQL na `/graphql`
-- REST API vystavuje CRUD endpointy pro pravidla, skupiny, fakta, eventy a casovace pod `/api/v1`
-- `POST /rules/validate` provadi dry-run validaci bez registrace pravidla
-- `POST /events/correlated` emituje eventy s `correlationId` a `causationId` pro distribuovany tracing
-- Health check na `GET /health` vraci status serveru, uptime, verzi a stav enginu
-- Swagger UI poskytuje interaktivni dokumentaci s funkcionalitou "Try it out"
-- CORS je plne konfigurovatelny — omezte origins, metody, hlavicky a credentials pro produkci
-- Pokud predate existujici engine, `server.stop()` zavre pouze HTTP server; jinak zastavi oba
+- `RuleEngineServer.start()` spustí Fastify HTTP server s REST, GraphQL, SSE, Swaggerem a CORS
+- Výchozí konfigurace: port 7226, všechny origins povoleny, Swagger na `/documentation`, GraphQL na `/graphql`
+- REST API vystavuje CRUD endpointy pro pravidla, skupiny, fakta, eventy a časovače pod `/api/v1`
+- `POST /rules/validate` provádí dry-run validaci bez registrace pravidla
+- `POST /events/correlated` emituje eventy s `correlationId` a `causationId` pro distribuovaný tracing
+- Health check na `GET /health` vrací status serveru, uptime, verzi a stav enginu
+- Swagger UI poskytuje interaktivní dokumentaci s funkcionalitou "Try it out"
+- CORS je plně konfigurovatelný — omezte origins, metody, hlavičky a credentials pro produkci
+- Pokud předáte existující engine, `server.stop()` zavře pouze HTTP server; jinak zastaví oba
 
 ---
 
-Dalsi: [Notifikace v realnem case](./02-realtime.md)
+Další: [Notifikace v reálném čase](./02-realtime.md)

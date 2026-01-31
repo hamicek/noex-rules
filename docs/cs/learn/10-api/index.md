@@ -1,51 +1,51 @@
-# Cast 10: API a integrace
+# Část 10: API a integrace
 
-Dosud jste s pravidlovym enginem komunikovali vyhradne pres TypeScript kod — primy volanim `engine.emit()`, `engine.setFact()` a `engine.query()`. V produkci vsak engine musi byt pristupny dalsim sluzbam, dashboardum a operatorum. noex-rules obsahuje plnohodnotny HTTP server, ktery vystavuje **REST endpointy**, **Server-Sent Events** pro real-time streaming, **webhooky** pro push dorucovani, **GraphQL API** pro flexibilni dotazovani a **CLI** pro operace a CI/CD workflow.
+Dosud jste s pravidlovým enginem komunikovali výhradně přes TypeScript kód — přímým voláním `engine.emit()`, `engine.setFact()` a `engine.query()`. V produkci však engine musí být přístupný dalším službám, dashboardům a operátorům. noex-rules obsahuje plnohodnotný HTTP server, který vystavuje **REST endpointy**, **Server-Sent Events** pro real-time streaming, **webhooky** pro push doručování, **GraphQL API** pro flexibilní dotazování a **CLI** pro operace a CI/CD workflow.
 
 ## Kapitoly
 
 ### [10.1 REST API](./01-rest-api.md)
 
-Spustte HTTP server a komunikujte s enginem pres REST:
-- Konfigurace a zivotni cyklus `RuleEngineServer.start()`
-- Kompletni reference endpointu: pravidla, fakta, eventy, casovace, skupiny, health
+Spusťte HTTP server a komunikujte s enginem přes REST:
+- Konfigurace a životní cyklus `RuleEngineServer.start()`
+- Kompletní reference endpointů: pravidla, fakta, eventy, časovače, skupiny, health
 - Swagger/OpenAPI dokumentace a CORS konfigurace
-- Prakticke curl priklady pro kazdy resource
+- Praktické curl příklady pro každý resource
 
-### [10.2 Notifikace v realnem case](./02-realtime.md)
+### [10.2 Notifikace v reálném čase](./02-realtime.md)
 
-Posilejte eventy klientum v okamziku jejich vzniku:
-- Server-Sent Events (SSE) s filtrovanim podle topic patternu s wildcardy
-- Webhooky s HMAC-SHA256 podpisy a exponencialnim backoff opakovanim
-- Tvorba real-time dashboardu s browserovym API `EventSource`
-- Volba mezi SSE a webhooky pro ruzne pripady pouziti
+Posílejte eventy klientům v okamžiku jejich vzniku:
+- Server-Sent Events (SSE) s filtrováním podle topic patternů s wildcardy
+- Webhooky s HMAC-SHA256 podpisy a exponenciálním backoff opakováním
+- Tvorba real-time dashboardů s browserovým API `EventSource`
+- Volba mezi SSE a webhooky pro různé případy použití
 
 ### [10.3 GraphQL API](./03-graphql.md)
 
-Dotazujte engine s flexibilnim, typovanym API:
-- Kompletni prehled schematu: dotazy, mutace, subscriptions
-- Nacitani vnorenych dat v jedinem requestu (pravidla se skupinami, verzemi, audit zaznamy)
-- Real-time subscriptions pres WebSocket
+Dotazujte engine s flexibilním, typovaným API:
+- Kompletní přehled schématu: dotazy, mutace, subscriptions
+- Načítání vnořených dat v jediném requestu (pravidla se skupinami, verzemi, audit záznamy)
+- Real-time subscriptions přes WebSocket
 - GraphiQL IDE pro exploraci a debugging
 
-### [10.4 Prikazovy radek](./04-cli.md)
+### [10.4 Příkazový řádek](./04-cli.md)
 
-Ovladejte engine z terminalu:
-- Vsechny CLI prikazy: server, rule, audit, validate, test, import, export, stats, init
-- Vystupni formaty: pretty, JSON, table
-- CI/CD integracni vzory pro validaci a nasazeni pravidel
+Ovládejte engine z terminálu:
+- Všechny CLI příkazy: server, rule, audit, validate, test, import, export, stats, init
+- Výstupní formáty: pretty, JSON, table
+- CI/CD integrační vzory pro validaci a nasazení pravidel
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
+Na konci této sekce budete schopni:
 - Spustit a nakonfigurovat HTTP server s REST, GraphQL, SSE a Swaggerem
-- Spravovat pravidla, fakta, eventy, casovace a skupiny pres REST endpointy
-- Streamovat real-time eventy do prohlizecu pres SSE a do externich sluzeb pres webhooky
-- Overovat autenticitu webhooku pomoci HMAC-SHA256 podpisu
-- Dotazovat a mutovat engine pres GraphQL s vnorenym rozlisenim poli
-- Odbirat zive engine eventy pres WebSocket
-- Ovladat engine z prikazove radky pro vyvoj a CI/CD
+- Spravovat pravidla, fakta, eventy, časovače a skupiny přes REST endpointy
+- Streamovat real-time eventy do prohlížečů přes SSE a do externích služeb přes webhooky
+- Ověřovat autenticitu webhooku pomocí HMAC-SHA256 podpisů
+- Dotazovat a mutovat engine přes GraphQL s vnořeným rozlišením polí
+- Odebírat živé engine eventy přes WebSocket
+- Ovládat engine z příkazové řádky pro vývoj a CI/CD
 
 ---
 
-Zacnete s: [REST API](./01-rest-api.md)
+Začněte s: [REST API](./01-rest-api.md)

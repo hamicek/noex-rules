@@ -1,19 +1,19 @@
-# Prikazovy radek
+# Příkazový řádek
 
-Ne kazda interakce s pravidlovym enginem probiha pres kod nebo HTTP. CLI `noex-rules` poskytuje terminalove rozhrani pro spravu serveru, operace s pravidly, validaci, testovani, import/export a audit. Je navrzeno pro vyvojare behem vyvoje a pro CI/CD pipeline v produkci.
+Ne každá interakce s pravidlovým enginem probíhá přes kód nebo HTTP. CLI `noex-rules` poskytuje terminálové rozhraní pro správu serveru, operace s pravidly, validaci, testování, import/export a audit. Je navrženo pro vývojáře během vývoje a pro CI/CD pipeline v produkci.
 
-## Co se naucite
+## Co se naučíte
 
-- Vsechny CLI prikazy a jejich moznosti
-- Vystupni formaty: pretty, JSON, table
-- Spravu serveru z terminalu
-- Workflow validace a testovani pravidel
-- Import/export pro nasazeni pravidel
+- Všechny CLI příkazy a jejich možnosti
+- Výstupní formáty: pretty, JSON, table
+- Správu serveru z terminálu
+- Workflow validace a testování pravidel
+- Import/export pro nasazení pravidel
 - Vzory CI/CD integrace
 
 ## Instalace
 
-CLI je soucasti balicku `@hamicek/noex-rules`. Po instalaci je prikaz `noex-rules` dostupny:
+CLI je součástí balíčku `@hamicek/noex-rules`. Po instalaci je příkaz `noex-rules` dostupný:
 
 ```bash
 npm install @hamicek/noex-rules
@@ -21,46 +21,46 @@ npm install @hamicek/noex-rules
 npx noex-rules --help
 ```
 
-## Globalni moznosti
+## Globální možnosti
 
-Kazdy prikaz podporuje tyto flagy:
+Každý příkaz podporuje tyto flagy:
 
-| Flag | Zkratka | Popis | Vychozi |
+| Flag | Zkratka | Popis | Výchozí |
 |------|---------|-------|---------|
-| `--format <format>` | `-f` | Vystupni format: `json`, `table`, `pretty` | `pretty` |
-| `--quiet` | `-q` | Potlaceni nepodstatneho vystupu | `false` |
-| `--no-color` | | Vypnuti barevneho vystupu | barvy povoleny |
-| `--config <path>` | `-c` | Cesta ke konfiguracnimu souboru | auto-detekce |
+| `--format <format>` | `-f` | Výstupní formát: `json`, `table`, `pretty` | `pretty` |
+| `--quiet` | `-q` | Potlačení nepodstatného výstupu | `false` |
+| `--no-color` | | Vypnutí barevného výstupu | barvy povoleny |
+| `--config <path>` | `-c` | Cesta ke konfiguračnímu souboru | auto-detekce |
 
-Flag `--format json` je zasadni pro CI/CD — produkuje strojove citelny vystup, ktery mohou parsovat dalsi nastroje.
+Flag `--format json` je zásadní pro CI/CD — produkuje strojově čitelný výstup, který mohou parsovat další nástroje.
 
-## Prikazy serveru
+## Příkazy serveru
 
-### Spusteni serveru
+### Spuštění serveru
 
 ```bash
-noex-rules server start [moznosti]
+noex-rules server start [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
 | `--port <port>` | `-p` | Port serveru | 7226 |
 | `--host <host>` | `-H` | Adresa hostu | 0.0.0.0 |
 | `--no-swagger` | | Vypnout Swagger dokumentaci | povoleno |
-| `--no-logger` | | Vypnout logovani requestu | povoleno |
+| `--no-logger` | | Vypnout logování requestů | povoleno |
 
 ```bash
-# Spusteni s vychozimi hodnotami
+# Spuštění s výchozími hodnotami
 noex-rules server start
 
-# Vlastni port, bez logovani
+# Vlastní port, bez logování
 noex-rules server start -p 3000 --no-logger
 
-# JSON vystup (pro skriptovani)
+# JSON výstup (pro skriptování)
 noex-rules server start -f json
 ```
 
-Vystup:
+Výstup:
 
 ```
 Server running at http://0.0.0.0:7226
@@ -69,15 +69,15 @@ Swagger UI available at http://0.0.0.0:7226/documentation
 Press Ctrl+C to stop
 ```
 
-Server bezi, dokud nestisknete Ctrl+C. Zvlada `SIGINT` a `SIGTERM` pro elegantni ukonceni.
+Server běží, dokud nestisknete Ctrl+C. Zvládá `SIGINT` a `SIGTERM` pro elegantní ukončení.
 
-### Overeni stavu serveru
+### Ověření stavu serveru
 
 ```bash
-noex-rules server status [moznosti]
+noex-rules server status [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
 | `--url <url>` | `-u` | URL serveru | z konfigurace |
 
@@ -86,7 +86,7 @@ noex-rules server status
 noex-rules server status -u http://localhost:3000
 ```
 
-Vystup:
+Výstup:
 
 ```
 Server Status
@@ -101,14 +101,14 @@ Engine:
   Running: yes
 ```
 
-## Prikazy pro pravidla
+## Příkazy pro pravidla
 
-Vsechny prikazy pro pravidla vyzaduji bezici server (komunikuji pres REST API).
+Všechny příkazy pro pravidla vyžadují běžící server (komunikují přes REST API).
 
-### Vypis pravidel
+### Výpis pravidel
 
 ```bash
-noex-rules rule list [moznosti]
+noex-rules rule list [možnosti]
 ```
 
 ```bash
@@ -117,7 +117,7 @@ noex-rules rule list -u http://localhost:3000
 noex-rules rule list -f json
 ```
 
-Pretty vystup:
+Pretty výstup:
 
 ```
 order-alert enabled P10 [orders, alerts]
@@ -133,21 +133,21 @@ temp-monitor disabled P0
 ### Detail pravidla
 
 ```bash
-noex-rules rule get <id> [moznosti]
+noex-rules rule get <id> [možnosti]
 ```
 
 ```bash
 noex-rules rule get order-alert
 ```
 
-Vystup:
+Výstup:
 
 ```
 Rule Details
 
 ID:          order-alert
 Name:        Order Alert
-Description: Upozorneni pri objednavce vysoke hodnoty
+Description: Upozornění při objednávce vysoké hodnoty
 Priority:    10
 Enabled:     Yes
 Tags:        orders, alerts
@@ -162,7 +162,7 @@ Actions:
   [{ "type": "emit_event", "topic": "alert.high-value", ... }]
 ```
 
-### Povoleni/zakazani/smazani
+### Povolení/zakázání/smazání
 
 ```bash
 noex-rules rule enable <id>
@@ -172,49 +172,49 @@ noex-rules rule delete <id>
 
 ## Validace
 
-Validujte soubory s pravidly bez spousteni serveru — kontrola syntaxe, validace schematu a referenci:
+Validujte soubory s pravidly bez spouštění serveru — kontrola syntaxe, validace schématu a referencí:
 
 ```bash
-noex-rules validate <soubor> [moznosti]
+noex-rules validate <soubor> [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
-| `--strict` | `-s` | Strikni validacni rezim | `false` |
+| `--strict` | `-s` | Striktní validační režim | `false` |
 
 ```bash
 # Validace YAML souboru s pravidly
 noex-rules validate rules/order-rules.yaml
 
-# Validace JSON souboru s pravidly ve striktnim rezimu
+# Validace JSON souboru s pravidly ve striktním režimu
 noex-rules validate rules/fraud-rules.json --strict
 
-# JSON vystup pro CI
+# JSON výstup pro CI
 noex-rules validate rules/*.yaml -f json
 ```
 
-Strikni rezim vynucuje dalsi kontroly jako vyzadovani popisu u vsech pravidel a validaci, ze referencovane skupiny existuji.
+Striktní režim vynucuje další kontroly jako vyžadování popisu u všech pravidel a validaci, že referencované skupiny existují.
 
-## Testovani
+## Testování
 
-Spustte testy pravidel proti docasne instanci enginu:
+Spusťte testy pravidel proti dočasné instanci enginu:
 
 ```bash
-noex-rules test <soubor> [moznosti]
+noex-rules test <soubor> [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
-| `--dry-run` | `-d` | Spusteni bez vedlejsich efektu | `true` |
-| `--verbose` | `-v` | Detailni testovy vystup | `false` |
+| `--dry-run` | `-d` | Spuštění bez vedlejších efektů | `true` |
+| `--verbose` | `-v` | Detailní testový výstup | `false` |
 | `--rules <cesta>` | `-r` | Cesta k souboru s pravidly | — |
 | `--timeout <ms>` | `-t` | Timeout testu | — |
 
 ```bash
-# Spusteni testu
+# Spuštění testů
 noex-rules test tests/order-rules.test.yaml
 
-# Detailni vystup se souborem pravidel
+# Detailní výstup se souborem pravidel
 noex-rules test tests/order-rules.test.yaml -v -r rules/orders.yaml
 ```
 
@@ -222,61 +222,61 @@ noex-rules test tests/order-rules.test.yaml -v -r rules/orders.yaml
 
 ### Export pravidel
 
-Exportujte pravidla z beziciho serveru nebo primo z uloziste:
+Exportujte pravidla z běžícího serveru nebo přímo z úložiště:
 
 ```bash
-noex-rules export [vystup] [moznosti]
+noex-rules export [výstup] [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
-| `--pretty` | `-p` | Formatovany JSON | `false` |
-| `--tags <tagy>` | `-t` | Filtrovani podle tagu (carkou oddelene) | vsechny |
-| `--enabled` | `-e` | Export pouze povolenych pravidel | vsechny |
+| `--pretty` | `-p` | Formátovaný JSON | `false` |
+| `--tags <tagy>` | `-t` | Filtrování podle tagů (čárkou oddělené) | všechny |
+| `--enabled` | `-e` | Export pouze povolených pravidel | všechny |
 
 ```bash
-# Export vsech pravidel na stdout
+# Export všech pravidel na stdout
 noex-rules export
 
-# Export do souboru, formatovany
+# Export do souboru, formátovaný
 noex-rules export rules-backup.json --pretty
 
-# Export pouze povolenych objednavkovych pravidel
+# Export pouze povolených objednávkových pravidel
 noex-rules export order-rules.json --tags orders --enabled
 ```
 
 ### Import pravidel
 
-Importujte pravidla do beziciho serveru:
+Importujte pravidla do běžícího serveru:
 
 ```bash
-noex-rules import <soubor> [moznosti]
+noex-rules import <soubor> [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
-| `--dry-run` | `-d` | Nahled co by se importovalo | `false` |
-| `--merge` | `-m` | Slouceni s existujicimi pravidly | `false` |
-| `--no-validate` | | Preskoceni validace pred importem | validovat |
-| `--strict` | `-s` | Strikni validacni rezim | `false` |
+| `--dry-run` | `-d` | Náhled co by se importovalo | `false` |
+| `--merge` | `-m` | Sloučení s existujícími pravidly | `false` |
+| `--no-validate` | | Přeskočení validace před importem | validovat |
+| `--strict` | `-s` | Striktní validační režim | `false` |
 
 ```bash
-# Dry run — ukazat co by se stalo
+# Dry run — ukázat co by se stalo
 noex-rules import rules.json --dry-run
 
-# Import se sloucenim (neodstranovat existujici pravidla)
+# Import se sloučením (neodstraňovat existující pravidla)
 noex-rules import rules.json --merge
 
-# Import bez validace (duverujeme zdroji)
+# Import bez validace (důvěřujeme zdroji)
 noex-rules import rules.json --no-validate
 ```
 
 ## Statistiky
 
-Nacteni statistik enginu z beziciho serveru:
+Načtení statistik enginu z běžícího serveru:
 
 ```bash
-noex-rules stats [moznosti]
+noex-rules stats [možnosti]
 ```
 
 ```bash
@@ -284,38 +284,38 @@ noex-rules stats
 noex-rules stats -u http://localhost:3000 -f json
 ```
 
-## Prikazy pro audit
+## Příkazy pro audit
 
-### Vypis audit zaznamu
+### Výpis audit záznamů
 
 ```bash
-noex-rules audit list [moznosti]
+noex-rules audit list [možnosti]
 ```
 
-| Moznost | Popis |
+| Možnost | Popis |
 |---------|-------|
-| `--category <kategorie>` | Filtrovani podle kategorie |
-| `--type <typ>` | Filtrovani podle typu eventu |
-| `--rule-id <ruleId>` | Filtrovani podle ID pravidla |
-| `--from <timestamp>` | Pocatecni timestamp (Unix nebo ISO datum) |
-| `--to <timestamp>` | Koncovy timestamp |
-| `--limit <limit>` | Maximalni pocet zaznamu |
+| `--category <kategorie>` | Filtrování podle kategorie |
+| `--type <typ>` | Filtrování podle typu eventu |
+| `--rule-id <ruleId>` | Filtrování podle ID pravidla |
+| `--from <timestamp>` | Počáteční timestamp (Unix nebo ISO datum) |
+| `--to <timestamp>` | Koncový timestamp |
+| `--limit <limit>` | Maximální počet záznamů |
 
 ```bash
-# Posledni provadeni pravidel
+# Poslední provádění pravidel
 noex-rules audit list --category rule_execution --limit 20
 
-# Zaznamy pro konkretni pravidlo
+# Záznamy pro konkrétní pravidlo
 noex-rules audit list --rule-id order-alert --from 2024-01-01
 
-# JSON vystup
+# JSON výstup
 noex-rules audit list -f json --limit 100
 ```
 
-### Vyhledavani v auditu
+### Vyhledávání v auditu
 
 ```bash
-noex-rules audit search <dotaz> [moznosti]
+noex-rules audit search <dotaz> [možnosti]
 ```
 
 ```bash
@@ -325,39 +325,39 @@ noex-rules audit search "order-alert" --category rule_execution
 ### Export auditu
 
 ```bash
-noex-rules audit export [moznosti]
+noex-rules audit export [možnosti]
 ```
 
-| Moznost | Zkratka | Popis | Vychozi |
+| Možnost | Zkratka | Popis | Výchozí |
 |---------|---------|-------|---------|
-| `--output <soubor>` | `-o` | Cesta k vystupnimu souboru | stdout |
+| `--output <soubor>` | `-o` | Cesta k výstupnímu souboru | stdout |
 | `--export-format <fmt>` | | `json` nebo `csv` | `json` |
-| `--category <kategorie>` | | Filtrovani podle kategorie | vsechny |
-| `--from <timestamp>` | | Pocatecni timestamp | — |
-| `--to <timestamp>` | | Koncovy timestamp | — |
+| `--category <kategorie>` | | Filtrování podle kategorie | všechny |
+| `--from <timestamp>` | | Počáteční timestamp | — |
+| `--to <timestamp>` | | Koncový timestamp | — |
 
 ```bash
-# Export poslednich 24 hodin do CSV
+# Export posledních 24 hodin do CSV
 noex-rules audit export -o audit.csv --export-format csv --from "$(date -d '24 hours ago' -Iseconds)"
 
-# Export vsech provadeni pravidel jako JSON
+# Export všech provádění pravidel jako JSON
 noex-rules audit export -o executions.json --category rule_execution
 ```
 
 ## Inicializace konfigurace
 
-Vytvoreni konfiguracniho souboru pro CLI:
+Vytvoření konfiguračního souboru pro CLI:
 
 ```bash
-noex-rules init [moznosti]
+noex-rules init [možnosti]
 ```
 
-| Moznost | Popis | Vychozi |
+| Možnost | Popis | Výchozí |
 |---------|-------|---------|
-| `--force` | Prepsani existujici konfigurace | `false` |
+| `--force` | Přepsání existující konfigurace | `false` |
 | `--server-url <url>` | URL serveru | `http://localhost:7226` |
 | `--storage-adapter <typ>` | `memory`, `sqlite`, `file` | `memory` |
-| `--storage-path <cesta>` | Cesta k souboru uloziste | — |
+| `--storage-path <cesta>` | Cesta k souboru úložiště | — |
 
 ```bash
 noex-rules init
@@ -366,7 +366,7 @@ noex-rules init --server-url http://prod-server:7226 --storage-adapter sqlite
 
 ## CI/CD integrace
 
-### Validace pred nasazenim
+### Validace před nasazením
 
 ```bash
 #!/bin/bash
@@ -374,16 +374,16 @@ noex-rules init --server-url http://prod-server:7226 --storage-adapter sqlite
 
 set -e
 
-echo "Validace souboru s pravidly..."
+echo "Validace souborů s pravidly..."
 noex-rules validate rules/*.yaml --strict -f json
 
-echo "Spousteni testu pravidel..."
+echo "Spouštění testů pravidel..."
 noex-rules test tests/*.test.yaml -r rules/ -f json
 
-echo "Vsechny kontroly prosly!"
+echo "Všechny kontroly prošly!"
 ```
 
-### Nasazeni pravidel
+### Nasazení pravidel
 
 ```bash
 #!/bin/bash
@@ -403,11 +403,11 @@ noex-rules import rules/production.yaml \
   -u "$SERVER_URL" \
   -f json
 
-echo "Overeni nasazeni..."
+echo "Ověření nasazení..."
 noex-rules stats -u "$SERVER_URL"
 ```
 
-### Export zalohy
+### Export zálohy
 
 ```bash
 #!/bin/bash
@@ -416,29 +416,29 @@ noex-rules stats -u "$SERVER_URL"
 BACKUP_FILE="backups/rules-$(date +%Y%m%d-%H%M%S).json"
 
 noex-rules export "$BACKUP_FILE" --pretty
-echo "Zaloha ulozena do $BACKUP_FILE"
+echo "Záloha uložena do $BACKUP_FILE"
 ```
 
-## Cviceni
+## Cvičení
 
-1. Spustte server pomoci CLI na portu 7226
-2. V oddelenim terminalu zkontrolujte stav serveru
-3. Vytvorte soubor pravidel `rules.json` s pravidlem, ktere nastavi fakt pri eventu
-4. Validujte soubor pravidel pomoci CLI
+1. Spusťte server pomocí CLI na portu 7226
+2. V odděleném terminálu zkontrolujte stav serveru
+3. Vytvořte soubor pravidel `rules.json` s pravidlem, které nastaví fakt při eventu
+4. Validujte soubor pravidel pomocí CLI
 5. Importujte pravidla nejprve s `--dry-run`, pak bez
-6. Vypiste pravidla a overte import
-7. Exportujte pravidla do zalohovaci souboru
+6. Vypište pravidla a ověřte import
+7. Exportujte pravidla do zálohovacího souboru
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-Spusteni serveru:
+Spuštění serveru:
 
 ```bash
 noex-rules server start -p 7226
 ```
 
-Overeni stavu (oddeleny terminal):
+Ověření stavu (oddělený terminál):
 
 ```bash
 noex-rules server status
@@ -446,13 +446,13 @@ noex-rules server status
 # Version: 1.0.0
 ```
 
-Vytvoreni `rules.json`:
+Vytvoření `rules.json`:
 
 ```json
 [
   {
     "id": "sensor-log",
-    "name": "Logovani cteni senzoru",
+    "name": "Logování čtení senzorů",
     "trigger": { "type": "event", "topic": "sensor.reading" },
     "conditions": [],
     "actions": [
@@ -478,25 +478,25 @@ Dry-run import:
 ```bash
 noex-rules import rules.json --dry-run
 # Would import 1 rule:
-#   sensor-log — Logovani cteni senzoru
+#   sensor-log — Logování čtení senzorů
 ```
 
-Skutecny import:
+Skutečný import:
 
 ```bash
 noex-rules import rules.json
 # Imported 1 rule
 ```
 
-Vypis pravidel:
+Výpis pravidel:
 
 ```bash
 noex-rules rule list
 # sensor-log enabled P0
-#   Logovani cteni senzoru
+#   Logování čtení senzorů
 ```
 
-Export zalohy:
+Export zálohy:
 
 ```bash
 noex-rules export backup.json --pretty
@@ -505,20 +505,20 @@ noex-rules export backup.json --pretty
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- CLI `noex-rules` poskytuje terminalovy pristup pro spravu serveru, operace s pravidly a CI/CD integraci
-- Globalni flagy: `--format` (json/table/pretty), `--quiet`, `--no-color`, `--config`
-- `server start` spusti HTTP server; `server status` overi health beziciho serveru
-- `rule list/get/enable/disable/delete` spravuji pravidla pres REST API
-- `validate` kontroluje soubory s pravidly na syntakticke a schematove chyby bez spousteni serveru
-- `test` spusti testy pravidel proti docasnem enginu s volitelnym dry-run rezimem
-- `import` a `export` umoznuji workflow nasazeni a zalohovani pravidel
-- `audit list/search/export` dotazuji a exportuji audit log v JSON nebo CSV
-- `init` vytvori konfiguracni soubor CLI s URL serveru a nastavenim uloziste
-- Pouzijte `--format json` v CI/CD pipelines pro strojove citelny vystup
-- Kombinujte `validate`, `test` a `import` v nasazovacich skriptech pro bezpecne doruceni pravidel
+- CLI `noex-rules` poskytuje terminálový přístup pro správu serveru, operace s pravidly a CI/CD integraci
+- Globální flagy: `--format` (json/table/pretty), `--quiet`, `--no-color`, `--config`
+- `server start` spustí HTTP server; `server status` ověří health běžícího serveru
+- `rule list/get/enable/disable/delete` spravují pravidla přes REST API
+- `validate` kontroluje soubory s pravidly na syntaktické a schématové chyby bez spouštění serveru
+- `test` spustí testy pravidel proti dočasném enginu s volitelným dry-run režimem
+- `import` a `export` umožňují workflow nasazení a zálohování pravidel
+- `audit list/search/export` dotazují a exportují audit log v JSON nebo CSV
+- `init` vytvoří konfigurační soubor CLI s URL serveru a nastavením úložiště
+- Použijte `--format json` v CI/CD pipelines pro strojově čitelný výstup
+- Kombinujte `validate`, `test` a `import` v nasazovacích skriptech pro bezpečné doručení pravidel
 
 ---
 
-Dalsi: [Prehled weboveho rozhrani](../11-webove-rozhrani/01-zaciname-s-ui.md)
+Další: [Přehled webového rozhraní](../11-webove-rozhrani/01-zaciname-s-ui.md)

@@ -1,31 +1,31 @@
 # GraphQL API
 
-REST endpointy fungují dobre pro jednoduche CRUD operace, ale nekdy potrebujete vetsi flexibilitu: nacteni pravidla spolu s jeho skupinou, histori verzi a poslednich audit zaznamy — vse v jednom requestu. GraphQL API v noex-rules vam umoznuje pozadovat presne ta data, ktera potrebujete, s vnorenym rozlisenim poli, real-time subscriptions pres WebSocket a interaktivnim GraphiQL IDE pro exploraci.
+REST endpointy fungují dobře pro jednoduché CRUD operace, ale někdy potřebujete větší flexibilitu: načtení pravidla spolu s jeho skupinou, historií verzí a posledních audit záznamů — vše v jednom requestu. GraphQL API v noex-rules vám umožňuje požadovat přesně ta data, která potřebujete, s vnořeným rozlišením polí, real-time subscriptions přes WebSocket a interaktivním GraphiQL IDE pro exploraci.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak GraphQL doplnuje REST API
-- Kompletni schema dotazu, mutaci a subscriptions
-- Nacitani vnorenych dat v jedinem requestu
-- Real-time event subscriptions pres WebSocket
-- Pouzivani GraphiQL IDE pro exploraci a debugging
+- Jak GraphQL doplňuje REST API
+- Kompletní schéma dotazů, mutací a subscriptions
+- Načítání vnořených dat v jediném requestu
+- Real-time event subscriptions přes WebSocket
+- Používání GraphiQL IDE pro exploraci a debugging
 - Kdy zvolit GraphQL vs REST
 
-## Nastaveni
+## Nastavení
 
-GraphQL je ve vychozim nastaveni povoleny pri spusteni serveru. Endpoint je registrovany na root urovni (ne pod API prefixem):
+GraphQL je ve výchozím nastavení povolený při spuštění serveru. Endpoint je registrovaný na root úrovni (ne pod API prefixem):
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
 
 const server = await RuleEngineServer.start({
   server: {
-    graphql: true, // Vychozi — povoleno se vsemi funkcemi
+    graphql: true, // Výchozí — povoleno se všemi funkcemi
   },
 });
 
 // GraphQL endpoint:  http://localhost:7226/graphql
-// GraphiQL IDE:      http://localhost:7226/graphql (v prohlizeci)
+// GraphiQL IDE:      http://localhost:7226/graphql (v prohlížeči)
 ```
 
 ### Konfigurace
@@ -34,15 +34,15 @@ const server = await RuleEngineServer.start({
 const server = await RuleEngineServer.start({
   server: {
     graphql: {
-      path: '/graphql',        // Vychozi: '/graphql'
-      graphiql: true,          // Vychozi: true — interaktivni IDE
-      subscriptions: true,     // Vychozi: true — WebSocket subscriptions
+      path: '/graphql',        // Výchozí: '/graphql'
+      graphiql: true,          // Výchozí: true — interaktivní IDE
+      subscriptions: true,     // Výchozí: true — WebSocket subscriptions
     },
   },
 });
 ```
 
-Pro uplne vypnuti GraphQL:
+Pro úplné vypnutí GraphQL:
 
 ```typescript
 const server = await RuleEngineServer.start({
@@ -52,12 +52,12 @@ const server = await RuleEngineServer.start({
 
 ## Dotazy
 
-Dotazy jsou read-only operace. GraphQL schema vystavuje vsechna data enginu pres typovanou hierarchii:
+Dotazy jsou read-only operace. GraphQL schéma vystavuje všechna data enginu přes typovanou hierarchii:
 
 ### Pravidla
 
 ```graphql
-# Vypis vsech pravidel
+# Výpis všech pravidel
 {
   rules {
     id
@@ -71,7 +71,7 @@ Dotazy jsou read-only operace. GraphQL schema vystavuje vsechna data enginu pres
   }
 }
 
-# Ziskani jednoho pravidla s vnorenou skupinou a historii verzi
+# Získání jednoho pravidla s vnořenou skupinou a historií verzí
 {
   rule(id: "order-alert") {
     id
@@ -100,12 +100,12 @@ Dotazy jsou read-only operace. GraphQL schema vystavuje vsechna data enginu pres
 }
 ```
 
-Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji data na vyzadani, pouze kdyz jsou pozadovana. Dotaz, ktery nepozaduje verze, nebude mit naklady na jejich nacitani.
+Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — načítají data na vyžádání, pouze když jsou požadována. Dotaz, který nepožaduje verze, nebude mít náklady na jejich načítání.
 
-### Fakta, eventy a casovace
+### Fakta, eventy a časovače
 
 ```graphql
-# Vsechna fakta
+# Všechna fakta
 {
   facts {
     key
@@ -131,7 +131,7 @@ Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji 
   }
 }
 
-# Vsechny aktivni casovace
+# Všechny aktivní časovače
 {
   timers {
     name
@@ -163,7 +163,7 @@ Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji 
 }
 ```
 
-### Zpetne retezeni
+### Zpětné řetězení
 
 ```graphql
 {
@@ -185,7 +185,7 @@ Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji 
 ### Audit a verze
 
 ```graphql
-# Dotaz na audit zaznamy s filtry
+# Dotaz na audit záznamy s filtry
 {
   auditEntries(query: {
     category: rule_execution
@@ -204,7 +204,7 @@ Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji 
   }
 }
 
-# Porovnani dvou verzi pravidla
+# Porovnání dvou verzí pravidla
 {
   ruleVersionDiff(ruleId: "order-alert", fromVersion: 1, toVersion: 3) {
     fromVersion
@@ -220,16 +220,16 @@ Pole `group`, `versions` a `auditEntries` jsou **field resolvery** — nacitaji 
 
 ## Mutace
 
-Mutace modifikuji stav enginu. Odrazejí zapisove operace REST API:
+Mutace modifikují stav enginu. Odrážejí zápisové operace REST API:
 
-### Sprava pravidel
+### Správa pravidel
 
 ```graphql
-# Vytvoreni pravidla
+# Vytvoření pravidla
 mutation {
   createRule(input: {
     id: "new-rule"
-    name: "Nove pravidlo"
+    name: "Nové pravidlo"
     trigger: { type: event, topic: "order.created" }
     conditions: [{
       source: event
@@ -263,12 +263,12 @@ mutation {
   }
 }
 
-# Smazani, povoleni, zakazani
+# Smazání, povolení, zakázání
 mutation { deleteRule(id: "new-rule") }
 mutation { enableRule(id: "new-rule") { id enabled } }
 mutation { disableRule(id: "new-rule") { id enabled } }
 
-# Rollback na predchozi verzi
+# Rollback na předchozí verzi
 mutation {
   rollbackRule(id: "order-alert", version: 2) {
     id
@@ -281,7 +281,7 @@ mutation {
 ### Fakta a eventy
 
 ```graphql
-# Nastaveni faktu
+# Nastavení faktu
 mutation {
   setFact(key: "customer:c-42:tier", value: "vip") {
     key
@@ -290,10 +290,10 @@ mutation {
   }
 }
 
-# Smazani faktu
+# Smazání faktu
 mutation { deleteFact(key: "customer:c-42:tier") }
 
-# Emitovani eventu
+# Emitování eventu
 mutation {
   emitEvent(input: {
     topic: "order.created"
@@ -305,7 +305,7 @@ mutation {
   }
 }
 
-# Emitovani korelovaneho eventu
+# Emitování korelovaného eventu
 mutation {
   emitCorrelatedEvent(input: {
     topic: "payment.completed"
@@ -320,10 +320,10 @@ mutation {
 }
 ```
 
-### Casovace a skupiny
+### Časovače a skupiny
 
 ```graphql
-# Vytvoreni casovace
+# Vytvoření časovače
 mutation {
   createTimer(input: {
     name: "payment-timeout"
@@ -335,15 +335,15 @@ mutation {
   }
 }
 
-# Zruseni casovace
+# Zrušení časovače
 mutation { cancelTimer(name: "payment-timeout") }
 
-# Vytvoreni skupiny
+# Vytvoření skupiny
 mutation {
   createGroup(input: {
     id: "fraud-rules"
-    name: "Pravidla detekce podvodu"
-    description: "Vsechna pravidla souvisejici s detekci podvodu"
+    name: "Pravidla detekce podvodů"
+    description: "Všechna pravidla související s detekcí podvodů"
     enabled: true
   }) {
     id
@@ -355,12 +355,12 @@ mutation {
 
 ## Subscriptions
 
-Subscriptions dorucuji eventy v realnem case pres WebSocket. Jsou GraphQL ekvivalentem SSE:
+Subscriptions doručují eventy v reálném čase přes WebSocket. Jsou GraphQL ekvivalentem SSE:
 
 ### Engine eventy
 
 ```graphql
-# Odber vsech eventu
+# Odběr všech eventů
 subscription {
   engineEvent {
     id
@@ -372,7 +372,7 @@ subscription {
   }
 }
 
-# Odber s filtrovanim topicu
+# Odběr s filtrováním topiců
 subscription {
   engineEvent(patterns: ["order.*", "payment.*"]) {
     id
@@ -386,7 +386,7 @@ subscription {
 ### Audit eventy
 
 ```graphql
-# Odber audit eventu provadeni pravidel
+# Odběr audit eventů provádění pravidel
 subscription {
   auditEvent(categories: [rule_execution]) {
     id
@@ -400,7 +400,7 @@ subscription {
   }
 }
 
-# Filtrovani podle konkretnich typu eventu a pravidel
+# Filtrování podle konkrétních typů eventů a pravidel
 subscription {
   auditEvent(
     types: [rule_executed, rule_failed]
@@ -414,9 +414,9 @@ subscription {
 }
 ```
 
-### Pouziti subscriptions z JavaScriptu
+### Použití subscriptions z JavaScriptu
 
-Server pouziva Mercurius (Fastify GraphQL plugin) s WebSocket transportem. Jakykoli GraphQL klient s podporou subscriptions funguje:
+Server používá Mercurius (Fastify GraphQL plugin) s WebSocket transportem. Jakýkoli GraphQL klient s podporou subscriptions funguje:
 
 ```typescript
 import { createClient } from 'graphql-ws';
@@ -425,7 +425,7 @@ const client = createClient({
   url: 'ws://localhost:7226/graphql',
 });
 
-// Odber objednavkovych eventu
+// Odběr objednávkových eventů
 const unsubscribe = client.subscribe(
   {
     query: `
@@ -445,23 +445,23 @@ const unsubscribe = client.subscribe(
       console.log(`[${event.topic}]`, event.data);
     },
     error: (err) => console.error('Chyba subscription:', err),
-    complete: () => console.log('Subscription uzavrena'),
+    complete: () => console.log('Subscription uzavřena'),
   }
 );
 
-// Pozdeji: unsubscribe pro uzavreni WebSocket
+// Později: unsubscribe pro uzavření WebSocket
 // unsubscribe();
 ```
 
 ## GraphiQL IDE
 
-Kdyz je `graphiql: true` (vychozi), otevreni `http://localhost:7226/graphql` v prohlizeci zobrazi interaktivni GraphiQL IDE:
+Když je `graphiql: true` (výchozí), otevření `http://localhost:7226/graphql` v prohlížeči zobrazí interaktivní GraphiQL IDE:
 
 ```text
   ┌──────────────────────────────────────────────────┐
   │  GraphiQL                                         │
   ├─────────────────────┬────────────────────────────┤
-  │  Editor dotazu      │  Panel vysledku            │
+  │  Editor dotazů      │  Panel výsledků            │
   │                     │                            │
   │  {                  │  {                         │
   │    rules {          │    "data": {               │
@@ -472,44 +472,44 @@ Kdyz je `graphiql: true` (vychozi), otevreni `http://localhost:7226/graphql` v p
   │  }                  │  }                         │
   │                     │                            │
   ├─────────────────────┴────────────────────────────┤
-  │  Prohledavac dokumentace │  Auto-doplnovani       │
+  │  Prohlížeč dokumentace │  Auto-doplňování        │
   └──────────────────────────────────────────────────┘
 ```
 
 Funkce:
-- Auto-doplnovani pro dotazy, mutace a subscriptions
-- Prohledavac dokumentace zobrazujici vsechny typy a pole
-- Historie dotazu
-- Editor promennych pro parametrizovane dotazy
+- Auto-doplňování pro dotazy, mutace a subscriptions
+- Prohlížeč dokumentace zobrazující všechny typy a pole
+- Historie dotazů
+- Editor proměnných pro parametrizované dotazy
 
 ## REST vs GraphQL
 
 | Aspekt | REST | GraphQL |
 |--------|------|---------|
-| **Endpointy** | Jeden na resource (mnoho URL) | Jediny endpoint (`/graphql`) |
-| **Tvar dat** | Fixni struktura odpovedi | Klient voli pole |
-| **Vnorena data** | Potreba vice requestu | Jeden request s vnorenim |
-| **Subscriptions** | SSE (oddeleny endpoint) | Vestavene pres WebSocket |
-| **Dokumentace** | Swagger/OpenAPI | Introspektovatelne schema + GraphiQL |
-| **Cache** | HTTP cache (ETags, Cache-Control) | Vyzaduje klientskou cache |
-| **Nastroje** | curl, Postman, jakykoli HTTP klient | GraphQL klienti (Apollo, urql, graphql-ws) |
-| **Nejlepsi pro** | Jednoduchy CRUD, externi API | Dashboardy, slozite dotazy, real-time |
+| **Endpointy** | Jeden na resource (mnoho URL) | Jediný endpoint (`/graphql`) |
+| **Tvar dat** | Fixní struktura odpovědi | Klient volí pole |
+| **Vnořená data** | Potřeba více requestů | Jeden request s vnořením |
+| **Subscriptions** | SSE (oddělený endpoint) | Vestavěné přes WebSocket |
+| **Dokumentace** | Swagger/OpenAPI | Introspektovatelné schéma + GraphiQL |
+| **Cache** | HTTP cache (ETags, Cache-Control) | Vyžaduje klientskou cache |
+| **Nástroje** | curl, Postman, jakýkoli HTTP klient | GraphQL klienti (Apollo, urql, graphql-ws) |
+| **Nejlepší pro** | Jednoduchý CRUD, externí API | Dashboardy, složité dotazy, real-time |
 
-Obe API bezi soucasne. Pouzijte REST pro jednoduche operace a externi integrace, GraphQL pro dashboardy a slozite datove potreby.
+Obě API běží současně. Použijte REST pro jednoduché operace a externí integrace, GraphQL pro dashboardy a složité datové potřeby.
 
-## Cviceni
+## Cvičení
 
-1. Spustte server s povolenym GraphQL (vychozi)
-2. Otevrete GraphiQL na `http://localhost:7226/graphql` v prohlizeci
-3. Vytvorte pravidlo pomoci GraphQL mutace, ktere reaguje na eventy `order.created`
-4. Pomoci jednoho GraphQL dotazu nacente vsechna pravidla vcetne detailu triggeru a tagu
-5. Emitujte event `order.created` pres mutaci
-6. Dotazte se na health a stats enginu v jedinem requestu
+1. Spusťte server s povoleným GraphQL (výchozí)
+2. Otevřete GraphiQL na `http://localhost:7226/graphql` v prohlížeči
+3. Vytvořte pravidlo pomocí GraphQL mutace, které reaguje na eventy `order.created`
+4. Pomocí jednoho GraphQL dotazu načtěte všechna pravidla včetně detailů triggerů a tagů
+5. Emitujte event `order.created` přes mutaci
+6. Dotažte se na health a stats enginu v jediném requestu
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-Spusteni serveru:
+Spuštění serveru:
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -518,13 +518,13 @@ const server = await RuleEngineServer.start();
 console.log(`GraphiQL: ${server.address}/graphql`);
 ```
 
-Vytvoreni pravidla (vlozte do GraphiQL):
+Vytvoření pravidla (vložte do GraphiQL):
 
 ```graphql
 mutation {
   createRule(input: {
     id: "order-tracker"
-    name: "Sledovac objednavek"
+    name: "Sledovač objednávek"
     trigger: { type: event, topic: "order.created" }
     actions: [{
       type: set_fact
@@ -540,7 +540,7 @@ mutation {
 }
 ```
 
-Nacteni vsech pravidel:
+Načtení všech pravidel:
 
 ```graphql
 {
@@ -560,7 +560,7 @@ Nacteni vsech pravidel:
 }
 ```
 
-Emitovani eventu:
+Emitování eventu:
 
 ```graphql
 mutation {
@@ -596,16 +596,16 @@ Health a stats v jednom dotazu:
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- GraphQL bezi vedle REST na stejnem serveru, vychozi endpoint `/graphql`
-- Dotazy vam umoznuji nacist presne ta pole, ktera potrebujete — vcetne vnorenych `group`, `versions` a `auditEntries`
-- Mutace odrazejí zapisove operace REST: vytvoreni/aktualizace/smazani pravidel, emitovani eventu, nastaveni faktu, sprava casovacu
-- Subscriptions dorucuji real-time eventy pres WebSocket — ekvivalent SSE s filtrovanim topicu a typovanymi payloady
-- GraphiQL IDE poskytuje auto-doplnovani, prohledavac dokumentace a interaktivni provadeni dotazu
-- Schema je postaveno ze souboru `.graphql` a pouziva Mercurius (Fastify GraphQL plugin) s podporou WebSocket subscriptions
-- Pouzijte REST pro jednoduche operace a externi API; pouzijte GraphQL pro dashboardy a slozite dotazy vyzadujici vnorena data
+- GraphQL běží vedle REST na stejném serveru, výchozí endpoint `/graphql`
+- Dotazy vám umožňují načíst přesně ta pole, která potřebujete — včetně vnořených `group`, `versions` a `auditEntries`
+- Mutace odrážejí zápisové operace REST: vytvoření/aktualizace/smazání pravidel, emitování eventů, nastavení faktů, správa časovačů
+- Subscriptions doručují real-time eventy přes WebSocket — ekvivalent SSE s filtrováním topiců a typovanými payloady
+- GraphiQL IDE poskytuje auto-doplňování, prohlížeč dokumentace a interaktivní provádění dotazů
+- Schéma je postaveno ze souborů `.graphql` a používá Mercurius (Fastify GraphQL plugin) s podporou WebSocket subscriptions
+- Použijte REST pro jednoduché operace a externí API; použijte GraphQL pro dashboardy a složité dotazy vyžadující vnořená data
 
 ---
 
-Dalsi: [Prikazovy radek](./04-cli.md)
+Další: [Příkazový řádek](./04-cli.md)

@@ -1,49 +1,49 @@
-# Notifikace v realnem case
+# Notifikace v reálném čase
 
-REST endpointy fungují na principu request-response: klient se zepta, server odpovi. Pravidlove enginy jsou vsak ze sve podstaty reaktivni — eventy spousti pravidla, pravidla produji nove eventy a externi systemy o nich potrebuji vedet **v okamziku jejich vzniku**. noex-rules poskytuje dva push mechanismy: **Server-Sent Events (SSE)** pro prohlizece a lehke klienty, a **webhooky** pro server-to-server dorucovani s HMAC podpisy a retry logikou.
+REST endpointy fungují na principu request-response: klient se zeptá, server odpoví. Pravidlové enginy jsou však ze své podstaty reaktivní — eventy spouští pravidla, pravidla produkují nové eventy a externí systémy o nich potřebují vědět **v okamžiku jejich vzniku**. noex-rules poskytuje dva push mechanismy: **Server-Sent Events (SSE)** pro prohlížeče a lehké klienty, a **webhooky** pro server-to-server doručování s HMAC podpisy a retry logikou.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak se pripojit k SSE event streamu s filtrovanim podle topic patternu
-- Tvorbu real-time dashboardu pomoci browseroveho API `EventSource`
-- Registraci webhooku s overovanim HMAC-SHA256 podpisu
-- Webhook retry logiku s exponencialnim backoffem
-- Volbu mezi SSE a webhooky pro ruzne pripady pouziti
-- Spravu pripojeni a monitoring statistik dorucovani
+- Jak se připojit k SSE event streamu s filtrováním podle topic patternů
+- Tvorbu real-time dashboardů pomocí browserového API `EventSource`
+- Registraci webhooku s ověřováním HMAC-SHA256 podpisů
+- Webhook retry logiku s exponenciálním backoffem
+- Volbu mezi SSE a webhooky pro různé případy použití
+- Správu připojení a monitoring statistik doručování
 
 ## Server-Sent Events (SSE)
 
-SSE je browserove-nativni protokol pro prijem jednosmerneho streamu eventu ze serveru. Klient otevre dlouhodobe HTTP spojeni a server pushuje eventy, jak nastaly.
+SSE je browserově-nativní protokol pro příjem jednosměrného streamu eventů ze serveru. Klient otevře dlouhodobé HTTP spojení a server pushuje eventy, jak nastaly.
 
 ### Architektura
 
 ```text
   ┌──────────┐                   ┌─────────────────┐
-  │  Prohlizec│── GET /stream ──▶│  noex-rules      │
+  │  Prohlížeč│── GET /stream ──▶│  noex-rules      │
   │  nebo CLI │   events?       │  SSE Manager     │
   │  klient   │◀─ data: {...} ──│                   │
   │           │◀─ data: {...} ──│  (filtruje eventy │
   │           │◀─ : heartbeat ──│   podle topic     │
-  │           │                  │   patternu)       │
+  │           │                  │   patternů)       │
   └──────────┘                   └─────────────────┘
 ```
 
-### Pripojeni ke streamu
+### Připojení ke streamu
 
-SSE endpoint je na `GET /api/v1/stream/events`. Pomoci query parametru `patterns` filtrujte, ktere eventy prijimat:
+SSE endpoint je na `GET /api/v1/stream/events`. Pomocí query parametru `patterns` filtrujte, které eventy přijímat:
 
 ```bash
-# Vsechny eventy
+# Všechny eventy
 curl -N http://localhost:7226/api/v1/stream/events
 
-# Pouze objednavkove eventy
+# Pouze objednávkové eventy
 curl -N http://localhost:7226/api/v1/stream/events?patterns=order.*
 
-# Vice patternu
+# Více patternů
 curl -N http://localhost:7226/api/v1/stream/events?patterns=order.*,payment.completed
 ```
 
-Server odpovi SSE hlavickami a drzi spojeni otevrene:
+Server odpoví SSE hlavičkami a drží spojení otevřené:
 
 ```text
 Content-Type: text/event-stream
@@ -60,27 +60,27 @@ data: {"id":"evt-1","topic":"order.created","data":{"orderId":"ord-1"},"timestam
 data: {"id":"evt-2","topic":"order.paid","data":{"orderId":"ord-1"},"timestamp":1706745630000,"source":"engine"}
 ```
 
-**Radky zacinajici `:`** jsou SSE komentare — komentar `connected:` potvrzuje ID pripojeni a komentare `heartbeat` (kazdy 30 sekund ve vychozim nastaveni) drzi spojeni aktivni pres proxy a load balancery.
+**Řádky začínající `:`** jsou SSE komentáře — komentář `connected:` potvrzuje ID připojení a komentáře `heartbeat` (každých 30 sekund ve výchozím nastavení) drží spojení aktivní přes proxy a load balancery.
 
-### Matchovani topic patternu
+### Matchování topic patternů
 
-Patterny pouzivaji teckou oddelene segmenty s podporou wildcardu:
+Patterny používají tečkou oddělené segmenty s podporou wildcardů:
 
 | Pattern | Matchuje | Nematchuje |
 |---------|----------|------------|
-| `*` | Vsechno | — |
+| `*` | Všechno | — |
 | `order.*` | `order.created`, `order.paid` | `payment.completed` |
 | `order.created` | pouze `order.created` | `order.paid` |
 | `alert.*` | `alert.high-value`, `alert.fraud` | `order.alert` |
 
-Vychozi pattern (kdyz `patterns` chybi) je `*` — vsechny eventy.
+Výchozí pattern (když `patterns` chybí) je `*` — všechny eventy.
 
-### Browserovy EventSource klient
+### Browserový EventSource klient
 
-API `EventSource` je soucasti kazdeho moderniho prohlizece:
+API `EventSource` je součástí každého moderního prohlížeče:
 
 ```typescript
-// Pripojeni k SSE streamu
+// Připojení k SSE streamu
 const source = new EventSource(
   'http://localhost:7226/api/v1/stream/events?patterns=order.*,alert.*'
 );
@@ -94,53 +94,53 @@ source.onmessage = (event) => {
 };
 
 source.onerror = (error) => {
-  console.error('Chyba SSE pripojeni:', error);
-  // EventSource se automaticky znovu pripoji
+  console.error('Chyba SSE připojení:', error);
+  // EventSource se automaticky znovu připojí
 };
 ```
 
-`EventSource` zvlada opetovne pripojeni automaticky — pokud spojeni spadne, prohlizec to zkusi znovu s exponencialnim backoffem. Neni potreba zadna manualni logika pro opetovne pripojeni.
+`EventSource` zvládá opětovné připojení automaticky — pokud spojení spadne, prohlížeč to zkusí znovu s exponenciálním backoffem. Není potřeba žádná manuální logika pro opětovné připojení.
 
 ### Konfigurace SSE
 
-Nakonfigurujte interval heartbeatu pri spousteni serveru:
+Nakonfigurujte interval heartbeatu při spouštění serveru:
 
 ```typescript
 const server = await RuleEngineServer.start({
   sseConfig: {
-    heartbeatInterval: 15000, // 15 sekund (vychozi: 30000)
+    heartbeatInterval: 15000, // 15 sekund (výchozí: 30000)
   },
 });
 ```
 
-### Statistiky a pripojeni SSE
+### Statistiky a připojení SSE
 
-Monitorujte aktivni SSE pripojeni pres REST endpointy:
+Monitorujte aktivní SSE připojení přes REST endpointy:
 
 ```bash
-# Statistiky pripojeni
+# Statistiky připojení
 curl http://localhost:7226/api/v1/stream/stats | jq
 # { "activeConnections": 5, "totalEventsSent": 12345 }
 
-# Vypis aktivnich pripojeni
+# Výpis aktivních připojení
 curl http://localhost:7226/api/v1/stream/connections | jq
 # [{ "id": "sse-170...", "patterns": ["order.*"], "connectedAt": 1706745600000 }]
 ```
 
 ## Webhooky
 
-Webhooky posilaji eventy na externi HTTP endpointy. Na rozdil od SSE (kde se klient pripojuje k vam) jsou webhooky server-to-server: zaregistrujete URL a noex-rules posila POST requesty na nej, kdykoli nastanou odpovidajici eventy.
+Webhooky posílají eventy na externí HTTP endpointy. Na rozdíl od SSE (kde se klient připojuje k vám) jsou webhooky server-to-server: zaregistrujete URL a noex-rules posílá POST requesty na něj, kdykoli nastanou odpovídající eventy.
 
 ### Architektura
 
 ```text
   ┌──────────────────┐         ┌─────────────────┐         ┌──────────────────┐
-  │  RuleEngine       │────────▶│  Webhook Manager │────────▶│  Vase sluzba     │
+  │  RuleEngine       │────────▶│  Webhook Manager │────────▶│  Vaše služba     │
   │  emituje eventy   │         │                  │         │                  │
   │                    │         │  - Pattern match │  POST   │  POST /webhook   │
   │                    │         │  - HMAC podpis   │────────▶│  X-Webhook-      │
-  │                    │         │  - Retry pri     │         │  Signature: ...  │
-  │                    │         │    selhani       │         │                  │
+  │                    │         │  - Retry při     │         │  Signature: ...  │
+  │                    │         │    selhání       │         │                  │
   └──────────────────┘         └─────────────────┘         └──────────────────┘
 ```
 
@@ -158,7 +158,7 @@ curl -X POST http://localhost:7226/api/v1/webhooks \
   }'
 ```
 
-Odpoved:
+Odpověď:
 
 ```json
 {
@@ -170,9 +170,9 @@ Odpoved:
 }
 ```
 
-### Format webhook payloadu
+### Formát webhook payloadu
 
-Kdyz nastane odpovidajici event, noex-rules posle POST request s timto JSON telem:
+Když nastane odpovídající event, noex-rules pošle POST request s tímto JSON tělem:
 
 ```json
 {
@@ -192,13 +192,13 @@ Kdyz nastane odpovidajici event, noex-rules posle POST request s timto JSON tele
 
 ### HMAC-SHA256 podpisy
 
-Kdyz je pri registraci zadan `secret`, kazdy webhook request obsahuje hlavicku `X-Webhook-Signature`:
+Když je při registraci zadán `secret`, každý webhook request obsahuje hlavičku `X-Webhook-Signature`:
 
 ```
 X-Webhook-Signature: sha256=a1b2c3d4e5f6...
 ```
 
-Podpis se pocita jako `HMAC-SHA256(secret, JSON telo)`. Overeni na prijimaci strane:
+Podpis se počítá jako `HMAC-SHA256(secret, JSON tělo)`. Ověření na přijímací straně:
 
 ```typescript
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -213,12 +213,12 @@ app.post('/webhook', (req, res) => {
   const signature = req.headers['x-webhook-signature'] as string;
   const body = req.body as Buffer;
 
-  // Vypocet ocekavaneho podpisu
+  // Výpočet očekávaného podpisu
   const expected = 'sha256=' + createHmac('sha256', WEBHOOK_SECRET)
     .update(body)
     .digest('hex');
 
-  // Konstantne casove porovnani pro prevenci timing utoku
+  // Konstantně časové porovnání pro prevenci timing útoků
   const signatureBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expected);
 
@@ -226,11 +226,11 @@ app.post('/webhook', (req, res) => {
     signatureBuffer.length !== expectedBuffer.length ||
     !timingSafeEqual(signatureBuffer, expectedBuffer)
   ) {
-    return res.status(401).send('Neplatny podpis');
+    return res.status(401).send('Neplatný podpis');
   }
 
   const payload = JSON.parse(body.toString());
-  console.log(`Webhook prijat: ${payload.event.topic}`, payload.event.data);
+  console.log(`Webhook přijat: ${payload.event.topic}`, payload.event.data);
 
   res.status(200).send('OK');
 });
@@ -238,51 +238,51 @@ app.post('/webhook', (req, res) => {
 
 ### Retry logika
 
-Kdyz doruceni webhooku selze (ne-2xx odpoved nebo sitova chyba), manager to zkusi znovu s **exponencialnim backoffem**:
+Když doručení webhooku selže (ne-2xx odpověď nebo síťová chyba), manager to zkusí znovu s **exponenciálním backoffem**:
 
 ```text
   Pokus 1  ──▶  Selhal
        │
-       ▼  cekani 1000ms
+       ▼  čekání 1000ms
   Pokus 2  ──▶  Selhal
        │
-       ▼  cekani 2000ms
-  Pokus 3  ──▶  Selhal  ──▶  Oznaceno jako selhane
+       ▼  čekání 2000ms
+  Pokus 3  ──▶  Selhal  ──▶  Označeno jako selhané
 ```
 
 Vzorec je: `delay = retryBaseDelay * 2^(pokus - 1)`
 
-Vychozi konfigurace: 3 pokusy se zakladnim zpozdenim 1000ms. Prizpusobeni v `webhookConfig`:
+Výchozí konfigurace: 3 pokusy se základním zpožděním 1000ms. Přizpůsobení v `webhookConfig`:
 
 ```typescript
 const server = await RuleEngineServer.start({
   webhookConfig: {
-    maxRetries: 5,         // 5 pokusu celkem
+    maxRetries: 5,         // 5 pokusů celkem
     retryBaseDelay: 500,   // 500ms, 1s, 2s, 4s, 8s
     defaultTimeout: 15000, // 15s timeout na request
   },
 });
 ```
 
-### Sprava webhooku
+### Správa webhooků
 
 ```bash
-# Vypis vsech webhooku
+# Výpis všech webhooků
 curl http://localhost:7226/api/v1/webhooks | jq
 
-# Ziskani konkretniho webhooku
+# Získání konkrétního webhooku
 curl http://localhost:7226/api/v1/webhooks/a1b2c3d4-... | jq
 
-# Deaktivace webhooku (zastavi dorucovani)
+# Deaktivace webhooku (zastaví doručování)
 curl -X POST http://localhost:7226/api/v1/webhooks/a1b2c3d4-.../disable
 
 # Aktivace webhooku
 curl -X POST http://localhost:7226/api/v1/webhooks/a1b2c3d4-.../enable
 
-# Smazani webhooku
+# Smazání webhooku
 curl -X DELETE http://localhost:7226/api/v1/webhooks/a1b2c3d4-...
 
-# Statistiky dorucovani
+# Statistiky doručování
 curl http://localhost:7226/api/v1/webhooks/stats | jq
 # {
 #   "webhookCount": 5,
@@ -297,26 +297,26 @@ curl http://localhost:7226/api/v1/webhooks/stats | jq
 
 | Aspekt | SSE | Webhooky |
 |--------|-----|----------|
-| **Smer** | Klient pulluje (dlouhodobe GET) | Server pushuje (POST na URL) |
-| **Protokol** | HTTP/1.1 text/event-stream | HTTP POST s JSON telem |
-| **Typ klienta** | Prohlizece, lehci klienti | Backendove sluzby |
+| **Směr** | Klient pulluje (dlouhodobé GET) | Server pushuje (POST na URL) |
+| **Protokol** | HTTP/1.1 text/event-stream | HTTP POST s JSON tělem |
+| **Typ klienta** | Prohlížeče, lehčí klienti | Backendové služby |
 | **Autentizace** | Query parametry / cookies | HMAC podpisy |
-| **Opetovne pripojeni** | Automaticke (browserove-nativni) | Retry s exponencialnim backoffem |
-| **Razeni** | Zaruene (jedno spojeni) | Best-effort (paralelni dorucovani) |
-| **Firewall** | Klient iniciuje — snadne | Server iniciuje — potrebuje pristup |
-| **Pripad pouziti** | Dashboardy, live monitoring | Integrace sluzeb, alertovaci systemy |
+| **Opětovné připojení** | Automatické (browserově-nativní) | Retry s exponenciálním backoffem |
+| **Řazení** | Zaručené (jedno spojení) | Best-effort (paralelní doručování) |
+| **Firewall** | Klient iniciuje — snadné | Server iniciuje — potřebuje přístup |
+| **Případ použití** | Dashboardy, live monitoring | Integrace služeb, alertovací systémy |
 
-**Pravidlo**: Pouzijte SSE pro prohlizece a monitorovaci UI. Pouzijte webhooky pro backend server-to-server integraci.
+**Pravidlo**: Použijte SSE pro prohlížeče a monitorovací UI. Použijte webhooky pro backend server-to-server integraci.
 
-## Kompletni priklad: Real-time dashboard objednavek
+## Kompletní příklad: Real-time dashboard objednávek
 
-Tento priklad spusti server, zaregistruje pravidla a demonstruje jak SSE, tak webhook konzumaci:
+Tento příklad spustí server, zaregistruje pravidla a demonstruje jak SSE, tak webhook konzumaci:
 
 ```typescript
 import { RuleEngineServer, Rule } from '@hamicek/noex-rules';
 import { onEvent, emit, setFact, event } from '@hamicek/noex-rules/dsl';
 
-// --- Nastaveni serveru ---
+// --- Nastavení serveru ---
 
 const server = await RuleEngineServer.start({
   server: { port: 7226 },
@@ -330,7 +330,7 @@ const engine = server.getEngine();
 
 engine.registerRule(
   Rule.create('order-status')
-    .name('Sledovani stavu objednavky')
+    .name('Sledování stavu objednávky')
     .when(onEvent('order.created'))
     .then(setFact('order:${event.orderId}:status', 'pending'))
     .also(emit('dashboard.update', {
@@ -343,7 +343,7 @@ engine.registerRule(
 
 engine.registerRule(
   Rule.create('high-value-webhook')
-    .name('Webhook pro objednavky vysoke hodnoty')
+    .name('Webhook pro objednávky vysoké hodnoty')
     .when(onEvent('order.created'))
     .if(event('total').gte(5000))
     .then(emit('alert.high-value', {
@@ -353,7 +353,7 @@ engine.registerRule(
     .build()
 );
 
-// --- Registrace webhooku pro alerty vysoke hodnoty ---
+// --- Registrace webhooku pro alerty vysoké hodnoty ---
 
 const webhookManager = server.getWebhookManager();
 webhookManager.register({
@@ -366,7 +366,7 @@ console.log(`Dashboard API: ${server.address}`);
 console.log(`SSE stream:    ${server.address}/api/v1/stream/events?patterns=dashboard.*`);
 console.log(`Swagger docs:  ${server.address}/documentation`);
 
-// --- Browserovy klient (vlozte do konzole prohlizece) ---
+// --- Browserový klient (vložte do konzole prohlížeče) ---
 
 // const source = new EventSource(
 //   'http://localhost:7226/api/v1/stream/events?patterns=dashboard.*'
@@ -374,23 +374,23 @@ console.log(`Swagger docs:  ${server.address}/documentation`);
 // source.onmessage = (e) => {
 //   const data = JSON.parse(e.data);
 //   document.getElementById('orders').innerHTML +=
-//     `<div>Objednavka ${data.data.orderId}: $${data.data.total}</div>`;
+//     `<div>Objednávka ${data.data.orderId}: $${data.data.total}</div>`;
 // };
 ```
 
-## Cviceni
+## Cvičení
 
-1. Spustte server na portu 7226
-2. Zaregistrujte pravidlo, ktere emituje `alert.temperature`, kdyz event `sensor.reading` ma `temperature > 90`
-3. Zaregistrujte webhook pro eventy `alert.*` smerujici na `https://httpbin.org/post` se secretem
-4. Pripojte se k SSE streamu s patternem `alert.*` pomoci curl (`curl -N`)
-5. Emitujte event `sensor.reading` s `temperature: 95` pres REST API
-6. Pozorujte event prichazejici na SSE stream a overte statistiky dorucovani webhooku
+1. Spusťte server na portu 7226
+2. Zaregistrujte pravidlo, které emituje `alert.temperature`, když event `sensor.reading` má `temperature > 90`
+3. Zaregistrujte webhook pro eventy `alert.*` směřující na `https://httpbin.org/post` se secretem
+4. Připojte se k SSE streamu s patternem `alert.*` pomocí curl (`curl -N`)
+5. Emitujte event `sensor.reading` s `temperature: 95` přes REST API
+6. Pozorujte event přicházející na SSE stream a ověřte statistiky doručování webhooku
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-Spusteni serveru a registrace pravidla:
+Spuštění serveru a registrace pravidla:
 
 ```typescript
 import { RuleEngineServer, Rule } from '@hamicek/noex-rules';
@@ -404,7 +404,7 @@ const engine = server.getEngine();
 
 engine.registerRule(
   Rule.create('temp-alert')
-    .name('Teplotni alert')
+    .name('Teplotní alert')
     .when(onEvent('sensor.reading'))
     .if(event('temperature').gt(90))
     .then(emit('alert.temperature', {
@@ -415,7 +415,7 @@ engine.registerRule(
 );
 ```
 
-Registrace webhooku (v oddelene terminalu):
+Registrace webhooku (v odděleném terminálu):
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/webhooks \
@@ -427,13 +427,13 @@ curl -X POST http://localhost:7226/api/v1/webhooks \
   }'
 ```
 
-Pripojeni k SSE streamu (v oddelene terminalu):
+Připojení k SSE streamu (v odděleném terminálu):
 
 ```bash
 curl -N http://localhost:7226/api/v1/stream/events?patterns=alert.*
 ```
 
-Emitovani eventu (v oddelene terminalu):
+Emitování eventu (v odděleném terminálu):
 
 ```bash
 curl -X POST http://localhost:7226/api/v1/events \
@@ -444,13 +444,13 @@ curl -X POST http://localhost:7226/api/v1/events \
   }'
 ```
 
-SSE terminal zobrazi:
+SSE terminál zobrazí:
 
 ```
 data: {"id":"...","topic":"alert.temperature","data":{"sensorId":"s-1","temperature":"95"},...}
 ```
 
-Overeni statistik webhooku:
+Ověření statistik webhooku:
 
 ```bash
 curl http://localhost:7226/api/v1/webhooks/stats | jq
@@ -459,18 +459,18 @@ curl http://localhost:7226/api/v1/webhooks/stats | jq
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- **SSE** streamuje eventy pres dlouhodobe HTTP spojeni na `GET /stream/events?patterns=...`
-- Klienti filtrovat eventy pomoci teckou oddelenych topic patternu s podporou wildcardu (`order.*`, `*`)
-- Browserove API `EventSource` zvlada automaticke opetovne pripojeni bez dalsiho kodu
-- Heartbeat komentare (kazdy 30 sekund) drzi SSE spojeni aktivni pres proxy servery
-- **Webhooky** pushují eventy pres POST requesty na zaregistrovane URL s JSON payloady
-- HMAC-SHA256 podpisy v hlavicce `X-Webhook-Signature` autentizuji doruceni webhooku
-- Selhane doruceni se opakuji s exponencialnim backoffem: `delay = retryBaseDelay * 2^(pokus - 1)`
-- SSE je idealni pro prohlizece a dashboardy; webhooky jsou idealni pro backend integraci sluzeb
-- Oba mechanismy monitorujte pres `/stream/stats`, `/stream/connections` a `/webhooks/stats`
+- **SSE** streamuje eventy přes dlouhodobé HTTP spojení na `GET /stream/events?patterns=...`
+- Klienti filtrovat eventy pomocí tečkou oddělených topic patternů s podporou wildcardů (`order.*`, `*`)
+- Browserové API `EventSource` zvládá automatické opětovné připojení bez dalšího kódu
+- Heartbeat komentáře (každých 30 sekund) drží SSE spojení aktivní přes proxy servery
+- **Webhooky** pushují eventy přes POST requesty na zaregistrované URL s JSON payloady
+- HMAC-SHA256 podpisy v hlavičce `X-Webhook-Signature` autentizují doručení webhooku
+- Selhané doručení se opakují s exponenciálním backoffem: `delay = retryBaseDelay * 2^(pokus - 1)`
+- SSE je ideální pro prohlížeče a dashboardy; webhooky jsou ideální pro backend integraci služeb
+- Oba mechanismy monitorujte přes `/stream/stats`, `/stream/connections` a `/webhooks/stats`
 
 ---
 
-Dalsi: [GraphQL API](./03-graphql.md)
+Další: [GraphQL API](./03-graphql.md)
