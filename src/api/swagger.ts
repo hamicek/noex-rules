@@ -21,7 +21,7 @@ export async function registerSwagger(fastify: FastifyInstance): Promise<void> {
       },
       servers: [
         {
-          url: 'http://localhost:3000',
+          url: 'http://localhost:7226',
           description: 'Development server'
         }
       ],

@@ -5,14 +5,14 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
+    port: 7227,
     proxy: {
       '/graphql': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:7226',
         ws: true,
       },
-      '/api': 'http://localhost:3000',
-      '/stream': 'http://localhost:3000',
+      '/api': 'http://localhost:7226',
+      '/stream': 'http://localhost:7226',
     },
   },
   build: {

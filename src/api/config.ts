@@ -209,7 +209,7 @@ export function resolveGraphQLConfig(
 
 export function resolveConfig(input: ServerConfigInput = {}): ServerConfig {
   return {
-    port: input.port ?? 3000,
+    port: input.port ?? 7226,
     host: input.host ?? '0.0.0.0',
     apiPrefix: input.apiPrefix ?? '/api/v1',
     cors: input.cors ?? true,

@@ -376,7 +376,7 @@ describe('ServerClient', () => {
 
         expect(result).toEqual(queryResult);
         expect(global.fetch).toHaveBeenCalledWith(
-          'http://localhost:3000/api/v1/audit/entries',
+          'http://localhost:7226/api/v1/audit/entries',
           expect.anything()
         );
       });
@@ -590,7 +590,7 @@ describe('ServerClient', () => {
         await client.exportAudit();
 
         const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-        expect(calledUrl).toBe('http://localhost:3000/api/v1/audit/export');
+        expect(calledUrl).toBe('http://localhost:7226/api/v1/audit/export');
       });
 
       it('should use Accept: */* header for text requests', async () => {

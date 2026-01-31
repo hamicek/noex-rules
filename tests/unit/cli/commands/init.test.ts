@@ -52,7 +52,7 @@ describe('initCommand', () => {
       expect(path).toContain('.noex-rules.json');
 
       const config = JSON.parse((content as string).trim());
-      expect(config.server.url).toBe('http://localhost:3000');
+      expect(config.server.url).toBe('http://localhost:7226');
       expect(config.storage.adapter).toBe('memory');
       expect(config.output.format).toBe('pretty');
       expect(config.output.colors).toBe(true);

@@ -16,7 +16,7 @@ function createOptions(overrides: Partial<StatsCommandOptions> = {}): StatsComma
 
 function createConfig(overrides: Partial<CliConfig> = {}): CliConfig {
   return {
-    server: { url: 'http://localhost:3000' },
+    server: { url: 'http://localhost:7226' },
     storage: { adapter: 'memory' },
     output: { format: 'pretty', colors: true },
     ...overrides
@@ -92,7 +92,7 @@ describe('statsCommand', () => {
       expect(parsed.data).toBeDefined();
       expect(parsed.data.rulesCount).toBe(15);
       expect(parsed.data.factsCount).toBe(42);
-      expect(parsed.data.serverUrl).toBe('http://localhost:3000');
+      expect(parsed.data.serverUrl).toBe('http://localhost:7226');
     });
 
     it('should use URL from options over config', async () => {

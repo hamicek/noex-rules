@@ -49,7 +49,7 @@ vi.mock('../../../../src/cli/commands/init.js', () => ({
 
 vi.mock('../../../../src/cli/utils/config.js', () => ({
   loadConfig: vi.fn().mockReturnValue({
-    server: { url: 'http://localhost:3000' },
+    server: { url: 'http://localhost:7226' },
     storage: { adapter: 'memory' },
     output: { format: 'pretty', colors: true },
   }),

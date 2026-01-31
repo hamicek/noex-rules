@@ -179,7 +179,7 @@ function registerTestCommand(): void {
 function registerServerCommands(): void {
   cli
     .command('server start', 'Start the REST API server')
-    .option('-p, --port <port>', 'Server port', { default: 3000 })
+    .option('-p, --port <port>', 'Server port', { default: 7226 })
     .option('-H, --host <host>', 'Server host', { default: '0.0.0.0' })
     .option('--no-swagger', 'Disable Swagger documentation')
     .option('--no-logger', 'Disable request logging')
@@ -187,7 +187,7 @@ function registerServerCommands(): void {
       const globalOptions = processGlobalOptions(options);
       const serverStartOptions: ServerStartOptions = {
         ...globalOptions,
-        port: Number(options['port']) || 3000,
+        port: Number(options['port']) || 7226,
         host: (options['host'] as string) || '0.0.0.0',
         noSwagger: options['swagger'] === false,
         noLogger: options['logger'] === false

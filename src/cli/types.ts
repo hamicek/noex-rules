@@ -44,7 +44,7 @@ export interface CliConfig {
 /** Výchozí CLI konfigurace */
 export const DEFAULT_CLI_CONFIG: CliConfig = {
   server: {
-    url: 'http://localhost:3000'
+    url: 'http://localhost:7226'
   },
   storage: {
     adapter: 'memory'

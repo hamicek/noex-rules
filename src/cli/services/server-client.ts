@@ -13,7 +13,7 @@ import type {
 
 /** Konfigurace klienta */
 export interface ServerClientConfig {
-  /** URL serveru (výchozí: http://localhost:3000) */
+  /** URL serveru (výchozí: http://localhost:7226) */
   baseUrl: string;
   /** Timeout v ms (výchozí: 30000) */
   timeout: number;
@@ -23,7 +23,7 @@ export interface ServerClientConfig {
 
 /** Výchozí konfigurace */
 const DEFAULT_CONFIG: ServerClientConfig = {
-  baseUrl: 'http://localhost:3000',
+  baseUrl: 'http://localhost:7226',
   timeout: 30000,
   apiPrefix: '/api/v1'
 };

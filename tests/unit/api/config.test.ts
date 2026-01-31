@@ -12,7 +12,7 @@ describe('Server Config', () => {
     it('uses default values when no input provided', () => {
       const config = resolveConfig();
 
-      expect(config.port).toBe(3000);
+      expect(config.port).toBe(7226);
       expect(config.host).toBe('0.0.0.0');
       expect(config.apiPrefix).toBe('/api/v1');
       expect(config.cors).toBe(true);
@@ -22,7 +22,7 @@ describe('Server Config', () => {
     it('uses default values for empty object', () => {
       const config = resolveConfig({});
 
-      expect(config.port).toBe(3000);
+      expect(config.port).toBe(7226);
       expect(config.host).toBe('0.0.0.0');
       expect(config.apiPrefix).toBe('/api/v1');
     });

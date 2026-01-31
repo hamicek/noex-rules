@@ -20,7 +20,7 @@ function createStatusOptions(overrides: Partial<ServerStatusOptions> = {}): Serv
 
 function createConfig(overrides: Partial<CliConfig> = {}): CliConfig {
   return {
-    server: { url: 'http://localhost:3000' },
+    server: { url: 'http://localhost:7226' },
     storage: { adapter: 'memory' },
     output: { format: 'pretty', colors: true },
     ...overrides
@@ -75,7 +75,7 @@ describe('serverStatusCommand', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const output = consoleLogSpy.mock.calls[0][0];
       expect(output).toContain('Server Status');
-      expect(output).toContain('http://localhost:3000');
+      expect(output).toContain('http://localhost:7226');
       expect(output).toContain('ok');
       expect(output).toContain('1.0.0');
       expect(output).toContain('Engine:');
@@ -95,7 +95,7 @@ describe('serverStatusCommand', () => {
       expect(parsed.success).toBe(true);
       expect(parsed.data.status).toBe('ok');
       expect(parsed.data.version).toBe('1.0.0');
-      expect(parsed.data.serverUrl).toBe('http://localhost:3000');
+      expect(parsed.data.serverUrl).toBe('http://localhost:7226');
     });
 
     it('should use URL from options over config', async () => {
