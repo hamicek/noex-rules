@@ -1,52 +1,52 @@
-# Cast 12: Projekty
+# Část 12: Projekty
 
-Naucili jste se vsechny hlavni funkce noex-rules — od zakladnich eventu a faktu pres CEP vzory, persistenci, pozorovatelnost, API az po webove rozhrani. Tato zaverecna sekce vse spojuje do tri kompletnich, produkcne lazenych projektu. Kazdy projekt demonstruje realistickou domenu, pouziva sirokou skalu funkci enginu a poskytuje plne spustitelny kod, ktery muzete upravit pro sve vlastni systemy.
+Naučili jste se všechny hlavní funkce noex-rules — od základních eventů a faktů přes CEP vzory, persistenci, pozorovatelnost, API až po webové rozhraní. Tato závěrečná sekce vše spojuje do tří kompletních, produkčně laděných projektů. Každý projekt demonstruje realistickou doménu, používá širokou škálu funkcí enginu a poskytuje plně spustitelný kód, který můžete upravit pro své vlastní systémy.
 
 ## Kapitoly
 
-### [12.1 Pravidlovy system pro e-shop](./01-eshop.md)
+### [12.1 Pravidlový systém pro e-shop](./01-eshop.md)
 
-Vytvorte kompletni pravidlovy system pro online obchod:
-- Dynamicka cenotvorba s urovnovymi slevami a mnozstevnimi zlevnenimmi
-- Vernostni program s automatickym povysenim urovne na zaklade utraty
-- Pipeline zpracovani objednavek s detekci timeoutu platby (CEP absence)
-- Obnova opusteneho kosiku pomoci casovcu
-- Sprava flash vyprodeje pomoci skupin pravidel
-- Upozorneni na zasoby a notifikace o nizkem stavu
-- 15+ pravidel spolupracujicich na eventech, faktech, casovacich a CEP vzorech
+Vytvořte kompletní pravidlový systém pro online obchod:
+- Dynamická cenotvorba s úrovňovými slevami a množstevními zlevněními
+- Věrnostní program s automatickým povýšením úrovně na základě útraty
+- Pipeline zpracování objednávek s detekcí timeoutu platby (CEP absence)
+- Obnova opuštěného košíku pomocí časovačů
+- Správa flash výprodeje pomocí skupin pravidel
+- Upozornění na zásoby a notifikace o nízkém stavu
+- 15+ pravidel spolupracujících na eventech, faktech, časovačích a CEP vzorech
 
-### [12.2 System detekce podvodu](./02-detekce-podvodu.md)
+### [12.2 Systém detekce podvodů](./02-detekce-podvodu.md)
 
-Vytvorte vicevrstvy pipeline detekce podvodu:
-- Detekce anomalii prihlaseni s ochranou proti brute force (CEP count)
-- Monitoring rychlosti transakci (CEP aggregate)
-- Detekce nemozneho cestovani pro geograficke anomalie (CEP sequence)
-- Engine skorovani rizik, ktery akumuluje signaly z vice detektoru
-- Eskalace alertu s odstupnovanymi urovnemi reakce
-- Integrace externich sluzeb pro IP geolokaci a fingerprinting zarizeni
-- 10+ pravidel s vrstvovou architekturou detekce → skorovani → reakce
+Vytvořte vícevrstvý pipeline detekce podvodů:
+- Detekce anomálií přihlášení s ochranou proti brute force (CEP count)
+- Monitoring rychlosti transakcí (CEP aggregate)
+- Detekce nemožného cestování pro geografické anomálie (CEP sequence)
+- Engine skórování rizik, který akumuluje signály z více detektorů
+- Eskalace alertů s odstupňovanými úrovněmi reakce
+- Integrace externích služeb pro IP geolokaci a fingerprinting zařízení
+- 10+ pravidel s vrstvovou architekturou detekce → skórování → reakce
 
 ### [12.3 IoT monitoring pipeline](./03-iot-monitoring.md)
 
-Vytvorte vicezodovy prumyslovy monitorovaci system:
-- Monitoring prahovych hodnot senzoru s konfiguraci pro jednotlive zony
-- Monitoring heartbeatu pro zdravi zarizeni (CEP absence)
-- Klouzave prumery a detekce anomalii s baselinami
-- Planovani udrzby s trvanlivymi casovaci
-- Real-time SSE dashboard pro zivy monitoring
-- Vicezonova architektura se skupinami pravidel pro jednotlive zony
-- Kompletni nastaveni serveru s REST API a real-time notifikacemi
+Vytvořte vícezónový průmyslový monitorovací systém:
+- Monitoring prahových hodnot senzorů s konfigurací pro jednotlivé zóny
+- Monitoring heartbeatu pro zdraví zařízení (CEP absence)
+- Klouzavé průměry a detekce anomálií s baselinami
+- Plánování údržby s trvanlivými časovači
+- Real-time SSE dashboard pro živý monitoring
+- Vícezónová architektura se skupinami pravidel pro jednotlivé zóny
+- Kompletní nastavení serveru s REST API a real-time notifikacemi
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
-- Navrhovat architektury zalozene na pravidlech pro slozite business domeny
-- Kombinovat eventy, fakta, casovace, CEP vzory a externi sluzby v jednom systemu
-- Strukturovat pravidla do vrstvenych pipeline s jasnymi hranicemi stupnu
-- Pouzivat skupiny pravidel a tagy pro spravu feature flags a prostredove specifickeho chovani
-- Stavet real-time monitorovaci dashboardy s SSE
-- Aplikovat persistenci, pozorovatelnost a hot reload pro produkcni pripravenost
+Na konci této sekce budete schopni:
+- Navrhovat architektury založené na pravidlech pro složité business domény
+- Kombinovat eventy, fakta, časovače, CEP vzory a externí služby v jednom systému
+- Strukturovat pravidla do vrstvených pipeline s jasnými hranicemi stupňů
+- Používat skupiny pravidel a tagy pro správu feature flags a prostředově specifického chování
+- Stavět real-time monitorovací dashboardy s SSE
+- Aplikovat persistenci, pozorovatelnost a hot reload pro produkční připravenost
 
 ---
 
-Zacnete s: [Pravidlovy system pro e-shop](./01-eshop.md)
+Začněte s: [Pravidlový systém pro e-shop](./01-eshop.md)

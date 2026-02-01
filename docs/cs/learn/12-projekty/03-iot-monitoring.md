@@ -1,28 +1,28 @@
 # IoT monitoring pipeline
 
-Tento projekt buduje vicezonovy prumyslovy monitorovaci system. Senzory rozmistene pres vice fyzickych zon hlasi teplotu, tlak, vlhkost a heartbeat data. Pravidlovy engine zpracovava tuto telemetrii v realnem case, detekuje anomalie pomoci CEP vzoru a baselin, planuje udrzbu s trvanlivymi casovaci a streamuje alerty na zivy dashboard pres SSE. Architektura je organizovana podle zon, se skupinami pravidel umoznujicimi konfiguraci pro jednotlive zony.
+Tento projekt buduje vícezónový průmyslový monitorovací systém. Senzory rozmístěné přes více fyzických zón hlásí teplotu, tlak, vlhkost a heartbeat data. Pravidlový engine zpracovává tuto telemetrii v reálném čase, detekuje anomálie pomocí CEP vzorů a baselinů, plánuje údržbu s trvanlivými časovači a streamuje alerty na živý dashboard přes SSE. Architektura je organizována podle zón, se skupinami pravidel umožňujícími konfiguraci pro jednotlivé zóny.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak navrhnout vicezonovou architekturu monitoringu senzoru
-- Monitoring prahovych hodnot s konfiguraci pro jednotlive zony
-- Monitoring heartbeatu pro zdravi zarizeni (CEP absence)
-- Klouzave prumery a detekce anomalii s baselinami
-- Planovani udrzby s trvanlivymi casovaci
-- Real-time SSE dashboard pro zivy monitoring
-- Vicezonova architektura se skupinami pravidel
-- Kompletni nastaveni serveru s REST API a SSE notifikacemi
+- Jak navrhnout vícezónovou architekturu monitoringu senzorů
+- Monitoring prahových hodnot s konfigurací pro jednotlivé zóny
+- Monitoring heartbeatu pro zdraví zařízení (CEP absence)
+- Klouzavé průměry a detekce anomálií s baselinami
+- Plánování údržby s trvanlivými časovači
+- Real-time SSE dashboard pro živý monitoring
+- Vícezónová architektura se skupinami pravidel
+- Kompletní nastavení serveru s REST API a SSE notifikacemi
 
-## Prehled architektury
+## Přehled architektury
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    IoT monitoring pipeline                               │
 │                                                                         │
-│  Zony                                                                   │
+│  Zóny                                                                   │
 │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐              │
 │  │ ZONE-A        │  │ ZONE-B        │  │ ZONE-C        │              │
-│  │ (Vyroba)      │  │ (Sklad)       │  │ (Serverovna)  │              │
+│  │ (Výroba)      │  │ (Sklad)       │  │ (Serverovna)  │              │
 │  │ Senzory:      │  │ Senzory:      │  │ Senzory:      │              │
 │  │ tepl,tlak     │  │ tepl,vlhkost │  │ teplota       │              │
 │  │ vibrace       │  │               │  │               │              │
@@ -31,40 +31,40 @@ Tento projekt buduje vicezonovy prumyslovy monitorovaci system. Senzory rozmiste
 │         └──────────────────┼──────────────────┘                         │
 │                            ▼                                            │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Vrstva 1: Zpracovani telemetrie (priorita 300)                   │  │
-│  │  ├─ threshold-temp        Teplota > limit zony                   │  │
-│  │  ├─ threshold-pressure    Tlak > limit zony                      │  │
-│  │  └─ threshold-humidity    Vlhkost > limit zony                   │  │
+│  │ Vrstva 1: Zpracování telemetrie (priorita 300)                   │  │
+│  │  ├─ threshold-temp        Teplota > limit zóny                   │  │
+│  │  ├─ threshold-pressure    Tlak > limit zóny                      │  │
+│  │  └─ threshold-humidity    Vlhkost > limit zóny                   │  │
 │  ├──────────────────────────────────────────────────────────────────┤  │
-│  │ Vrstva 2: Detekce vzoru (priorita 200)                           │  │
-│  │  ├─ sensor-offline        Zadny heartbeat 2 min (CEP absence)   │  │
-│  │  ├─ temp-spike            Prumer tepl > 80°C za 5 min (aggregate)│  │
-│  │  ├─ rapid-fluctuation     10+ anomalnich cteni za 1 min (count) │  │
+│  │ Vrstva 2: Detekce vzorů (priorita 200)                           │  │
+│  │  ├─ sensor-offline        Žádný heartbeat 2 min (CEP absence)   │  │
+│  │  ├─ temp-spike            Průměr tepl > 80°C za 5 min (aggregate)│  │
+│  │  ├─ rapid-fluctuation     10+ anomálních čtení za 1 min (count) │  │
 │  │  └─ failure-cascade       tepl→tlak→vibrace (sequence)          │  │
 │  ├──────────────────────────────────────────────────────────────────┤  │
-│  │ Vrstva 3: Udrzba a planovani (priorita 150)                     │  │
-│  │  ├─ schedule-inspection   Nastaveni casovace pri prekroceni      │  │
-│  │  ├─ inspection-due        Emitovani notifikace pri expiraci      │  │
-│  │  └─ cooldown-monitor      Sledovani obdobi ochlazeni zony        │  │
+│  │ Vrstva 3: Údržba a plánování (priorita 150)                     │  │
+│  │  ├─ schedule-inspection   Nastavení časovače při překročení      │  │
+│  │  ├─ inspection-due        Emitování notifikace při expiraci      │  │
+│  │  └─ cooldown-monitor      Sledování období ochlazení zóny        │  │
 │  ├──────────────────────────────────────────────────────────────────┤  │
-│  │ Vrstva 4: Smerovani alertu (priorita 100)                       │  │
-│  │  ├─ route-warning         Odeslani varovani na dashboard         │  │
-│  │  ├─ route-critical        Privolani pohotovosti, zamceni zony    │  │
-│  │  └─ zone-status           Aktualizace faktu zdravi zony          │  │
+│  │ Vrstva 4: Směrování alertů (priorita 100)                       │  │
+│  │  ├─ route-warning         Odeslání varování na dashboard         │  │
+│  │  ├─ route-critical        Přivolání pohotovosti, zamčení zóny    │  │
+│  │  └─ zone-status           Aktualizace faktů zdraví zóny          │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                            │                                            │
 │                            ▼                                            │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ REST API + SSE Dashboard                                         │  │
-│  │  GET /api/v1/facts (stav zon)       GET /api/v1/stream/events   │  │
-│  │  GET /api/v1/stats (zdravi enginu)  (zivy feed alertu)          │  │
+│  │  GET /api/v1/facts (stav zón)       GET /api/v1/stream/events   │  │
+│  │  GET /api/v1/stats (zdraví enginu)  (živý feed alertů)          │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Kompletni implementace
+## Kompletní implementace
 
-### Cast 1: Engine a pravidla
+### Část 1: Engine a pravidla
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -77,7 +77,7 @@ import {
 async function createMonitoringEngine() {
   const maintenanceService = {
     createTicket: async (zoneId: string, type: string, description: string) => {
-      console.log(`[TIKET] Zona ${zoneId}: ${type} — ${description}`);
+      console.log(`[TIKET] Zóna ${zoneId}: ${type} — ${description}`);
       return { ticketId: `TK-${Date.now()}` };
     },
   };
@@ -125,13 +125,13 @@ async function createMonitoringEngine() {
   });
 
   // ================================================================
-  // KONFIGURACE ZON
+  // KONFIGURACE ZÓN
   // ================================================================
 
-  // Definice prahovych hodnot pro jednotlive zony jako faktu
+  // Definice prahových hodnot pro jednotlivé zóny jako faktů
   const zones = {
     'ZONE-A': {
-      name: 'Vyrobni hala', tempMax: 75, pressureMax: 150, humidityMax: 80,
+      name: 'Výrobní hala', tempMax: 75, pressureMax: 150, humidityMax: 80,
     },
     'ZONE-B': {
       name: 'Sklad', tempMax: 40, pressureMax: 120, humidityMax: 70,
@@ -148,24 +148,24 @@ async function createMonitoringEngine() {
     await engine.setFact(`zone:${zoneId}:humidityMax`, config.humidityMax);
     await engine.setFact(`zone:${zoneId}:status`, 'healthy');
 
-    // Vytvoreni skupiny pravidel pro kazdou zonu
+    // Vytvoření skupiny pravidel pro každou zónu
     engine.createGroup({
       id: `zone-${zoneId}`,
       name: `Pravidla ${config.name}`,
-      description: `Pravidla specificka pro ${zoneId}`,
+      description: `Pravidla specifická pro ${zoneId}`,
       enabled: true,
     });
   }
 
   // ================================================================
-  // VRSTVA 1: ZPRACOVANI TELEMETRIE (priorita 300)
+  // VRSTVA 1: ZPRACOVÁNÍ TELEMETRIE (priorita 300)
   // ================================================================
 
-  // 1. Prah teploty
+  // 1. Práh teploty
   engine.registerRule(
     Rule.create('threshold-temp')
       .name('Temperature Threshold')
-      .description('Alert pri prekroceni zonove specifickeho maxima teploty')
+      .description('Alert při překročení zónově specifického maxima teploty')
       .priority(300)
       .tags('iot', 'telemetry', 'temperature')
       .when(onEvent('sensor.temperature'))
@@ -178,15 +178,15 @@ async function createMonitoringEngine() {
         threshold: ref('fact.zone:${event.zoneId}:tempMax'),
         severity: 'warning',
       }))
-      .also(log('warn', 'Prekroceni teploty: ${event.sensorId} v ${event.zoneId} = ${event.value}°C'))
+      .also(log('warn', 'Překročení teploty: ${event.sensorId} v ${event.zoneId} = ${event.value}°C'))
       .build()
   );
 
-  // 2. Prah tlaku
+  // 2. Práh tlaku
   engine.registerRule(
     Rule.create('threshold-pressure')
       .name('Pressure Threshold')
-      .description('Alert pri prekroceni zonove specifickeho maxima tlaku')
+      .description('Alert při překročení zónově specifického maxima tlaku')
       .priority(300)
       .tags('iot', 'telemetry', 'pressure')
       .when(onEvent('sensor.pressure'))
@@ -199,15 +199,15 @@ async function createMonitoringEngine() {
         threshold: ref('fact.zone:${event.zoneId}:pressureMax'),
         severity: 'warning',
       }))
-      .also(log('warn', 'Prekroceni tlaku: ${event.sensorId} v ${event.zoneId} = ${event.value} PSI'))
+      .also(log('warn', 'Překročení tlaku: ${event.sensorId} v ${event.zoneId} = ${event.value} PSI'))
       .build()
   );
 
-  // 3. Prah vlhkosti
+  // 3. Práh vlhkosti
   engine.registerRule(
     Rule.create('threshold-humidity')
       .name('Humidity Threshold')
-      .description('Alert pri prekroceni zonove specifickeho maxima vlhkosti')
+      .description('Alert při překročení zónově specifického maxima vlhkosti')
       .priority(300)
       .tags('iot', 'telemetry', 'humidity')
       .when(onEvent('sensor.humidity'))
@@ -220,19 +220,19 @@ async function createMonitoringEngine() {
         threshold: ref('fact.zone:${event.zoneId}:humidityMax'),
         severity: 'warning',
       }))
-      .also(log('warn', 'Prekroceni vlhkosti: ${event.sensorId} v ${event.zoneId} = ${event.value}%'))
+      .also(log('warn', 'Překročení vlhkosti: ${event.sensorId} v ${event.zoneId} = ${event.value}%'))
       .build()
   );
 
   // ================================================================
-  // VRSTVA 2: DETEKCE VZORU (priorita 200)
+  // VRSTVA 2: DETEKCE VZORŮ (priorita 200)
   // ================================================================
 
   // 4. Detekce offline senzoru (CEP absence)
   engine.registerRule(
     Rule.create('sensor-offline')
       .name('Sensor Offline Detection')
-      .description('Detekce zastaveni odesilani heartbeatu senzorem')
+      .description('Detekce zastavení odesílání heartbeatu senzorem')
       .priority(200)
       .tags('iot', 'health')
       .when(absence()
@@ -251,11 +251,11 @@ async function createMonitoringEngine() {
       .build()
   );
 
-  // 5. Teplotni spicka: prumer > 80°C za 5 minut
+  // 5. Teplotní špička: průměr > 80°C za 5 minut
   engine.registerRule(
     Rule.create('temp-spike')
       .name('Temperature Spike Detection')
-      .description('Detekce trvale vysoke teploty v casovem okne')
+      .description('Detekce trvale vysoké teploty v časovém okně')
       .priority(200)
       .tags('iot', 'pattern', 'temperature')
       .when(aggregate()
@@ -272,15 +272,15 @@ async function createMonitoringEngine() {
         severity: 'high',
       }))
       .also(setFact('zone:${trigger.groupKey}:status', 'warning'))
-      .also(log('warn', 'Teplotni spicka: ${trigger.groupKey} prumer ${trigger.value}°C za 5m'))
+      .also(log('warn', 'Teplotní špička: ${trigger.groupKey} průměr ${trigger.value}°C za 5m'))
       .build()
   );
 
-  // 6. Rychle vykyvy: indikator poruchy senzoru
+  // 6. Rychlé výkyvy: indikátor poruchy senzoru
   engine.registerRule(
     Rule.create('rapid-fluctuation')
       .name('Rapid Sensor Fluctuation')
-      .description('Detekce potencialni poruchy senzoru z nadmernych anomalnich cteni')
+      .description('Detekce potenciální poruchy senzoru z nadměrných anomálních čtení')
       .priority(200)
       .tags('iot', 'pattern', 'diagnostics')
       .when(count()
@@ -296,15 +296,15 @@ async function createMonitoringEngine() {
         severity: 'high',
       }))
       .also(setFact('sensor:${trigger.groupKey}:status', 'malfunction'))
-      .also(log('error', 'Porucha senzoru: ${trigger.groupKey}, ${trigger.count} anomalii za 1m'))
+      .also(log('error', 'Porucha senzoru: ${trigger.groupKey}, ${trigger.count} anomálií za 1m'))
       .build()
   );
 
-  // 7. Kaskada selhani: alerty teploty → tlaku → vibraci v sekvenci
+  // 7. Kaskáda selhání: alerty teploty → tlaku → vibrací v sekvenci
   engine.registerRule(
     Rule.create('failure-cascade')
       .name('Multi-Sensor Failure Cascade')
-      .description('Detekce kaskadoveho selhani pres vice typu senzoru')
+      .description('Detekce kaskádového selhání přes více typů senzorů')
       .priority(250)
       .tags('iot', 'pattern', 'critical')
       .when(sequence()
@@ -318,19 +318,19 @@ async function createMonitoringEngine() {
         severity: 'critical',
       }))
       .also(setFact('zone:${trigger.events.0.zoneId}:status', 'critical'))
-      .also(log('error', 'KRITICKE: Kaskada selhani v ${trigger.events.0.zoneId}'))
+      .also(log('error', 'KRITICKÉ: Kaskáda selhání v ${trigger.events.0.zoneId}'))
       .build()
   );
 
   // ================================================================
-  // VRSTVA 3: UDRZBA A PLANOVANI (priorita 150)
+  // VRSTVA 3: ÚDRŽBA A PLÁNOVÁNÍ (priorita 150)
   // ================================================================
 
-  // 8. Naplanovani inspekce pri prekroceni prahu
+  // 8. Naplánování inspekce při překročení prahu
   engine.registerRule(
     Rule.create('schedule-inspection')
       .name('Schedule Maintenance Inspection')
-      .description('Vytvoreni casovace udrzby pri prekroceni prahove hodnoty')
+      .description('Vytvoření časovače údržby při překročení prahové hodnoty')
       .priority(150)
       .tags('iot', 'maintenance')
       .when(onEvent('alert.threshold_breach'))
@@ -347,38 +347,38 @@ async function createMonitoringEngine() {
         },
       }))
       .also(setFact('maintenance:${event.zoneId}:${event.metric}:scheduled', true))
-      .also(log('info', 'Inspekce naplanovana: ${event.zoneId} ${event.metric} za 4h'))
+      .also(log('info', 'Inspekce naplánována: ${event.zoneId} ${event.metric} za 4h'))
       .build()
   );
 
-  // 9. Notifikace o nutne inspekci
+  // 9. Notifikace o nutné inspekci
   engine.registerRule(
     Rule.create('inspection-due')
       .name('Inspection Due Notification')
-      .description('Upozorneni tymu udrzby pri expiraci casovace inspekce')
+      .description('Upozornění týmu údržby při expiraci časovače inspekce')
       .priority(150)
       .tags('iot', 'maintenance')
       .when(onEvent('maintenance.inspection_due'))
       .then(callService('maintenanceService', 'createTicket', [
         ref('event.zoneId'),
         'inspection',
-        'Planovana inspekce pro ${event.metric} v zone ${event.zoneId}. Spousteci hodnota: ${event.triggerValue}',
+        'Plánovaná inspekce pro ${event.metric} v zóně ${event.zoneId}. Spouštěcí hodnota: ${event.triggerValue}',
       ]))
       .also(callService('notificationService', 'send', [
         'maintenance',
-        'Inspekce nutna: ${event.zoneId} ${event.metric}',
+        'Inspekce nutná: ${event.zoneId} ${event.metric}',
         'info',
       ]))
       .also(deleteFact('maintenance:${event.zoneId}:${event.metric}:scheduled'))
-      .also(log('info', 'Inspekce nutna: ${event.zoneId} ${event.metric}'))
+      .also(log('info', 'Inspekce nutná: ${event.zoneId} ${event.metric}'))
       .build()
   );
 
-  // 10. Monitor ochlazeni: sledovani navratu zony do normalu
+  // 10. Monitor ochlazení: sledování návratu zóny do normálu
   engine.registerRule(
     Rule.create('cooldown-monitor')
       .name('Zone Cooldown Monitor')
-      .description('Reset stavu zony pri navratu teploty na bezpecnou uroven')
+      .description('Reset stavu zóny při návratu teploty na bezpečnou úroveň')
       .priority(150)
       .tags('iot', 'maintenance')
       .when(onEvent('sensor.temperature'))
@@ -388,56 +388,56 @@ async function createMonitoringEngine() {
       .also(emit('zone.recovered', {
         zoneId: ref('event.zoneId'),
       }))
-      .also(log('info', 'Zona obnovena: ${event.zoneId}'))
+      .also(log('info', 'Zóna obnovena: ${event.zoneId}'))
       .build()
   );
 
   // ================================================================
-  // VRSTVA 4: SMEROVANI ALERTU (priorita 100)
+  // VRSTVA 4: SMĚROVÁNÍ ALERTŮ (priorita 100)
   // ================================================================
 
-  // 11. Smerovani varovnych alertu na dashboard
+  // 11. Směrování varovných alertů na dashboard
   engine.registerRule(
     Rule.create('route-warning')
       .name('Route Warning Alerts')
-      .description('Odeslani alertu urovne varovani na dashboard kanal')
+      .description('Odeslání alertů úrovně varování na dashboard kanál')
       .priority(100)
       .tags('iot', 'routing')
       .when(onEvent('alert.*'))
       .if(event('severity').eq('warning'))
       .then(callService('notificationService', 'send', [
         'iot-dashboard',
-        'VAROVANI: prekroceni ${event.metric} v ${event.zoneId} — ${event.sensorId} = ${event.value}',
+        'VAROVÁNÍ: překročení ${event.metric} v ${event.zoneId} — ${event.sensorId} = ${event.value}',
         'warning',
       ]))
       .build()
   );
 
-  // 12. Smerovani kritickych alertu: privolani pohotovosti
+  // 12. Směrování kritických alertů: přivolání pohotovosti
   engine.registerRule(
     Rule.create('route-critical')
       .name('Route Critical Alerts')
-      .description('Privolani pohotovostniho tymu pro kriticke alerty')
+      .description('Přivolání pohotovostního týmu pro kritické alerty')
       .priority(100)
       .tags('iot', 'routing')
       .when(onEvent('alert.failure_cascade'))
       .then(callService('notificationService', 'page', [
         'iot-oncall',
-        'KRITICKE: Kaskada selhani v zone ${event.zoneId}',
+        'KRITICKÉ: Kaskáda selhání v zóně ${event.zoneId}',
       ]))
       .also(callService('maintenanceService', 'createTicket', [
         ref('event.zoneId'),
         'emergency',
-        'Detekovana kaskada selhani — nutna okamzita inspekce',
+        'Detekována kaskáda selhání — nutná okamžitá inspekce',
       ]))
       .build()
   );
 
-  // 13. Aktualizace faktu stavu zony pro dotazy dashboardu
+  // 13. Aktualizace faktů stavu zóny pro dotazy dashboardu
   engine.registerRule(
     Rule.create('zone-status-tracker')
       .name('Zone Status Tracker')
-      .description('Udrzovani faktu stavu zony aktualnich pro konzumenty API')
+      .description('Udržování faktů stavu zóny aktuálních pro konzumenty API')
       .priority(100)
       .tags('iot', 'status')
       .when(onEvent('alert.*'))
@@ -447,11 +447,11 @@ async function createMonitoringEngine() {
       .build()
   );
 
-  // 14. Detekce navratu senzoru online
+  // 14. Detekce návratu senzoru online
   engine.registerRule(
     Rule.create('sensor-online')
       .name('Sensor Online Detection')
-      .description('Oznaceni senzoru jako online pri obnoveni heartbeatu')
+      .description('Označení senzoru jako online při obnovení heartbeatu')
       .priority(100)
       .tags('iot', 'health')
       .when(onEvent('sensor.heartbeat'))
@@ -461,7 +461,7 @@ async function createMonitoringEngine() {
         sensorId: ref('event.sensorId'),
         zoneId: ref('event.zoneId'),
       }))
-      .also(log('info', 'Senzor zpet online: ${event.sensorId}'))
+      .also(log('info', 'Senzor zpět online: ${event.sensorId}'))
       .build()
   );
 
@@ -469,7 +469,7 @@ async function createMonitoringEngine() {
 }
 ```
 
-### Cast 2: Server s SSE dashboardem
+### Část 2: Server s SSE dashboardem
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules/api';
@@ -477,7 +477,7 @@ import { RuleEngineServer } from '@hamicek/noex-rules/api';
 async function main() {
   const engine = await createMonitoringEngine();
 
-  // Spusteni API serveru s SSE
+  // Spuštění API serveru s SSE
   const server = await RuleEngineServer.start({
     engine,
     server: {
@@ -495,7 +495,7 @@ async function main() {
   console.log(`Swagger UI:    ${server.address}/docs`);
   console.log(`SSE stream:    ${server.address}/api/v1/stream/events?topics=alert.*,zone.*`);
 
-  // Registrace webhooku pro kriticke alerty
+  // Registrace webhooku pro kritické alerty
   await fetch(`${server.address}/api/v1/webhooks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -507,12 +507,12 @@ async function main() {
   });
 
   // ================================================================
-  // SIMULACE SENZOROVYCH DAT
+  // SIMULACE SENZOROVÝCH DAT
   // ================================================================
 
-  console.log('\n=== Simulace spustena ===\n');
+  console.log('\n=== Simulace spuštěna ===\n');
 
-  // Zdrave heartbeaty
+  // Zdravé heartbeaty
   for (const sensorId of ['S-A1', 'S-A2', 'S-B1', 'S-C1']) {
     await engine.emit('sensor.heartbeat', {
       sensorId,
@@ -521,7 +521,7 @@ async function main() {
     });
   }
 
-  // Normalni cteni
+  // Normální čtení
   await engine.emit('sensor.temperature', {
     sensorId: 'S-A1', zoneId: 'ZONE-A', value: 65,
   });
@@ -532,12 +532,12 @@ async function main() {
     sensorId: 'S-C1', zoneId: 'ZONE-C', value: 22,
   });
 
-  console.log('--- Normalni cteni zpracovana ---');
+  console.log('--- Normální čtení zpracována ---');
   console.log('Stav ZONE-A:', engine.getFact('zone:ZONE-A:status'));
   console.log('Stav ZONE-C:', engine.getFact('zone:ZONE-C:status'));
 
-  // Teplotni spicka v ZONE-A
-  console.log('\n--- Simulace teplotni spicky v ZONE-A ---');
+  // Teplotní špička v ZONE-A
+  console.log('\n--- Simulace teplotní špičky v ZONE-A ---');
   for (let i = 0; i < 5; i++) {
     await engine.emit('sensor.temperature', {
       sensorId: 'S-A1', zoneId: 'ZONE-A', value: 82 + i,
@@ -546,32 +546,32 @@ async function main() {
 
   console.log('Stav ZONE-A:', engine.getFact('zone:ZONE-A:status'));
 
-  // Prehrivani serverovny
-  console.log('\n--- Simulace prehrivani serverovny ---');
+  // Přehřívání serverovny
+  console.log('\n--- Simulace přehřívání serverovny ---');
   await engine.emit('sensor.temperature', {
     sensorId: 'S-C1', zoneId: 'ZONE-C', value: 35,
   });
 
   console.log('Stav ZONE-C:', engine.getFact('zone:ZONE-C:status'));
 
-  // Dotaz na stav zon pres API
-  console.log('\n--- Stav zon (pres fakta) ---');
+  // Dotaz na stav zón přes API
+  console.log('\n--- Stav zón (přes fakta) ---');
   const allZoneFacts = engine.queryFacts('zone:*:status');
   for (const f of allZoneFacts) {
     console.log(`  ${f.key} = ${f.value}`);
   }
 
-  // Server bezi pro SSE klienty
-  console.log(`\nServer bezi na ${server.address}`);
-  console.log('Stisknete Ctrl+C pro zastaveni.');
+  // Server běží pro SSE klienty
+  console.log(`\nServer běží na ${server.address}`);
+  console.log('Stiskněte Ctrl+C pro zastavení.');
 }
 
 main();
 ```
 
-### Cast 3: Klient SSE dashboardu
+### Část 3: Klient SSE dashboardu
 
-Jednoduchy dashboard zalozeny na prohlizeci, ktery se pripojuje k SSE streamu:
+Jednoduchý dashboard založený na prohlížeči, který se připojuje k SSE streamu:
 
 ```html
 <!DOCTYPE html>
@@ -596,13 +596,13 @@ Jednoduchy dashboard zalozeny na prohlizeci, ktery se pripojuje k SSE streamu:
 <body>
   <h1>IoT Monitoring Dashboard</h1>
   <div id="zones"></div>
-  <h2>Zive alerty</h2>
+  <h2>Živé alerty</h2>
   <div id="alerts"></div>
 
   <script>
     const SERVER = 'http://localhost:7226';
 
-    // Periodicke nacitani stavu zon
+    // Periodické načítání stavu zón
     async function updateZones() {
       const res = await fetch(`${SERVER}/api/v1/facts`);
       const facts = await res.json();
@@ -621,14 +621,14 @@ Jednoduchy dashboard zalozeny na prohlizeci, ktery se pripojuje k SSE streamu:
       container.innerHTML = Object.entries(zones)
         .map(([id, z]) => `
           <div class="zone ${z.status || 'healthy'}">
-            <strong>${id}</strong> — ${z.name || 'Neznama'}
+            <strong>${id}</strong> — ${z.name || 'Neznámá'}
             | Stav: <strong>${z.status || 'healthy'}</strong>
-            | Posledni alert: ${z.lastAlert || 'zadny'}
+            | Poslední alert: ${z.lastAlert || 'žádný'}
           </div>
         `).join('');
     }
 
-    // SSE pripojeni pro zive alerty
+    // SSE připojení pro živé alerty
     const events = new EventSource(
       `${SERVER}/api/v1/stream/events?topics=alert.*,zone.*,maintenance.*`
     );
@@ -645,15 +645,15 @@ Jednoduchy dashboard zalozeny na prohlizeci, ktery se pripojuje k SSE streamu:
       const container = document.getElementById('alerts');
       container.prepend(alertDiv);
 
-      // Obnoveni stavu zon pri kazdem alertu
+      // Obnovení stavu zón při každém alertu
       updateZones();
     };
 
     events.onerror = () => {
-      console.log('SSE pripojeni ztraceno, probiha znovupripojeni...');
+      console.log('SSE připojení ztraceno, probíhá znovupřipojení...');
     };
 
-    // Pocatecni nacteni
+    // Počáteční načtení
     updateZones();
     setInterval(updateZones, 10000);
   </script>
@@ -661,11 +661,11 @@ Jednoduchy dashboard zalozeny na prohlizeci, ktery se pripojuje k SSE streamu:
 </html>
 ```
 
-## Detailni rozbor
+## Detailní rozbor
 
-### Konfigurace zon
+### Konfigurace zón
 
-Misto hardcodovanych prahovych hodnot v pravidlech jsou limity zon ulozeny jako **fakta**:
+Místo hardcodovaných prahových hodnot v pravidlech jsou limity zón uloženy jako **fakta**:
 
 ```text
   zone:ZONE-A:tempMax = 75       zone:ZONE-B:tempMax = 40
@@ -673,26 +673,26 @@ Misto hardcodovanych prahovych hodnot v pravidlech jsou limity zon ulozeny jako 
   zone:ZONE-C:tempMax = 28       ...
 ```
 
-Pravidla pouzivaji `ref('fact.zone:${event.zoneId}:tempMax')` pro dynamicke vyhledani zonove specifickeho prahu. To znamena:
+Pravidla používají `ref('fact.zone:${event.zoneId}:tempMax')` pro dynamické vyhledání zónově specifického prahu. To znamená:
 
-- Prahy lze menit za behu pres `setFact()` nebo REST API — zadne zmeny pravidel nejsou potreba
-- Ruzne zony maji ruzne limity odpovidajici jejich ucelu (serverovna je mnohem citlivejsi na teplotu nez vyrobni hala)
-- UI muze zobrazovat a upravovat prahy jako obycejne fakta
+- Prahy lze měnit za běhu přes `setFact()` nebo REST API — žádné změny pravidel nejsou potřeba
+- Různé zóny mají různé limity odpovídající jejich účelu (serverovna je mnohem citlivější na teplotu než výrobní hala)
+- UI může zobrazovat a upravovat prahy jako obyčejné fakta
 
 ### CEP vzory
 
-| Vzor | Typ | Co detekuje | Casove okno |
+| Vzor | Typ | Co detekuje | Časové okno |
 |------|-----|-------------|-------------|
-| Senzor offline | `absence()` | Zadny heartbeat za 2 minuty | 2m |
-| Teplotni spicka | `aggregate()` prumer > 80°C | Trvale prehrivani | 5m |
-| Rychle vykyvy | `count()` 10+ anomalii | Porucha senzoru | 1m |
-| Kaskada selhani | `sequence()` teplota → tlak | Vicesenzorove selhani | 10m |
+| Senzor offline | `absence()` | Žádný heartbeat za 2 minuty | 2m |
+| Teplotní špička | `aggregate()` průměr > 80°C | Trvalé přehřívání | 5m |
+| Rychlé výkyvy | `count()` 10+ anomálií | Porucha senzoru | 1m |
+| Kaskáda selhání | `sequence()` teplota → tlak | Vícesenzorové selhání | 10m |
 
-Vzor kaskady selhani je obzvlaste dulezity: kdyz teplota stoupne, tlak casto nasleduje a pak se zvysi vibrace. Vcasna detekce teto sekvence umoznuje preventivni odstaveni pred poskozenim zarizeni.
+Vzor kaskády selhání je obzvláště důležitý: když teplota stoupne, tlak často následuje a pak se zvýší vibrace. Včasná detekce této sekvence umožňuje preventivní odstavení před poškozením zařízení.
 
-### Planovani udrzby
+### Plánování údržby
 
-Vrstva udrzby premostuje monitoring a provoz:
+Vrstva údržby přemosťuje monitoring a provoz:
 
 ```text
   alert.threshold_breach
@@ -700,24 +700,24 @@ Vrstva udrzby premostuje monitoring a provoz:
        ▼
   ┌────────────────────────┐
   │ schedule-inspection    │
-  │ Nastaveni casovace: 4h │
-  │ Nastaveni faktu: sched.│
+  │ Nastavení časovače: 4h │
+  │ Nastavení faktu: sched.│
   └───────────┬────────────┘
               │ (za 4 hodiny)
               ▼
   ┌────────────────────────┐
   │ inspection-due         │
-  │ Vytvoreni tiketu       │
-  │ Upozorneni udrzby      │
-  │ Smazani faktu sched.   │
+  │ Vytvoření tiketu       │
+  │ Upozornění údržby      │
+  │ Smazání faktu sched.   │
   └────────────────────────┘
 ```
 
-Casovace preziji restarty enginu, pokud je nakonfigurovana persistence casovcu. Fakt `scheduled` brrani duplicitnimu planovani — pravidla mohou kontrolovat `fact('maintenance:zoneId:metric:scheduled').exists()` pred nastavenim dalsiho casovace.
+Časovače přežijí restarty enginu, pokud je nakonfigurována persistence časovačů. Fakt `scheduled` brání duplicitnímu plánování — pravidla mohou kontrolovat `fact('maintenance:zoneId:metric:scheduled').exists()` před nastavením dalšího časovače.
 
-### Detekce anomalii pomoci baselin
+### Detekce anomálií pomocí baselinů
 
-Baseline system enginu se uci normalni rozsahy z historickych dat:
+Baseline systém enginu se učí normální rozsahy z historických dat:
 
 ```typescript
 baseline: {
@@ -735,28 +735,28 @@ baseline: {
 }
 ```
 
-Po trenovacim obdobi engine zna normalni teplotni rozsah pro kazdou zonu. Cteni mimo 2 standardni odchylky (vychozi citlivost) jsou oznacena jako anomalie. Toto je adaptivnejsi nez fixni prahy — vyrobni hala, ktera normalne bezi na 70°C, negeneruje falesne poplachy pri 72°C, zatimco serverovna, ktera normalne bezi na 22°C, spravne oznaci 25°C jako neobvyklou.
+Po trénovacím období engine zná normální teplotní rozsah pro každou zónu. Čtení mimo 2 standardní odchylky (výchozí citlivost) jsou označena jako anomálie. Toto je adaptivnější než fixní prahy — výrobní hala, která normálně běží na 70°C, negeneruje falešné poplachy při 72°C, zatímco serverovna, která normálně běží na 22°C, správně označí 25°C jako neobvyklou.
 
 ### Integrace SSE dashboardu
 
-SSE endpoint poskytuje real-time feed s filtrovanim topiku:
+SSE endpoint poskytuje real-time feed s filtrováním topiků:
 
 ```
 GET /api/v1/stream/events?topics=alert.*,zone.*,maintenance.*
 ```
 
-Klient dashboardu prijima kazdy alert, zmenu stavu zony a notifikaci udrzby jako server-sent event. V kombinaci s periodickym dotazovanim faktu pro stav zon to poskytuje kompletni real-time pohled na monitorovaci system.
+Klient dashboardu přijímá každý alert, změnu stavu zóny a notifikaci údržby jako server-sent event. V kombinaci s periodickým dotazováním faktů pro stav zón to poskytuje kompletní real-time pohled na monitorovací systém.
 
-## Cviceni
+## Cvičení
 
-Rozsirte system o dve nove schopnosti:
+Rozšiřte systém o dvě nové schopnosti:
 
-1. **Korelace vlhkosti**: Pokud vlhkost presahne 90% a teplota presahne prah zony soucasne (oba eventy v 5minutovem okne, stejna zona), emitujte event `alert.condensation_risk` se zavaznosti `high`. Pouzijte vzor `sequence()`.
+1. **Korelace vlhkosti**: Pokud vlhkost přesáhne 90% a teplota přesáhne práh zóny současně (oba eventy v 5minutovém okně, stejná zóna), emitujte event `alert.condensation_risk` se závažností `high`. Použijte vzor `sequence()`.
 
-2. **Automaticke odstaveni**: Kdyz se spusti event `alert.failure_cascade`, nastavte casovac na 5 minut. Pokud je stav zony stale `critical` pri expiraci casovace (kontrola faktu), emitujte `maintenance.emergency_shutdown` a zavolejte `notificationService.page` pro provozni tym.
+2. **Automatické odstavení**: Když se spustí event `alert.failure_cascade`, nastavte časovač na 5 minut. Pokud je stav zóny stále `critical` při expiraci časovače (kontrola faktu), emitujte `maintenance.emergency_shutdown` a zavolejte `notificationService.page` pro provozní tým.
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import {
@@ -787,7 +787,7 @@ engine.registerRule(
     .build()
 );
 
-// 2. Automaticke odstaveni po kaskade selhani
+// 2. Automatické odstavení po kaskádě selhání
 engine.registerRule(
   Rule.create('auto-shutdown-timer')
     .name('Auto-Shutdown Timer')
@@ -802,7 +802,7 @@ engine.registerRule(
         data: { zoneId: ref('event.zoneId') },
       },
     }))
-    .also(log('warn', 'Casovac automatickeho odstaveni nastaven: ${event.zoneId} za 5m'))
+    .also(log('warn', 'Časovač automatického odstavení nastaven: ${event.zoneId} za 5m'))
     .build()
 );
 
@@ -815,37 +815,37 @@ engine.registerRule(
     .if(fact('zone:${event.zoneId}:status').eq('critical'))
     .then(emit('maintenance.emergency_shutdown', {
       zoneId: ref('event.zoneId'),
-      reason: 'Zona stale kriticka po 5minutovem odkladnem obdobi',
+      reason: 'Zóna stále kritická po 5minutovém odkladném období',
     }))
     .also(setFact('zone:${event.zoneId}:status', 'shutdown'))
     .also(callService('notificationService', 'page', [
       'operations',
-      'NOUZOVE ODSTAVENI: Zona ${event.zoneId} — stale kriticka po odkladnem obdobi',
+      'NOUZOVÉ ODSTAVENÍ: Zóna ${event.zoneId} — stále kritická po odkladném období',
     ]))
-    .also(log('error', 'NOUZOVE ODSTAVENI: ${event.zoneId}'))
+    .also(log('error', 'NOUZOVÉ ODSTAVENÍ: ${event.zoneId}'))
     .build()
 );
 ```
 
-Pravidlo rizika kondenzace detekuje nebezpecnou kombinaci: kdyz vlhkost i teplota prekroci sve prahy ve stejne zone behem 5 minut, muze se na zarizenich tvorit kondenzace. Automaticke odstaveni pouziva dvufazovy pristup: nastaveni casovace pri detekci kaskady, pak kontrola stavu zony pri expiraci casovace. Pokud se zona behem 5minutoveho odkladneho obdobi zotavila, zadna akce se neprovede. Pokud je stale kriticka, spusti se odstaveni.
+Pravidlo rizika kondenzace detekuje nebezpečnou kombinaci: když vlhkost i teplota překročí své prahy ve stejné zóně během 5 minut, může se na zařízeních tvořit kondenzace. Automatické odstavení používá dvoufázový přístup: nastavení časovače při detekci kaskády, pak kontrola stavu zóny při expiraci časovače. Pokud se zóna během 5minutového odkladného období zotavila, žádná akce se neprovede. Pokud je stále kritická, spustí se odstavení.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Ukladejte prahy zon jako **fakta** pro konfiguratelnost za behu — zadne zmeny pravidel nejsou potreba pro upravu limitu
-- Pouzivejte **skupiny pravidel** pro jednotlive zony pro povoleni/zakazani monitoringu v konkretch oblastech behem udrzby
-- Pouzivejte `absence()` pro **monitoring heartbeatu** — nejspolehlivejsi zpusob detekce offline senzoru
-- Pouzivejte `aggregate()` pro **detekci trvalych anomalii** — zachycuje trendy, ktere jednotliva cteni minouji
-- Pouzivejte `sequence()` pro **detekci kaskad** — usporadane vicestupnove selhani indikuji vazne problemy
-- Pouzivejte `count()` pro **diagnostiku senzoru** — rychla anomalni cteni casto indikuji selhani hardware
-- Planujte udrzbu s **trvanlivymi casovaci** — preziji restarty, vytvareji audit trail
-- Pouzivejte **detekci anomalii pomoci baselin** pro adaptivni prahy, ktere se uci z historickych dat
-- Vystavujte stav zon jako **fakta** dotazovatelna pres REST API pro dashboardy a externi systemy
-- Streamujte alerty pres **SSE** pro real-time prohlizecove dashboardy bez pollingu
-- Oddelujte zpracovani telemetrie → detekci vzoru → udrzbu → smerovani do odlisnych **prioritnich vrstev**
-- Architektura se skaluje pridanim novych zon (fakta + skupina) bez zmeny existujicich pravidel
+- Ukládejte prahy zón jako **fakta** pro konfigurovatelnost za běhu — žádné změny pravidel nejsou potřeba pro úpravu limitů
+- Používejte **skupiny pravidel** pro jednotlivé zóny pro povolení/zakázání monitoringu v konkrétních oblastech během údržby
+- Používejte `absence()` pro **monitoring heartbeatu** — nejspolehlivější způsob detekce offline senzorů
+- Používejte `aggregate()` pro **detekci trvalých anomálií** — zachycuje trendy, které jednotlivá čtení minou
+- Používejte `sequence()` pro **detekci kaskád** — uspořádané vícestupňové selhání indikuje vážné problémy
+- Používejte `count()` pro **diagnostiku senzorů** — rychlá anomální čtení často indikují selhání hardware
+- Plánujte údržbu s **trvanlivými časovači** — přežijí restarty, vytvářejí audit trail
+- Používejte **detekci anomálií pomocí baselinů** pro adaptivní prahy, které se učí z historických dat
+- Vystavujte stav zón jako **fakta** dotazovatelná přes REST API pro dashboardy a externí systémy
+- Streamujte alerty přes **SSE** pro real-time prohlížečové dashboardy bez pollingu
+- Oddělujte zpracování telemetrie → detekci vzorů → údržbu → směrování do odlišných **prioritních vrstev**
+- Architektura se škáluje přidáním nových zón (fakta + skupina) bez změny existujících pravidel
 
 ---
 
-Timto konci prirucka Naucte se noex-rules. Prosli jste vsim od zakladnich eventu a faktu pres CEP vzory, persistenci, pozorovatelnost, API, webove rozhrani az po kompletni realne projekty. Vzory a architektury z techto tri projektu — vrstvena pravidla, event-driven pipeline, CEP pro temporalni detekci, fakta pro sdileny stav a integrace externich sluzeb — tvori zaklad pro jakykoli system zalozeny na pravidlech, ktery postavite.
+Tímto končí příručka Naučte se noex-rules. Prošli jste vším od základních eventů a faktů přes CEP vzory, persistenci, pozorovatelnost, API, webové rozhraní až po kompletní reálné projekty. Vzory a architektury z těchto tří projektů — vrstvená pravidla, event-driven pipeline, CEP pro temporální detekci, fakta pro sdílený stav a integrace externích služeb — tvoří základ pro jakýkoli systém založený na pravidlech, který postavíte.

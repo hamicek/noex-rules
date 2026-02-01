@@ -1,52 +1,52 @@
-# System detekce podvodu
+# Systém detekce podvodů
 
-Tento projekt buduje vicevrstvou pipeline detekce podvodu. Misto monoliticke kontroly podvodu v jednom bode postavite system, kde nezavisle detektory bezi paralelne, kazdy prispiva rizikovymi signaly do skorovaciho enginu, ktery rozhoduje o eskalaci. Architektura oddeluje **detekci** od **skorovani** od **reakce**, coz zjednodusuje pridavani novych detecnich vzoru bez zasahu do existujici logiky.
+Tento projekt buduje vícevrstvou pipeline detekce podvodů. Místo monolitické kontroly podvodů v jednom bodě postavíte systém, kde nezávislé detektory běží paralelně, každý přispívá rizikovými signály do skórovacího enginu, který rozhoduje o eskalaci. Architektura odděluje **detekci** od **skórování** od **reakce**, což zjednodušuje přidávání nových detekčních vzorů bez zásahu do existující logiky.
 
-## Co se naucite
+## Co se naučíte
 
-- Jak navrhnout vrstvenou architekturu detekce → skorovani → reakce
-- Detekce anomalii prihlaseni s ochranou proti brute force (CEP count)
-- Monitoring rychlosti transakci (CEP aggregate)
-- Detekce nemozneho cestovani (CEP sequence)
-- Detekce anomalii otisku zarizeni
-- Engine skorovani rizik, ktery akumuluje signaly
-- Odstupnovana eskalace alertu s integraci externich sluzeb
-- Pouziti datovych pozadavku pro geolokacni vyhledavani IP
+- Jak navrhnout vrstvenou architekturu detekce → skórování → reakce
+- Detekce anomálií přihlášení s ochranou proti brute force (CEP count)
+- Monitoring rychlosti transakcí (CEP aggregate)
+- Detekce nemožného cestování (CEP sequence)
+- Detekce anomálií otisku zařízení
+- Engine skórování rizik, který akumuluje signály
+- Odstupňovaná eskalace alertů s integrací externích služeb
+- Použití datových požadavků pro geolokační vyhledávání IP
 
-## Prehled architektury
+## Přehled architektury
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                    Pipeline detekce podvodu                             │
+│                    Pipeline detekce podvodů                             │
 │                                                                        │
-│  Vrstva 1: Detektory (paralelni, nezavisle)          Priorita: 300    │
+│  Vrstva 1: Detektory (paralelní, nezávislé)          Priorita: 300    │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
-│  │ Brute Force  │ │ Rychlost     │ │ Nemozne      │ │ Nove         │ │
-│  │ count()      │ │ transakci    │ │ cestovani    │ │ zarizeni     │ │
-│  │ 5 selhani   │ │ aggregate()  │ │ sequence()   │ │ onEvent()    │ │
-│  │ za 5 min    │ │ $10K za 1h   │ │ 2 prihlaseni │ │ + kontrola   │ │
+│  │ Brute Force  │ │ Rychlost     │ │ Nemožné      │ │ Nové         │ │
+│  │ count()      │ │ transakcí    │ │ cestování    │ │ zařízení     │ │
+│  │ 5 selhání   │ │ aggregate()  │ │ sequence()   │ │ onEvent()    │ │
+│  │ za 5 min    │ │ $10K za 1h   │ │ 2 přihlášení │ │ + kontrola   │ │
 │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ │
 │         │                │                │                │          │
 │         └────────────────┼────────────────┼────────────────┘          │
 │                          ▼                ▼                            │
-│  Vrstva 2: Skorovani rizik                            Priorita: 200   │
+│  Vrstva 2: Skórování rizik                            Priorita: 200   │
 │  ┌────────────────────────────────────────────────────────────────┐   │
-│  │ Kazdy detektor emituje risk.signal { userId, category, score }  │  │
+│  │ Každý detektor emituje risk.signal { userId, category, score }  │  │
 │  │                                                                  │  │
-│  │ score-accumulator: nastavi fakt risk:userId:category = score     │  │
+│  │ score-accumulator: nastaví fakt risk:userId:category = score     │  │
 │  │ score-aggregate:   aggregate() risk.signal.score sum > 70 → alert│  │
 │  └────────────────────────────────┬───────────────────────────────┘   │
 │                                   │                                    │
 │  Vrstva 3: Reakce                 │                    Priorita: 100   │
 │  ┌────────────────────────────────▼───────────────────────────────┐   │
 │  │ riziko < 50:  pouze log                                        │   │
-│  │ riziko 50-80: oznaceni uctu, upozorneni bezpecnostniho tymu    │   │
-│  │ riziko > 80:  zamceni uctu, privolani pohotovosti, blokovani   │   │
+│  │ riziko 50-80: označení účtu, upozornění bezpečnostního týmu    │   │
+│  │ riziko > 80:  zamčení účtu, přivolání pohotovosti, blokování   │   │
 │  └────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Kompletni implementace
+## Kompletní implementace
 
 ```typescript
 import { RuleEngine } from '@hamicek/noex-rules';
@@ -57,7 +57,7 @@ import {
 } from '@hamicek/noex-rules/dsl';
 
 async function main() {
-  // Externi sluzby
+  // Externí služby
   const geoService = {
     locate: async (ip: string) => {
       // V produkci: MaxMind, ip-api atd.
@@ -69,7 +69,7 @@ async function main() {
       return locations[ip] ?? { lat: 0, lon: 0, country: 'UNKNOWN' };
     },
     distance: async (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      // Haversinova vzdalenost v km
+      // Haversinova vzdálenost v km
       const R = 6371;
       const dLat = ((lat2 - lat1) * Math.PI) / 180;
       const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -93,10 +93,10 @@ async function main() {
 
   const accountService = {
     lock: async (userId: string, reason: string) => {
-      console.log(`[ZAMCENI] Ucet ${userId} zamcen: ${reason}`);
+      console.log(`[ZAMČENÍ] Účet ${userId} zamčen: ${reason}`);
     },
     flag: async (userId: string, reason: string) => {
-      console.log(`[OZNACENI] Ucet ${userId} oznacen: ${reason}`);
+      console.log(`[OZNAČENÍ] Účet ${userId} označen: ${reason}`);
     },
   };
 
@@ -109,11 +109,11 @@ async function main() {
   // VRSTVA 1: DETEKTORY (priorita 300)
   // ================================================================
 
-  // 1. Detekce brute force: 5+ selhanich prihlaseni za 5 minut
+  // 1. Detekce brute force: 5+ selhání přihlášení za 5 minut
   engine.registerRule(
     Rule.create('detect-brute-force')
       .name('Brute Force Detector')
-      .description('Detekce opakovanych selhani prihlaseni indikujicich credential stuffing')
+      .description('Detekce opakovaných selhání přihlášení indikujících credential stuffing')
       .priority(300)
       .tags('fraud', 'detector', 'login')
       .when(count()
@@ -132,15 +132,15 @@ async function main() {
           window: '5m',
         },
       }))
-      .also(log('warn', 'Brute force detekovano: ${trigger.groupKey}, ${trigger.count} pokusu'))
+      .also(log('warn', 'Brute force detekováno: ${trigger.groupKey}, ${trigger.count} pokusů'))
       .build()
   );
 
-  // 2. Rychlost transakci: celkove prevody > $10,000 za 1 hodinu
+  // 2. Rychlost transakcí: celkové převody > $10,000 za 1 hodinu
   engine.registerRule(
     Rule.create('detect-tx-velocity')
       .name('Transaction Velocity Detector')
-      .description('Detekce narazoveho vyskeho vysokych transakci')
+      .description('Detekce nárazového výskytu vysokých transakcí')
       .priority(300)
       .tags('fraud', 'detector', 'transaction')
       .when(aggregate()
@@ -160,15 +160,15 @@ async function main() {
           window: '1h',
         },
       }))
-      .also(log('warn', 'Alert rychlosti transakci: ${trigger.groupKey}, celkem $${trigger.value}'))
+      .also(log('warn', 'Alert rychlosti transakcí: ${trigger.groupKey}, celkem $${trigger.value}'))
       .build()
   );
 
-  // 3. Nemozne cestovani: prihlaseni ze vzdalenych lokaci behem 1 hodiny
+  // 3. Nemožné cestování: přihlášení ze vzdálených lokací během 1 hodiny
   engine.registerRule(
     Rule.create('detect-impossible-travel')
       .name('Impossible Travel Detector')
-      .description('Detekce prihlaseni z geograficky nemoznych lokaci')
+      .description('Detekce přihlášení z geograficky nemožných lokací')
       .priority(300)
       .tags('fraud', 'detector', 'geo')
       .when(sequence()
@@ -187,11 +187,11 @@ async function main() {
       .build()
   );
 
-  // 3b. Zpracovani kontroly cestovani s geo vyhledavanim
+  // 3b. Zpracování kontroly cestování s geo vyhledáváním
   engine.registerRule(
     Rule.create('process-travel-check')
       .name('Process Travel Distance')
-      .description('Vypocet vzdalenosti mezi lokacemi prihlaseni a skorovani pri nemoznosti')
+      .description('Výpočet vzdálenosti mezi lokacemi přihlášení a skórování při nemožnosti')
       .priority(290)
       .tags('fraud', 'detector', 'geo')
       .when(onEvent('fraud.travel_check'))
@@ -205,15 +205,15 @@ async function main() {
           to: ref('event.country2'),
         },
       }))
-      .also(log('warn', 'Nemozne cestovani: ${event.userId} z ${event.country1} do ${event.country2}'))
+      .also(log('warn', 'Nemožné cestování: ${event.userId} z ${event.country1} do ${event.country2}'))
       .build()
   );
 
-  // 4. Detekce prihlaseni z noveho zarizeni
+  // 4. Detekce přihlášení z nového zařízení
   engine.registerRule(
     Rule.create('detect-new-device')
       .name('New Device Login Detector')
-      .description('Detekce prihlaseni z drive nevideneho zarizeni')
+      .description('Detekce přihlášení z dříve neviděného zařízení')
       .priority(300)
       .tags('fraud', 'detector', 'device')
       .when(onEvent('auth.login_success'))
@@ -228,15 +228,15 @@ async function main() {
         },
       }))
       .also(setFact('user:${event.userId}:lastDevice', ref('event.deviceId')))
-      .also(log('info', 'Prihlaseni z noveho zarizeni: ${event.userId} z ${event.deviceId}'))
+      .also(log('info', 'Přihlášení z nového zařízení: ${event.userId} z ${event.deviceId}'))
       .build()
   );
 
-  // 5. Rychle zmeny uctu po prihlaseni
+  // 5. Rychlé změny účtu po přihlášení
   engine.registerRule(
     Rule.create('detect-account-takeover')
       .name('Account Takeover Pattern')
-      .description('Detekce prihlaseni nasledovaneho citlivymi zmenami behem 10 minut')
+      .description('Detekce přihlášení následovaného citlivými změnami během 10 minut')
       .priority(300)
       .tags('fraud', 'detector', 'takeover')
       .when(sequence()
@@ -254,33 +254,33 @@ async function main() {
           newEmail: ref('trigger.events.1.newEmail'),
         },
       }))
-      .also(log('error', 'Vzor prevzeti uctu: ${trigger.events.0.userId}'))
+      .also(log('error', 'Vzor převzetí účtu: ${trigger.events.0.userId}'))
       .build()
   );
 
   // ================================================================
-  // VRSTVA 2: SKOROVANI RIZIK (priorita 200)
+  // VRSTVA 2: SKÓROVÁNÍ RIZIK (priorita 200)
   // ================================================================
 
-  // 6. Akumulace rizikovych signalu jako faktu
+  // 6. Akumulace rizikových signálů jako faktů
   engine.registerRule(
     Rule.create('score-accumulator')
       .name('Risk Score Accumulator')
-      .description('Ulozeni kazdeho rizikoveho signalu jako faktu pro audit trail')
+      .description('Uložení každého rizikového signálu jako faktu pro audit trail')
       .priority(200)
       .tags('fraud', 'scoring')
       .when(onEvent('risk.signal'))
       .then(setFact('risk:${event.userId}:${event.category}', ref('event.score')))
       .also(setFact('risk:${event.userId}:lastSignal', ref('event.category')))
-      .also(log('info', 'Rizikovy signal: ${event.userId} +${event.score} (${event.category})'))
+      .also(log('info', 'Rizikový signál: ${event.userId} +${event.score} (${event.category})'))
       .build()
   );
 
-  // 7. Agregace rizikoveho skore v casovem okne
+  // 7. Agregace rizikového skóre v časovém okně
   engine.registerRule(
     Rule.create('score-threshold-medium')
       .name('Medium Risk Threshold')
-      .description('Spusteni stredniho alertu pri previseni rizikoveho skore 50 za 1 hodinu')
+      .description('Spuštění středního alertu při převýšení rizikového skóre 50 za 1 hodinu')
       .priority(200)
       .tags('fraud', 'scoring')
       .when(aggregate()
@@ -299,11 +299,11 @@ async function main() {
       .build()
   );
 
-  // 8. Vysoky prah rizika
+  // 8. Vysoký práh rizika
   engine.registerRule(
     Rule.create('score-threshold-high')
       .name('High Risk Threshold')
-      .description('Spusteni kritickeho alertu pri previseni rizikoveho skore 80 za 1 hodinu')
+      .description('Spuštění kritického alertu při převýšení rizikového skóre 80 za 1 hodinu')
       .priority(200)
       .tags('fraud', 'scoring')
       .when(aggregate()
@@ -326,11 +326,11 @@ async function main() {
   // VRSTVA 3: REAKCE (priorita 100)
   // ================================================================
 
-  // 9. Stredni zavaznost: oznaceni uctu
+  // 9. Střední závažnost: označení účtu
   engine.registerRule(
     Rule.create('response-medium')
       .name('Medium Risk Response')
-      .description('Oznaceni uctu a upozorneni bezpecnostniho tymu pri strednim riziku')
+      .description('Označení účtu a upozornění bezpečnostního týmu při středním riziku')
       .priority(100)
       .tags('fraud', 'response')
       .when(onEvent('fraud.alert'))
@@ -338,22 +338,22 @@ async function main() {
       .then(setFact('user:${event.userId}:riskLevel', 'medium'))
       .also(callService('accountService', 'flag', [
         ref('event.userId'),
-        'Rizikove skore ${event.totalRisk}',
+        'Rizikové skóre ${event.totalRisk}',
       ]))
       .also(callService('alertService', 'notify', [
         'fraud-alerts',
-        'Stredni riziko: uzivatel ${event.userId}, skore ${event.totalRisk}',
+        'Střední riziko: uživatel ${event.userId}, skóre ${event.totalRisk}',
         'medium',
       ]))
-      .also(log('warn', 'STREDNI RIZIKO: ${event.userId}, skore ${event.totalRisk}'))
+      .also(log('warn', 'STŘEDNÍ RIZIKO: ${event.userId}, skóre ${event.totalRisk}'))
       .build()
   );
 
-  // 10. Kriticka zavaznost: zamceni uctu
+  // 10. Kritická závažnost: zamčení účtu
   engine.registerRule(
     Rule.create('response-critical')
       .name('Critical Risk Response')
-      .description('Zamceni uctu a privolani pohotovosti pri kritickem riziku')
+      .description('Zamčení účtu a přivolání pohotovosti při kritickém riziku')
       .priority(100)
       .tags('fraud', 'response')
       .when(onEvent('fraud.alert'))
@@ -362,21 +362,21 @@ async function main() {
       .also(setFact('user:${event.userId}:locked', true))
       .also(callService('accountService', 'lock', [
         ref('event.userId'),
-        'Kriticke rizikove skore ${event.totalRisk}',
+        'Kritické rizikové skóre ${event.totalRisk}',
       ]))
       .also(callService('alertService', 'page', [
         'security-oncall',
-        'KRITICKE: uzivatel ${event.userId}, rizikove skore ${event.totalRisk}',
+        'KRITICKÉ: uživatel ${event.userId}, rizikové skóre ${event.totalRisk}',
       ]))
-      .also(log('error', 'KRITICKE RIZIKO: ${event.userId}, skore ${event.totalRisk}'))
+      .also(log('error', 'KRITICKÉ RIZIKO: ${event.userId}, skóre ${event.totalRisk}'))
       .build()
   );
 
-  // 11. Audit trail pro vsechny alerty podvodu
+  // 11. Audit trail pro všechny alerty podvodů
   engine.registerRule(
     Rule.create('fraud-audit')
       .name('Fraud Alert Audit Log')
-      .description('Zaznam vsech alertu podvodu pro compliance')
+      .description('Záznam všech alertů podvodů pro compliance')
       .priority(50)
       .tags('fraud', 'audit')
       .when(onEvent('fraud.alert'))
@@ -392,9 +392,9 @@ async function main() {
   // SIMULACE
   // ================================================================
 
-  console.log('=== System detekce podvodu spusten ===\n');
+  console.log('=== Systém detekce podvodů spuštěn ===\n');
 
-  // Odber udalosti podvodu
+  // Odběr událostí podvodů
   engine.subscribe('risk.*', (event) => {
     console.log(`[RIZIKO] ${event.topic}:`, event.data);
   });
@@ -403,8 +403,8 @@ async function main() {
     console.log(`[PODVOD] ${event.topic}:`, event.data);
   });
 
-  // Scenar 1: Utok brute force
-  console.log('--- Scenar 1: Utok brute force ---');
+  // Scénář 1: Útok brute force
+  console.log('--- Scénář 1: Útok brute force ---');
   for (let i = 0; i < 6; i++) {
     await engine.emit('auth.login_failed', {
       userId: 'U-200',
@@ -413,8 +413,8 @@ async function main() {
     });
   }
 
-  // Scenar 2: Nove zarizeni + zmena emailu (prevzeti uctu)
-  console.log('\n--- Scenar 2: Vzor prevzeti uctu ---');
+  // Scénář 2: Nové zařízení + změna emailu (převzetí účtu)
+  console.log('\n--- Scénář 2: Vzor převzetí účtu ---');
   await engine.emit('auth.login_success', {
     userId: 'U-200',
     ip: '172.16.0.1',
@@ -429,13 +429,13 @@ async function main() {
     newEmail: 'attacker@evil.com',
   });
 
-  // Kontrola akumulovaneho rizika
-  console.log('\n=== Hodnoceni rizik ===');
-  console.log('Skore brute force:', engine.getFact('risk:U-200:brute_force'));
-  console.log('Skore noveho zarizeni:', engine.getFact('risk:U-200:new_device'));
-  console.log('Skore prevzeti:', engine.getFact('risk:U-200:account_takeover'));
-  console.log('Uroven rizika:', engine.getFact('user:U-200:riskLevel'));
-  console.log('Zamcen:', engine.getFact('user:U-200:locked'));
+  // Kontrola akumulovaného rizika
+  console.log('\n=== Hodnocení rizik ===');
+  console.log('Skóre brute force:', engine.getFact('risk:U-200:brute_force'));
+  console.log('Skóre nového zařízení:', engine.getFact('risk:U-200:new_device'));
+  console.log('Skóre převzetí:', engine.getFact('risk:U-200:account_takeover'));
+  console.log('Úroveň rizika:', engine.getFact('user:U-200:riskLevel'));
+  console.log('Zamčen:', engine.getFact('user:U-200:locked'));
 
   await engine.stop();
   console.log('\nEngine zastaven.');
@@ -444,87 +444,87 @@ async function main() {
 main();
 ```
 
-## Detailni rozbor
+## Detailní rozbor
 
 ### Vrstva detekce
 
-Kazdy detektor bezi nezavisle a produkuje standardizovane eventy `risk.signal`:
+Každý detektor běží nezávisle a produkuje standardizované eventy `risk.signal`:
 
 ```typescript
 emit('risk.signal', {
   userId: '...',
-  category: 'brute_force',   // Unikatni kategorie pro kazdy detektor
-  score: 30,                  // Vaha rizika
-  details: { ... },           // Kontext specificke pro detektor
+  category: 'brute_force',   // Unikátní kategorie pro každý detektor
+  score: 30,                  // Váha rizika
+  details: { ... },           // Kontext specifické pro detektor
 })
 ```
 
-Tento kontrakt znamena, ze detektory o sobe navzajem nevedi. Pridani noveho detektoru je jedno pravidlo emitujici `risk.signal` — zadne zmeny ve skorovacich nebo reakcnich pravidlech.
+Tento kontrakt znamená, že detektory o sobě navzájem nevědí. Přidání nového detektoru je jedno pravidlo emitující `risk.signal` — žádné změny ve skórovacích nebo reakčních pravidlech.
 
-| Detektor | CEP vzor | Skore | Co zachycuje |
+| Detektor | CEP vzor | Skóre | Co zachycuje |
 |----------|----------|-------|-------------|
-| Brute force | `count()` 5 za 5m | 30 | Credential stuffing, hadani hesel |
-| Rychlost transakci | `aggregate()` sum > $10K/1h | 40 | Prani spinavych penez, rychle pouziti ukradene karty |
-| Nemozne cestovani | `sequence()` 2 prihlaseni/1h | 50 | Kompromitovane povereni pouzite ze vzdalene lokace |
-| Nove zarizeni | `onEvent()` + kontrola faktu | 15 | Prvni prihlaseni z neznameho zarizeni |
-| Prevzeti uctu | `sequence()` prihlaseni + zmena emailu/10m | 60 | Utocnik meni obnovovaci email po kompromitaci |
+| Brute force | `count()` 5 za 5m | 30 | Credential stuffing, hádání hesel |
+| Rychlost transakcí | `aggregate()` sum > $10K/1h | 40 | Praní špinavých peněz, rychlé použití ukradené karty |
+| Nemožné cestování | `sequence()` 2 přihlášení/1h | 50 | Kompromitované pověření použité ze vzdálené lokace |
+| Nové zařízení | `onEvent()` + kontrola faktů | 15 | První přihlášení z neznámého zařízení |
+| Převzetí účtu | `sequence()` přihlášení + změna emailu/10m | 60 | Útočník mění obnovovací email po kompromitaci |
 
-### Vrstva skorovani
+### Vrstva skórování
 
-Vrstva skorovani pouziva dva mechanismy:
+Vrstva skórování používá dva mechanismy:
 
-1. **Akumulace faktu**: Kazdy signal je ulozen jako `risk:userId:category = score`. To poskytuje dotazovatelny snimek aktivnich rizikovych faktoru na uzivatele.
+1. **Akumulace faktů**: Každý signál je uložen jako `risk:userId:category = score`. To poskytuje dotazovatelný snímek aktivních rizikových faktorů na uživatele.
 
-2. **Temporalni agregace**: Vzor `aggregate()` sumarizuje skore rizikovych signalu na uzivatele v 1hodinovem okne. Dve prahova pravidla se spousteji na ruznych urovnich:
+2. **Temporální agregace**: Vzor `aggregate()` sumarizuje skóre rizikových signálů na uživatele v 1hodinovém okně. Dvě prahová pravidla se spouštějí na různých úrovních:
 
 ```text
-  eventy risk.signal (na uzivatele, 1 hodinove okno)
+  eventy risk.signal (na uživatele, 1 hodinové okno)
        │
-       ├──── soucet >= 50  ──→ fraud.alert { severity: 'medium' }
-       └──── soucet >= 80  ──→ fraud.alert { severity: 'critical' }
+       ├──── součet >= 50  ──→ fraud.alert { severity: 'medium' }
+       └──── součet >= 80  ──→ fraud.alert { severity: 'critical' }
 ```
 
-Oba prahy se mohou spustit pro stejneho uzivatele — stredni alert se spusti prvni, a pokud dorazsi vice signalu tlacicich celkovy soucet nad 80, nasleduje kriticky alert.
+Oba prahy se mohou spustit pro stejného uživatele — střední alert se spustí první, a pokud dorazí více signálů tlačících celkový součet nad 80, následuje kritický alert.
 
 ### Vrstva reakce
 
-Reakce jsou odstupnovane podle zavaznosti:
+Reakce jsou odstupňované podle závažnosti:
 
-| Zavaznost | Akce |
+| Závažnost | Akce |
 |-----------|------|
-| Stredni (50-80) | Oznaceni uctu, upozorneni kanalu `#fraud-alerts` |
-| Kriticka (> 80) | Zamceni uctu, privolani pohotovostniho tymu, nastaveni faktu zamceni |
+| Střední (50-80) | Označení účtu, upozornění kanálu `#fraud-alerts` |
+| Kritická (> 80) | Zamčení účtu, přivolání pohotovostního týmu, nastavení faktu zamčení |
 
-Reakcni pravidla volaji externi sluzby (`accountService.lock`, `alertService.page`) pro integraci s realnou infrastrukturou. Fakt `user:ID:locked` muze byt kontrolovan jinymi systemy (API gateway, prihlasovaci sluzba) pro blokovani pristupu.
+Reakční pravidla volají externí služby (`accountService.lock`, `alertService.page`) pro integraci s reálnou infrastrukturou. Fakt `user:ID:locked` může být kontrolován jinými systémy (API gateway, přihlašovací služba) pro blokování přístupu.
 
-### Priklad toku dat
+### Příklad toku dat
 
-Takto se signaly akumuluji pro jednoho uzivatele behem utoku:
+Takto se signály akumulují pro jednoho uživatele během útoku:
 
 ```text
-  Cas    Udalost                  Detektor              Skore  Celkem
+  Čas    Událost                  Detektor              Skóre  Celkem
   ─────  ─────────────────────    ──────────────────    ─────  ──────
   0:00   5x login_failed          brute_force           +30     30
-  0:02   prihlaseni z nov. zariz. new_device            +15     45
-  0:03   zmena emailu             account_takeover      +60    105
+  0:02   přihlášení z nov. zaříz. new_device            +15     45
+  0:03   změna emailu             account_takeover      +60    105
                                                                  │
-                                  stredni prah (50)    ◄────────┤ spusten
-                                  kriticky prah (80)   ◄────────┘ spusten
+                                  střední práh (50)    ◄────────┤ spuštěn
+                                  kritický práh (80)   ◄────────┘ spuštěn
                                                                   │
                                   response-medium ◄───────────────┤
                                   response-critical ◄─────────────┘
 ```
 
-## Cviceni
+## Cvičení
 
-Rozsirte system o dva nove detektory:
+Rozšiřte systém o dva nové detektory:
 
-1. **Vice selhalych transakci**: Pokud ma uzivatel 3+ selhalych transakci (`transaction.failed`) za 30 minut, emitujte rizikovy signal se skore 35 a kategorii `tx_failures`.
+1. **Více selhalých transakcí**: Pokud má uživatel 3+ selhalých transakcí (`transaction.failed`) za 30 minut, emitujte rizikový signál se skóre 35 a kategorií `tx_failures`.
 
-2. **Aktivita v noci**: Pokud event prihlaseni dorazi mezi 2:00 a 5:00 rano (mistni cas uzivatele), emitujte rizikovy signal se skore 20 a kategorii `unusual_hours`. Pouzijte bezne event-triggered pravidlo s podminkou kontrolujici pole `hour` z dat eventu.
+2. **Aktivita v noci**: Pokud event přihlášení dorazí mezi 2:00 a 5:00 ráno (místní čas uživatele), emitujte rizikový signál se skóre 20 a kategorií `unusual_hours`. Použijte běžné event-triggered pravidlo s podmínkou kontrolující pole `hour` z dat eventu.
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import {
@@ -533,7 +533,7 @@ import {
   count,
 } from '@hamicek/noex-rules/dsl';
 
-// 1. Vice selhalych transakci (CEP count)
+// 1. Více selhalých transakcí (CEP count)
 engine.registerRule(
   Rule.create('detect-tx-failures')
     .name('Transaction Failure Detector')
@@ -555,11 +555,11 @@ engine.registerRule(
         window: '30m',
       },
     }))
-    .also(log('warn', 'Selhani transakci: ${trigger.groupKey}, ${trigger.count} za 30m'))
+    .also(log('warn', 'Selhání transakcí: ${trigger.groupKey}, ${trigger.count} za 30m'))
     .build()
 );
 
-// 2. Aktivita v noci (event-triggered s podminkou)
+// 2. Aktivita v noci (event-triggered s podmínkou)
 engine.registerRule(
   Rule.create('detect-unusual-hours')
     .name('Unusual Hours Detector')
@@ -577,29 +577,29 @@ engine.registerRule(
         ip: ref('event.ip'),
       },
     }))
-    .also(log('info', 'Prihlaseni v neobvyklou hodinu: ${event.userId} v ${event.hour}:00'))
+    .also(log('info', 'Přihlášení v neobvyklou hodinu: ${event.userId} v ${event.hour}:00'))
     .build()
 );
 ```
 
-Oba detektory nasleduji stejny vzor: detekce anomalie, emitovani `risk.signal` se standardizovanou strukturou. Existujici skorovaci a reakcni pravidla je zpracuji automaticky — zadne zmeny nejsou potreba v navazujicich vrstvach.
+Oba detektory následují stejný vzor: detekce anomálie, emitování `risk.signal` se standardizovanou strukturou. Existující skórovací a reakční pravidla je zpracují automaticky — žádné změny nejsou potřeba v navazujících vrstvách.
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Oddelujte detekci podvodu do **tri vrstev**: detekce (co se stalo), skorovani (jak vazne to je), reakce (co delat)
-- Kazdy detektor je **nezavisle pravidlo** emitujici standardizovany event `risk.signal`
-- Pouzivejte `count()` pro frekvencne zalozene anomalie (brute force, selhale transakce)
-- Pouzivejte `aggregate()` pro objemove anomalie (rychlost transakci)
-- Pouzivejte `sequence()` pro behavioralni vzory (nemozne cestovani, prevzeti uctu)
-- Vrstva skorovani pouziva **temporalni agregaci** pro secteni rizikovych skore na uzivatele v casovem okne
-- **Odstupnovane reakce** (stredni vs kriticke) umoznuji proporcionalni reakci
-- Externi sluzby (`accountService`, `alertService`) se integrujici s realnou infrastrukturou
-- Fakta (`risk:userId:category`, `user:userId:locked`) poskytuji **audit trail** a stav **rizeni pristupu**
-- Pridani noveho detektoru vyzaduje **jedno nove pravidlo** — skorovaci a reakcni pravidla se nemeni
-- Topic eventu `risk.signal` je kontrakt, ktery oddeluje detekci od reakce
+- Oddělujte detekci podvodů do **tří vrstev**: detekce (co se stalo), skórování (jak vážné to je), reakce (co dělat)
+- Každý detektor je **nezávislé pravidlo** emitující standardizovaný event `risk.signal`
+- Používejte `count()` pro frekvenčně založené anomálie (brute force, selhalé transakce)
+- Používejte `aggregate()` pro objemové anomálie (rychlost transakcí)
+- Používejte `sequence()` pro behaviorální vzory (nemožné cestování, převzetí účtu)
+- Vrstva skórování používá **temporální agregaci** pro sečtení rizikových skóre na uživatele v časovém okně
+- **Odstupňované reakce** (střední vs kritické) umožňují proporcionální reakci
+- Externí služby (`accountService`, `alertService`) se integrují s reálnou infrastrukturou
+- Fakta (`risk:userId:category`, `user:userId:locked`) poskytují **audit trail** a stav **řízení přístupu**
+- Přidání nového detektoru vyžaduje **jedno nové pravidlo** — skórovací a reakční pravidla se nemění
+- Topic eventu `risk.signal` je kontrakt, který odděluje detekci od reakce
 
 ---
 
-Dalsi: [IoT monitoring pipeline](./03-iot-monitoring.md)
+Další: [IoT monitoring pipeline](./03-iot-monitoring.md)
