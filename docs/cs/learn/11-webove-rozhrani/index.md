@@ -1,40 +1,40 @@
-# Cast 11: Webove rozhrani
+# Část 11: Webové rozhraní
 
-Predchozi kapitoly pokryly REST, GraphQL, SSE a CLI rozhrani — vsechna jsou vykonna, ale textova. noex-rules obsahuje take plnohodnotne **webove rozhrani postavene na Reactu**, ktere poskytuje vizualni dashboard pro spravu celeho pravidloveho enginu. Pripojuje se k serveru pres GraphQL a SSE a nabizi real-time monitoring, upravu pravidel s formularovym a vizualnim flow editorem, prohlizenifaktu, testovani eventu, spravu casovcu, prohlizeni audit logu a historii verzi — vse z prohlizece.
+Předchozí kapitoly pokryly REST, GraphQL, SSE a CLI rozhraní — všechna jsou výkonná, ale textová. noex-rules obsahuje také plnohodnotné **webové rozhraní postavené na Reactu**, které poskytuje vizuální dashboard pro správu celého pravidlového enginu. Připojuje se k serveru přes GraphQL a SSE a nabízí real-time monitoring, úpravu pravidel s formulářovým a vizuálním flow editorem, prohlížení faktů, testování eventů, správu časovačů, prohlížení audit logů a historii verzí — vše z prohlížeče.
 
 ## Kapitoly
 
-### [11.1 Zaciname s webovym rozhranim](./01-zaciname-s-ui.md)
+### [11.1 Začínáme s webovým rozhraním](./01-zaciname-s-ui.md)
 
-Spustte UI a prozkoumejte dashboard:
-- Instalace a registrace UI Fastify pluginu pomoci `registerUI()`
-- Prehled dashboardu: zdravi enginu, statisticke karty, navigacni bocni panel
-- Sprava pravidel, faktu, eventu, casovcu, skupin a audit logu pres prohlizec
-- Real-time streaming eventu s filtrovanim patternu, pause/resume a testovacim emitovanim
-- Nastaveni: pripojeni k serveru, motiv (svetly/tmavy), predvolby zobrazeni, notifikace
-- Klavesove zkratky pro rychlou navigaci
+Spusťte UI a prozkoumejte dashboard:
+- Instalace a registrace UI Fastify pluginu pomocí `registerUI()`
+- Přehled dashboardu: zdraví enginu, statistické karty, navigační boční panel
+- Správa pravidel, faktů, eventů, časovačů, skupin a audit logů přes prohlížeč
+- Real-time streaming eventů s filtrováním patternů, pause/resume a testovacím emitováním
+- Nastavení: připojení k serveru, motiv (světlý/tmavý), předvolby zobrazení, notifikace
+- Klávesové zkratky pro rychlou navigaci
 
-### [11.2 Vizualni tvorba pravidel](./02-vizualni-tvorba-pravidel.md)
+### [11.2 Vizuální tvorba pravidel](./02-vizualni-tvorba-pravidel.md)
 
-Tvorte a upravujte pravidla vizualne:
-- Zalozky detailu pravidla: formularovy editor, YAML editor, flow diagram, historie verzi
-- RuleForm: metadata, vyber triggeru, builder podminek, builder akci se Zod validaci
-- Flow vizualizace: jak `ruleToFlow()` prevadi trigger, podminky a akce na React Flow graf
-- Uprava pravidel pres YAML editor se zvyraznenim syntaxe
-- Casova osa historie verzi s diffy a rollbackem
-- Kompletni navod: vytvoreni pravidla s vice podminkkami pres UI
+Tvořte a upravujte pravidla vizuálně:
+- Záložky detailu pravidla: formulářový editor, YAML editor, flow diagram, historie verzí
+- RuleForm: metadata, výběr triggeru, builder podmínek, builder akcí se Zod validací
+- Flow vizualizace: jak `ruleToFlow()` převádí trigger, podmínky a akce na React Flow graf
+- Úprava pravidel přes YAML editor se zvýrazněním syntaxe
+- Časová osa historie verzí s diffy a rollbackem
+- Kompletní návod: vytvoření pravidla s více podmínkami přes UI
 
-## Co se naucite
+## Co se naučíte
 
-Na konci teto sekce budete schopni:
-- Nainstalovat a servovat webove rozhrani spolecne se serverem pravidloveho enginu
-- Monitorovat zdravi enginu, statistiky a real-time eventy z dashboardu
-- Vytvaret, upravovat, povolit, zakazat a mazat pravidla pres formularovy a YAML editor
-- Vizualizovat logiku pravidel jako interaktivni flow diagramy s uzly triggeru, podminek a akci
-- Spravovat fakta, casovace, skupiny a audit logy pres vyhrazene stranky prohlizece
-- Emitovat testovaci eventy primo z UI a sledovat jejich pruchod pravidly v realnem case
-- Navigovat cele UI pomoci klavesovych zkratek
+Na konci této sekce budete schopni:
+- Nainstalovat a servovat webové rozhraní společně se serverem pravidlového enginu
+- Monitorovat zdraví enginu, statistiky a real-time eventy z dashboardu
+- Vytvářet, upravovat, povolit, zakázat a mazat pravidla přes formulářový a YAML editor
+- Vizualizovat logiku pravidel jako interaktivní flow diagramy s uzly triggeru, podmínek a akcí
+- Spravovat fakta, časovače, skupiny a audit logy přes vyhrazené stránky prohlížeče
+- Emitovat testovací eventy přímo z UI a sledovat jejich průchod pravidly v reálném čase
+- Navigovat celé UI pomocí klávesových zkratek
 
 ---
 
-Zacnete s: [Zaciname s webovym rozhranim](./01-zaciname-s-ui.md)
+Začněte s: [Začínáme s webovým rozhraním](./01-zaciname-s-ui.md)

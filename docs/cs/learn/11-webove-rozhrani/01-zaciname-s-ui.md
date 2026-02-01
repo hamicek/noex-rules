@@ -1,29 +1,29 @@
-# Zaciname s webovym rozhranim
+# Začínáme s webovým rozhraním
 
-Webove rozhrani noex-rules je dashboard postaveny na Reactu, ktery se pripojuje k bezicimu serveru pravidloveho enginu a poskytuje graficke rozhrani pro vse, co jste dosud delali pres kod, REST a CLI. Komunikuje pres GraphQL pro datove dotazy a mutace a pres Server-Sent Events pro real-time streaming. Tato kapitola pokryva instalaci, integraci se serverem a pruchod vsemi strankami UI.
+Webové rozhraní noex-rules je dashboard postavený na Reactu, který se připojuje k běžícímu serveru pravidlového enginu a poskytuje grafické rozhraní pro vše, co jste dosud dělali přes kód, REST a CLI. Komunikuje přes GraphQL pro datové dotazy a mutace a přes Server-Sent Events pro real-time streaming. Tato kapitola pokrývá instalaci, integraci se serverem a průchod všemi stránkami UI.
 
-## Co se naucite
+## Co se naučíte
 
 - Jak nainstalovat a zaregistrovat UI plugin s Fastify
-- Rozlozeni dashboardu: bocni navigace, zdravi enginu, statisticke karty
-- Jak funguje kazda stranka: pravidla, skupiny, fakta, eventy, casovace, audit, nastaveni
-- Real-time streaming eventu s filtrovanim patternu, pause/resume a testovacim emitovanim
-- Prepinani motivu (svetly/tmavy) a predvolby zobrazeni
-- Klavesove zkratky pro navigaci celym UI bez mysi
+- Rozložení dashboardu: boční navigace, zdraví enginu, statistické karty
+- Jak funguje každá stránka: pravidla, skupiny, fakta, eventy, časovače, audit, nastavení
+- Real-time streaming eventů s filtrováním patternů, pause/resume a testovacím emitováním
+- Přepínání motivu (světlý/tmavý) a předvolby zobrazení
+- Klávesové zkratky pro navigaci celým UI bez myši
 
-## Instalace weboveho rozhrani
+## Instalace webového rozhraní
 
-Webove rozhrani je distribuovano jako samostatny balicek:
+Webové rozhraní je distribuováno jako samostatný balíček:
 
 ```bash
 npm install @hamicek/noex-rules-ui @fastify/static
 ```
 
-`@fastify/static` je peer zavislost potrebna pro servovani sestavenych frontend assetu.
+`@fastify/static` je peer závislost potřebná pro servování sestavených frontend assetů.
 
 ## Registrace UI pluginu
 
-UI se integruje do stejneho Fastify serveru, ktery spousti REST a GraphQL API. Zaregistrujte ho po spusteni serveru:
+UI se integruje do stejného Fastify serveru, který spouští REST a GraphQL API. Zaregistrujte ho po spuštění serveru:
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -43,115 +43,115 @@ console.log(`Web UI:     ${server.address}/ui`);
 
 ### UIPluginOptions
 
-| Moznost | Typ | Vychozi | Popis |
+| Možnost | Typ | Výchozí | Popis |
 |---------|-----|---------|-------|
-| `basePath` | `string` | `'/ui'` | URL prefix, kde je UI servovano |
+| `basePath` | `string` | `'/ui'` | URL prefix, kde je UI servováno |
 
-Plugin registruje `@fastify/static` pro servovani predsestaveneho React bundlu a nastavuje SPA fallback, takze vsechny routy pod `basePath` vraci `index.html` — client-side router se stara o navigaci.
+Plugin registruje `@fastify/static` pro servování předsestavěného React bundlu a nastavuje SPA fallback, takže všechny routy pod `basePath` vrací `index.html` — client-side router se stará o navigaci.
 
 ## Architektura
 
 ```
-Prohlizec (React aplikace)
+Prohlížeč (React aplikace)
     |
     |--- GraphQL (/graphql) ---> Fastify Server ---> RuleEngine
     |--- SSE (/stream/events) -> Fastify Server ---> RuleEngine
     |--- REST (/api/v1/*)  ----> Fastify Server ---> RuleEngine
     |
-    |--- Staticke assety (/ui) -> @fastify/static
+    |--- Statické assety (/ui) -> @fastify/static
 ```
 
-UI pouziva `graphql-request` pro API volani, TanStack React Query pro klientsky caching a synchronizaci a browserove API `EventSource` pro SSE. URL serveru je konfigurovatelna ze stranky Nastaveni a ulozena v `localStorage`.
+UI používá `graphql-request` pro API volání, TanStack React Query pro klientský caching a synchronizaci a browserové API `EventSource` pro SSE. URL serveru je konfigurovatelná ze stránky Nastavení a uložena v `localStorage`.
 
 ## Dashboard
 
-Po otevreni UI (napr. `http://localhost:7226/ui`) se zobrazí stranka **Dashboard**, ktera ukazuje:
+Po otevření UI (např. `http://localhost:7226/ui`) se zobrazí stránka **Dashboard**, která ukazuje:
 
-### Zdravi enginu
+### Zdraví enginu
 
-Stavova karta zobrazujici:
-- Nazev enginu (`noex-rules`)
-- Stav zdravi: `ok`, `degraded` nebo `error` s barevnym indikatorem
+Stavová karta zobrazující:
+- Název enginu (`noex-rules`)
+- Stav zdraví: `ok`, `degraded` nebo `error` s barevným indikátorem
 - Verzi serveru
 - Uptime
 
-Health endpoint je dotazovan kazdych 5 sekund.
+Health endpoint je dotazován každých 5 sekund.
 
-### Statisticke karty
+### Statistické karty
 
-Sest metricnych karet zobrazujicich real-time pocitadla enginu:
+Šest metrických karet zobrazujících real-time počítadla enginu:
 
 | Metrika | Popis |
 |---------|-------|
-| Rules | Celkovy pocet registrovanych pravidel |
-| Facts | Celkovy pocet faktu v ulozisti |
-| Active Timers | Aktualne bezici casovace |
-| Events Processed | Kumulativni pocet emitovanych eventu |
-| Rules Executed | Kumulativni pocet spustenych pravidel |
-| Avg Latency | Prumerna doba zpracovani pravidla (ms) |
+| Rules | Celkový počet registrovaných pravidel |
+| Facts | Celkový počet faktů v úložišti |
+| Active Timers | Aktuálně běžící časovače |
+| Events Processed | Kumulativní počet emitovaných eventů |
+| Rules Executed | Kumulativní počet spuštěných pravidel |
+| Avg Latency | Průměrná doba zpracování pravidla (ms) |
 
-Statistiky jsou dotazovany kazdych 5 sekund.
+Statistiky jsou dotazovány každých 5 sekund.
 
-## Bocni navigace
+## Boční navigace
 
-Bocni panel poskytuje pristup ke vsem strankam s klavesovymi zkratkami zobrazenymi u kazde polozky:
+Boční panel poskytuje přístup ke všem stránkám s klávesovými zkratkami zobrazenými u každé položky:
 
-| Stranka | Zkratka | Popis |
+| Stránka | Zkratka | Popis |
 |---------|---------|-------|
-| Dashboard | `g d` | Prehled zdravi a statistik enginu |
-| Rules | `g r` | Seznam pravidel s hledanim, filtrem, vytvarenim, povolenim/zakazanim |
-| Groups | `g g` | Sprava skupin pravidel (vytvoreni, povoleni/zakazani, zobrazeni pravidel) |
-| Facts | `g f` | Prohlizec faktu se zobrazenim a upravou klice/hodnoty |
-| Events | `g e` | Real-time stream eventu s filtrovanim a testovacim emitovanim |
-| Timers | `g t` | Seznam aktivnich casovcu s vytvarenim a rusenim |
-| Audit Log | `g a` | Prohlizec audit zaznamu s filtry kategorie/typu/zdroje |
-| Settings | `g s` | URL serveru, motiv, zobrazeni, notifikace |
+| Dashboard | `g d` | Přehled zdraví a statistik enginu |
+| Rules | `g r` | Seznam pravidel s hledáním, filtrem, vytvářením, povolením/zakázáním |
+| Groups | `g g` | Správa skupin pravidel (vytvoření, povolení/zakázání, zobrazení pravidel) |
+| Facts | `g f` | Prohlížeč faktů se zobrazením a úpravou klíče/hodnoty |
+| Events | `g e` | Real-time stream eventů s filtrováním a testovacím emitováním |
+| Timers | `g t` | Seznam aktivních časovačů s vytvářením a rušením |
+| Audit Log | `g a` | Prohlížeč audit záznamů s filtry kategorie/typu/zdroje |
+| Settings | `g s` | URL serveru, motiv, zobrazení, notifikace |
 
-Dalsi zkratky:
-- `b` — Prepnuti sbaleni/rozbaleni bocniho panelu
-- `?` — Zobrazeni dialogu s klavesovymi zkratkami
+Další zkratky:
+- `b` — Přepnutí sbalení/rozbalení bočního panelu
+- `?` — Zobrazení dialogu s klávesovými zkratkami
 
-Bocni panel je sbalitelny na desktopu a vysouva se jako overlay na mobilech.
+Boční panel je sbalitelný na desktopu a vysouvá se jako overlay na mobilech.
 
-## Stranka Rules
+## Stránka Rules
 
-Stranka Rules (`/rules`) zobrazuje vsechna registrovana pravidla v razitelne, prohledavatelne tabulce:
+Stránka Rules (`/rules`) zobrazuje všechna registrovaná pravidla v řaditelné, prohledávatelné tabulce:
 
-- **Hledani** — Filtrovani podle ID, nazvu, tagu nebo skupiny
-- **Stavove indikatory** — Odznak povoleno/zakazano, priorita, verze, prirazeni skupiny
-- **Akce** — Povoleni, zakazani, smazani ze zobrazeni seznamu
-- **Vytvoreni** — Zkratka `g n` nebo tlacitko "New Rule" naviguje na formular pro vytvoreni pravidla
+- **Hledání** — Filtrování podle ID, názvu, tagů nebo skupiny
+- **Stavové indikátory** — Odznak povoleno/zakázáno, priorita, verze, přiřazení skupiny
+- **Akce** — Povolení, zakázání, smazání ze zobrazení seznamu
+- **Vytvoření** — Zkratka `g n` nebo tlačítko "New Rule" naviguje na formulář pro vytvoření pravidla
 
-Kliknutim na pravidlo se otevre stranka **Rule Detail** (`/rules/:ruleId`) se ctyrmi zalozkami: Form, YAML, Flow a History (pokryto v dalsi kapitole).
+Kliknutím na pravidlo se otevře stránka **Rule Detail** (`/rules/:ruleId`) se čtyřmi záložkami: Form, YAML, Flow a History (pokryto v další kapitole).
 
-## Stranka Groups
+## Stránka Groups
 
-Stranka Groups (`/groups`) spravuje skupiny pravidel:
+Stránka Groups (`/groups`) spravuje skupiny pravidel:
 
-- Vytvareni skupin s nazvem a popisem
-- Povoleni/zakazani skupin (prepnuti skupiny ovlivni vsechna jeji pravidla)
-- Zobrazeni pravidel prirazenych ke kazde skupine
-- Mazani skupin
+- Vytváření skupin s názvem a popisem
+- Povolení/zakázání skupin (přepnutí skupiny ovlivní všechna její pravidla)
+- Zobrazení pravidel přiřazených ke každé skupině
+- Mazání skupin
 
-## Stranka Facts
+## Stránka Facts
 
-Stranka Facts (`/facts`) poskytuje prohlizec uloziste faktu:
+Stránka Facts (`/facts`) poskytuje prohlížeč úložiště faktů:
 
-- Vypis vsech faktu s klicem, hodnotou, casovym razitkem, zdrojem a verzi
-- Editace na miste — kliknete na hodnotu faktu pro jeji upravu
-- Vytvareni novych faktu s formularem klic/hodnota
-- Mazani faktu
-- Vyhledavani podle patternu klice
+- Výpis všech faktů s klíčem, hodnotou, časovým razítkem, zdrojem a verzí
+- Editace na místě — klikněte na hodnotu faktu pro její úpravu
+- Vytváření nových faktů s formulářem klíč/hodnota
+- Mazání faktů
+- Vyhledávání podle patternu klíče
 
-## Stranka Events
+## Stránka Events
 
-Stranka Events (`/events`) kombinuje real-time SSE stream s testovacim emitovanim:
+Stránka Events (`/events`) kombinuje real-time SSE stream s testovacím emitováním:
 
-### Stream eventu
+### Stream eventů
 
 ```
 +------------------------------------------------------------------+
-| Filtr eventu...   | Patterns: [*           ] | ● Live | 42 events |
+| Filtr eventů...  | Patterns: [*           ] | ● Live | 42 events |
 +------------------------------------------------------------------+
 |   | Topic              | Source    | Correlation | Timestamp      |
 |---|--------------------|-----------|-------------|----------------|
@@ -161,15 +161,15 @@ Stranka Events (`/events`) kombinuje real-time SSE stream s testovacim emitovani
 +------------------------------------------------------------------+
 ```
 
-- **Filtrovani patternu** — Vzory oddelene carkami (napr. `order.*, payment.*`). UI otevre SSE pripojeni na `/stream/events?patterns=...`
-- **Pause/Resume** — Pozastaveni streamu pro prozkoumani eventu; pri obnoveni se buffered eventy sliji zpet
-- **Clear** — Reset seznamu eventu
-- **Rozbaleni** — Kliknutim na radek zobrazite uplna data eventu (ID, causation ID, JSON payload)
-- **Vyhledavani** — Klientsky filtr napric topicem, zdrojem, correlation ID a daty
+- **Filtrování patternů** — Vzory oddělené čárkami (např. `order.*, payment.*`). UI otevře SSE připojení na `/stream/events?patterns=...`
+- **Pause/Resume** — Pozastavení streamu pro prozkoumání eventů; při obnovení se buffered eventy slijí zpět
+- **Clear** — Reset seznamu eventů
+- **Rozbalení** — Kliknutím na řádek zobrazíte úplná data eventu (ID, causation ID, JSON payload)
+- **Vyhledávání** — Klientský filtr napříč topicem, zdrojem, correlation ID a daty
 
-### Testovaci emitovani eventu
+### Testovací emitování eventů
 
-Tlacitko "Emit Event" otevre inline formular:
+Tlačítko "Emit Event" otevře inline formulář:
 
 ```
 +------------------------------------------------------------------+
@@ -179,59 +179,59 @@ Tlacitko "Emit Event" otevre inline formular:
 +------------------------------------------------------------------+
 ```
 
-Eventy emitovane timto formularem jdou pres `POST /api/v1/events` a spousteji pravidla jako jakekoliv jine eventy — reakce pravidel muzete sledovat v realnem case ve streamu vyse.
+Eventy emitované tímto formulářem jdou přes `POST /api/v1/events` a spouštějí pravidla jako jakékoliv jiné eventy — reakce pravidel můžete sledovat v reálném čase ve streamu výše.
 
-## Stranka Timers
+## Stránka Timers
 
-Stranka Timers (`/timers`) ukazuje vsechny aktivni casovace:
+Stránka Timers (`/timers`) ukazuje všechny aktivní časovače:
 
-- Nazev, cas expirace, `onExpire` topic a data, konfigurace opakovani
-- Vytvareni novych casovcu s nazvem, trvanim a `onExpire` nastavenim
-- Ruseni jednotlivych casovcu
-- Casovace jsou dotazovany kazdych 10 sekund
+- Název, čas expirace, `onExpire` topic a data, konfigurace opakování
+- Vytváření nových časovačů s názvem, trváním a `onExpire` nastavením
+- Rušení jednotlivých časovačů
+- Časovače jsou dotazovány každých 10 sekund
 
-## Stranka Audit Log
+## Stránka Audit Log
 
-Stranka Audit (`/audit`) poskytuje filtrovatelny pohled na vsechny audit zaznamy:
+Stránka Audit (`/audit`) poskytuje filtrovatelný pohled na všechny audit záznamy:
 
 - **Filtr kategorie** — `rule_management`, `rule_execution`, `fact_change`, `event_emitted`, `system`
 - **Filtr typu** — `rule_registered`, `rule_executed`, `fact_updated` atd.
-- **Filtr zdroje** — Filtrovani podle zdrojove komponenty
-- **Casovy rozsah** — Zaznamy razene podle casoveho razitka, nejnovejsi prvni
-- **Rozbaleni detailu** — Kliknutim na zaznam zobrazite uplne JSON detaily, trvani a correlation ID
+- **Filtr zdroje** — Filtrování podle zdrojové komponenty
+- **Časový rozsah** — Záznamy řazené podle časového razítka, nejnovější první
+- **Rozbalení detailu** — Kliknutím na záznam zobrazíte úplné JSON detaily, trvání a correlation ID
 
-Audit data jsou dotazovana kazdych 15 sekund.
+Audit data jsou dotazována každých 15 sekund.
 
-## Stranka Settings
+## Stránka Settings
 
-Stranka Settings (`/settings`) ovlada predvolby UI ulozene v `localStorage`:
+Stránka Settings (`/settings`) ovládá předvolby UI uložené v `localStorage`:
 
-### Pripojeni k serveru
+### Připojení k serveru
 
-Konfigurace URL API endpointu. UI zobrazuje stav pripojeni (`connected`, `connecting`, `disconnected`) s barevnym indikatorem. Po pripojeni se objevi odkaz na Swagger API dokumentaci.
+Konfigurace URL API endpointu. UI zobrazuje stav připojení (`connected`, `connecting`, `disconnected`) s barevným indikátorem. Po připojení se objeví odkaz na Swagger API dokumentaci.
 
-URL serveru se vychozi hodnoty nastavi na aktualni origin (`window.location.origin`) nebo promennou prostredi `VITE_SERVER_URL` pri vyvoji.
+URL serveru se výchozí hodnoty nastaví na aktuální origin (`window.location.origin`) nebo proměnnou prostředí `VITE_SERVER_URL` při vývoji.
 
 ### Motiv
 
-Prepinani mezi svetlym a tmavym rezimem. UI respektuje `prefers-color-scheme` ve vychozim stavu a uklada prepis do `localStorage` pod klicem `noex-rules-theme`.
+Přepínání mezi světlým a tmavým režimem. UI respektuje `prefers-color-scheme` ve výchozím stavu a ukládá přepis do `localStorage` pod klíčem `noex-rules-theme`.
 
-### Predvolby zobrazeni
+### Předvolby zobrazení
 
-- **Vychozi pohled na detail pravidla** — Vyberte, ktera zalozka se otevre jako prvni: Form, YAML nebo Flow
-- **Polozek na stranku** — 10, 25, 50 nebo 100 polozek v seznamovych zobrazenich
+- **Výchozí pohled na detail pravidla** — Vyberte, která záložka se otevře jako první: Form, YAML nebo Flow
+- **Položek na stránku** — 10, 25, 50 nebo 100 položek v seznamových zobrazeních
 
 ### Notifikace
 
-Prepnuti toast notifikaci pro eventy pravidloveho enginu (spousteni pravidel, zmeny faktu, chyby).
+Přepnutí toast notifikací pro eventy pravidlového enginu (spouštění pravidel, změny faktů, chyby).
 
 ### Reset
 
-Tlacitko "Reset to defaults" obnovi vsechna nastaveni na puvodni hodnoty.
+Tlačítko "Reset to defaults" obnoví všechna nastavení na původní hodnoty.
 
-## Vyvojovy rezim
+## Vývojový režim
 
-Pro vyvoj UI bezi frontend na samostatnem Vite dev serveru s hot module replacement:
+Pro vývoj UI běží frontend na samostatném Vite dev serveru s hot module replacement:
 
 ```bash
 cd ui
@@ -239,7 +239,7 @@ npm install
 npm run dev
 ```
 
-Toto spusti Vite dev server na portu 7227 s proxy pravidly, ktera preposou API volani na backend:
+Toto spustí Vite dev server na portu 7227 s proxy pravidly, která přepošlou API volání na backend:
 
 ```typescript
 // vite.config.ts
@@ -253,9 +253,9 @@ server: {
 },
 ```
 
-Moznost `ws: true` na GraphQL proxy umoznuje preposani WebSocketu pro GraphQL subscriptions.
+Možnost `ws: true` na GraphQL proxy umožňuje přeposílání WebSocketů pro GraphQL subscriptions.
 
-## Kompletni priklad: monitorovany pravidlovy engine
+## Kompletní příklad: monitorovaný pravidlový engine
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -266,7 +266,7 @@ import {
   event, fact,
 } from '@hamicek/noex-rules/dsl';
 
-// Spusteni serveru se vsemi integracemi
+// Spuštění serveru se všemi integracemi
 const server = await RuleEngineServer.start({
   server: {
     port: 7226,
@@ -282,16 +282,16 @@ const engine = server.getEngine();
 // Registrace pravidel
 engine.registerRule(
   Rule.create('track-order')
-    .name('Sledovani objednavky')
+    .name('Sledování objednávky')
     .when(onEvent('order.created'))
     .then(setFact('order:${event.orderId}:status', 'pending'))
-    .also(log('info', 'Objednavka ${event.orderId} vytvorena'))
+    .also(log('info', 'Objednávka ${event.orderId} vytvořena'))
     .build()
 );
 
 engine.registerRule(
   Rule.create('high-value-alert')
-    .name('Upozorneni na vysokou hodnotu')
+    .name('Upozornění na vysokou hodnotu')
     .priority(10)
     .tags(['alerts', 'orders'])
     .when(onEvent('order.created'))
@@ -320,7 +320,7 @@ engine.registerRule(
 
 engine.registerRule(
   Rule.create('cancel-expired')
-    .name('Zruseni expirovane objednavky')
+    .name('Zrušení expirované objednávky')
     .when(onEvent('order.payment-expired'))
     .then(setFact('order:${event.orderId}:status', 'cancelled'))
     .also(emit('notification.order-cancelled', {
@@ -329,29 +329,29 @@ engine.registerRule(
     .build()
 );
 
-// Registrace weboveho rozhrani
+// Registrace webového rozhraní
 await registerUI(server.fastify, { basePath: '/ui' });
 
-console.log(`Pravidlovy engine: ${server.address}/api/v1`);
+console.log(`Pravidlový engine: ${server.address}/api/v1`);
 console.log(`Swagger docs:      ${server.address}/documentation`);
 console.log(`GraphQL:           ${server.address}/graphql`);
-console.log(`Webove rozhrani:   ${server.address}/ui`);
+console.log(`Webové rozhraní:   ${server.address}/ui`);
 ```
 
-Otevrete `http://localhost:7226/ui` v prohlizeci. Prejdete na stranku Events, emitujte event `order.created` s `{ "orderId": "o-1", "total": 750 }` a sledujte, jak se aktualizuji statistiky na Dashboardu, ve streamu eventu se objevi emitovane i odvozene eventy a na strance Facts se projevi novy fakt `order:o-1:status`.
+Otevřete `http://localhost:7226/ui` v prohlížeči. Přejděte na stránku Events, emitujte event `order.created` s `{ "orderId": "o-1", "total": 750 }` a sledujte, jak se aktualizují statistiky na Dashboardu, ve streamu eventů se objeví emitované i odvozené eventy a na stránce Facts se projeví nový fakt `order:o-1:status`.
 
-## Cviceni
+## Cvičení
 
-1. Spustte server pravidloveho enginu na portu 7226 s webovym rozhranim registrovanym na `/ui`
-2. Zaregistrujte pravidlo, ktere nastavi `sensor:{sensorId}:status` na `"warning"`, kdyz event `sensor.reading` ma `temperature > 60`
-3. Otevrete Dashboard weboveho rozhrani a overte, ze engine ukazuje stav `ok` s 1 pravidlem
-4. Prejdete na stranku Events a emitujte `{ "topic": "sensor.reading", "data": { "sensorId": "s-1", "temperature": 72 } }` pomoci testovacim emitovace
-5. Prejdete na stranku Facts a potvrdite, ze `sensor:s-1:status` je `"warning"`
-6. Prejdete na stranku Rules, najdete sve pravidlo a zakazte ho pres UI
-7. Emitujte dalsi sensor reading event a overte, ze se nevytvori zadny novy fakt
+1. Spusťte server pravidlového enginu na portu 7226 s webovým rozhraním registrovaným na `/ui`
+2. Zaregistrujte pravidlo, které nastaví `sensor:{sensorId}:status` na `"warning"`, když event `sensor.reading` má `temperature > 60`
+3. Otevřete Dashboard webového rozhraní a ověřte, že engine ukazuje stav `ok` s 1 pravidlem
+4. Přejděte na stránku Events a emitujte `{ "topic": "sensor.reading", "data": { "sensorId": "s-1", "temperature": 72 } }` pomocí testovacího emitovače
+5. Přejděte na stránku Facts a potvrďte, že `sensor:s-1:status` je `"warning"`
+6. Přejděte na stránku Rules, najděte své pravidlo a zakažte ho přes UI
+7. Emitujte další sensor reading event a ověřte, že se nevytvoří žádný nový fakt
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
 ```typescript
 import { RuleEngineServer } from '@hamicek/noex-rules';
@@ -367,7 +367,7 @@ const engine = server.getEngine();
 
 engine.registerRule(
   Rule.create('temp-warning')
-    .name('Varovani teploty')
+    .name('Varování teploty')
     .when(onEvent('sensor.reading'))
     .if(event('temperature').gt(60))
     .then(setFact('sensor:${event.sensorId}:status', 'warning'))
@@ -376,33 +376,33 @@ engine.registerRule(
 
 await registerUI(server.fastify, { basePath: '/ui' });
 
-console.log(`Webove rozhrani: ${server.address}/ui`);
+console.log(`Webové rozhraní: ${server.address}/ui`);
 ```
 
-Kroky v prohlizeci:
+Kroky v prohlížeči:
 
-1. Otevrete `http://localhost:7226/ui` — Dashboard ukazuje stav `ok`, 1 pravidlo
-2. Stisknete `g e` pro navigaci na Events
-3. Kliknete na "Emit Event", nastavte topic na `sensor.reading`, data na `{"sensorId": "s-1", "temperature": 72}`, kliknete na Emit
-4. Stisknete `g f` pro navigaci na Facts — `sensor:s-1:status` ukazuje `"warning"`
-5. Stisknete `g r` pro navigaci na Rules — kliknete na tlacitko zakazani u "Varovani teploty"
-6. Stisknete `g e`, emitujte dalsi event s `temperature: 80`
-7. Stisknete `g f` — zadny novy fakt nevznikl (pravidlo je zakazane)
+1. Otevřete `http://localhost:7226/ui` — Dashboard ukazuje stav `ok`, 1 pravidlo
+2. Stiskněte `g e` pro navigaci na Events
+3. Klikněte na "Emit Event", nastavte topic na `sensor.reading`, data na `{"sensorId": "s-1", "temperature": 72}`, klikněte na Emit
+4. Stiskněte `g f` pro navigaci na Facts — `sensor:s-1:status` ukazuje `"warning"`
+5. Stiskněte `g r` pro navigaci na Rules — klikněte na tlačítko zakázání u "Varování teploty"
+6. Stiskněte `g e`, emitujte další event s `temperature: 80`
+7. Stiskněte `g f` — žádný nový fakt nevznikl (pravidlo je zakázané)
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Nainstalujte `@hamicek/noex-rules-ui` a `@fastify/static`, pak zavolejte `registerUI(fastify, { basePath })` pro servovani weboveho rozhrani
-- UI komunikuje pres GraphQL pro datove operace a SSE pro real-time streaming eventu
-- Dashboard zobrazuje zdravi enginu (dotazovano kazdych 5s) a sest statistickych karet (pravidla, fakta, casovace, eventy, spusteni, latence)
-- Bocni panel poskytuje navigaci na vsechny stranky: Dashboard, Rules, Groups, Facts, Events, Timers, Audit Log, Settings
-- Stranka Events kombinuje real-time SSE stream (s filtrovanim patternu a pause/resume) s testovacim emitovanim eventu
-- Stranka Facts podporuje prohlizeni, editaci na miste, vytvareni a mazani faktu
-- Nastaveni se ukladaji do `localStorage`: URL serveru, motiv (svetly/tmavy/systemovy), vychozi pohled na pravidla, velikost stranky, notifikace
-- Klavesove zkratky pouzivaji Vim-styl s prefixem `g` pro navigaci (`g d` Dashboard, `g r` Rules, `g n` New Rule atd.)
-- Pro vyvoj Vite dev server na portu 7227 proxyuje GraphQL (s WebSocketem), REST a SSE na backend na portu 7226
+- Nainstalujte `@hamicek/noex-rules-ui` a `@fastify/static`, pak zavolejte `registerUI(fastify, { basePath })` pro servování webového rozhraní
+- UI komunikuje přes GraphQL pro datové operace a SSE pro real-time streaming eventů
+- Dashboard zobrazuje zdraví enginu (dotazováno každých 5s) a šest statistických karet (pravidla, fakta, časovače, eventy, spuštění, latence)
+- Boční panel poskytuje navigaci na všechny stránky: Dashboard, Rules, Groups, Facts, Events, Timers, Audit Log, Settings
+- Stránka Events kombinuje real-time SSE stream (s filtrováním patternů a pause/resume) s testovacím emitováním eventů
+- Stránka Facts podporuje prohlížení, editaci na místě, vytváření a mazání faktů
+- Nastavení se ukládají do `localStorage`: URL serveru, motiv (světlý/tmavý/systémový), výchozí pohled na pravidla, velikost stránky, notifikace
+- Klávesové zkratky používají Vim-styl s prefixem `g` pro navigaci (`g d` Dashboard, `g r` Rules, `g n` New Rule atd.)
+- Pro vývoj Vite dev server na portu 7227 proxyuje GraphQL (s WebSocketem), REST a SSE na backend na portu 7226
 
 ---
 
-Dalsi: [Vizualni tvorba pravidel](./02-vizualni-tvorba-pravidel.md)
+Další: [Vizuální tvorba pravidel](./02-vizualni-tvorba-pravidel.md)

@@ -1,20 +1,20 @@
-# Vizualni tvorba pravidel
+# Vizuální tvorba pravidel
 
-Predchozi kapitola predstavila stranky a navigaci weboveho rozhrani. Tato kapitola se zameruje na hlavni workflow: vizualni tvorbu a upravu pravidel. Stranka Rule Detail nabizi ctyri komplementarni pohledy — strukturovany **formularovy editor**, **YAML editor**, **flow diagram** a **casovou osu historie verzi** — kazdy je vhodny pro jine ulohy. Formularovy editor se selectorem triggeru, builderem podminek a builderem akci je primarnim nastrojem pro sestavovani pravidel bez rucniho psani JSON nebo YAML.
+Předchozí kapitola představila stránky a navigaci webového rozhraní. Tato kapitola se zaměřuje na hlavní workflow: vizuální tvorbu a úpravu pravidel. Stránka Rule Detail nabízí čtyři komplementární pohledy — strukturovaný **formulářový editor**, **YAML editor**, **flow diagram** a **časovou osu historie verzí** — každý je vhodný pro jiné úlohy. Formulářový editor se selectorem triggeru, builderem podmínek a builderem akcí je primárním nástrojem pro sestavování pravidel bez ručního psaní JSON nebo YAML.
 
-## Co se naucite
+## Co se naučíte
 
-- Ctyri zalozky detailu pravidla: Form, YAML, Flow, History
-- Jak funguje RuleForm: metadata, selektor triggeru, builder podminek, builder akci
-- Validace pomoci Zod a transformace dat z formulare do API formatu
-- Jak `ruleToFlow()` prevadi pravidlo na React Flow graf s barevne odlisenymi uzly
-- Uprava pravidel pres YAML editor
-- Historie verzi s diffy, casovou osou a rollbackem
-- Kompletni navod vytvoreni pravidla s vice podminkkami pres UI
+- Čtyři záložky detailu pravidla: Form, YAML, Flow, History
+- Jak funguje RuleForm: metadata, selektor triggeru, builder podmínek, builder akcí
+- Validace pomocí Zod a transformace dat z formuláře do API formátu
+- Jak `ruleToFlow()` převádí pravidlo na React Flow graf s barevně odlišenými uzly
+- Úprava pravidel přes YAML editor
+- Historie verzí s diffy, časovou osou a rollbackem
+- Kompletní návod vytvoření pravidla s více podmínkami přes UI
 
-## Zalozky detailu pravidla
+## Záložky detailu pravidla
 
-Po kliknuti na pravidlo na strance Rules nebo po navigaci na `/rules/:ruleId` se otevre stranka Rule Detail se ctyrmi zalozkami:
+Po kliknutí na pravidlo na stránce Rules nebo po navigaci na `/rules/:ruleId` se otevře stránka Rule Detail se čtyřmi záložkami:
 
 ```
 +-------+-------+-------+---------+
@@ -22,18 +22,18 @@ Po kliknuti na pravidlo na strance Rules nebo po navigaci na `/rules/:ruleId` se
 +-------+-------+-------+---------+
 ```
 
-| Zalozka | Ucel | Pouzijte kdyz |
+| Záložka | Účel | Použijte když |
 |---------|------|---------------|
-| **Form** | Strukturovany editor s typovanymi poli, rozbalovacimi nabidkami, dynamickymi poli | Tvorba pravidel, uprava jednotlivych poli, uceni se modelu pravidel |
-| **YAML** | Textovy YAML editor | Hromadne upravu, copy-paste, export definic pravidel |
-| **Flow** | Interaktivni flow diagram (pouze pro cteni) | Vizualizace logiky pravidel, prezentace, pochopeni slozitych pravidel |
-| **History** | Casova osa verzi s diffy | Auditovani zmen, porovnavani verzi, rollback |
+| **Form** | Strukturovaný editor s typovanými poli, rozbalovacími nabídkami, dynamickými poli | Tvorba pravidel, úprava jednotlivých polí, učení se modelu pravidel |
+| **YAML** | Textový YAML editor | Hromadnou úpravu, copy-paste, export definic pravidel |
+| **Flow** | Interaktivní flow diagram (pouze pro čtení) | Vizualizace logiky pravidel, prezentace, pochopení složitých pravidel |
+| **History** | Časová osa verzí s diffy | Auditování změn, porovnávání verzí, rollback |
 
-Vychozi zalozka je konfigurovatelna v Nastavenich (Form, YAML nebo Flow).
+Výchozí záložka je konfigurovatelná v Nastavení (Form, YAML nebo Flow).
 
-## Formular pravidla
+## Formulář pravidla
 
-Zalozka Form je primarni editor pravidel. Je rozdelena do ctyr sekci: Metadata, Trigger, Podminky a Akce.
+Záložka Form je primární editor pravidel. Je rozdělena do čtyř sekcí: Metadata, Trigger, Podmínky a Akce.
 
 ### Sekce Metadata
 
@@ -42,11 +42,11 @@ Zalozka Form je primarni editor pravidel. Je rozdelena do ctyr sekci: Metadata, 
 | METADATA                                          |
 | +------------------+  +------------------------+  |
 | | ID               |  | Name                   |  |
-| | [order-alert   ] |  | [Upozorneni hodnoty  ] |  |
+| | [order-alert   ] |  | [Upozornění hodnoty  ] |  |
 | +------------------+  +------------------------+  |
 |                                                   |
 | Description                                       |
-| [Upozorneni pri prekroceni prahove hodnoty      ] |
+| [Upozornění při překročení prahové hodnoty      ] |
 |                                                   |
 | +----------+ +---------+ +--------+              |
 | | Priority | | Group   | | ☑ Povoleno |          |
@@ -59,32 +59,32 @@ Zalozka Form je primarni editor pravidel. Je rozdelena do ctyr sekci: Metadata, 
 ```
 
 Pole:
-- **ID** — Unikatni identifikator (povinny, po vytvoreni nemenitelny)
-- **Name** — Lidsky citelny nazev (povinny)
-- **Description** — Volitelny popis
-- **Priority** — Cele cislo, vyssi hodnoty se vyhodnocuji driv
-- **Group** — Rozbalovaci nabidka naplnena existujicimi skupinami pravidel pres GraphQL
-- **Enabled** — Zaskrtavaci pole
-- **Tags** — Chip input: napiste tag a stisknete Enter nebo carku pro pridani, kliknete na X pro odebrani
+- **ID** — Unikátní identifikátor (povinný, po vytvoření neměnitelný)
+- **Name** — Lidsky čitelný název (povinný)
+- **Description** — Volitelný popis
+- **Priority** — Celé číslo, vyšší hodnoty se vyhodnocují dřív
+- **Group** — Rozbalovací nabídka naplněná existujícími skupinami pravidel přes GraphQL
+- **Enabled** — Zaškrtávací pole
+- **Tags** — Chip input: napište tag a stiskněte Enter nebo čárku pro přidání, klikněte na X pro odebrání
 
 ### Selektor triggeru
 
-Sekce triggeru meni sve vstupni pole podle vybraneho typu triggeru:
+Sekce triggeru mění své vstupní pole podle vybraného typu triggeru:
 
-| Typ triggeru | Vstupni pole | Placeholder |
+| Typ triggeru | Vstupní pole | Placeholder |
 |-------------|-------------|-------------|
 | `fact` | Pattern | `customer:*:tier` |
 | `event` | Topic | `order.created` |
 | `timer` | Name | `payment-deadline-*` |
-| `temporal` | Pattern | (pro CEP temporalni triggery) |
+| `temporal` | Pattern | (pro CEP temporální triggery) |
 
-### Builder podminek
+### Builder podmínek
 
-Podminky jsou dynamicke pole — pridejte kolik potrebujete, odebirejte jednotlive:
+Podmínky jsou dynamické pole — přidejte kolik potřebujete, odebírejte jednotlivě:
 
 ```
 +---------------------------------------------------+
-| PODMINKY                                          |
+| PODMÍNKY                                          |
 |                                                   |
 | +---------+  +--------+  +----+  +-------+  +--+ |
 | | Zdroj  |  | Pole   |  | Op |  | Hodnota|  |✕ | |
@@ -92,46 +92,46 @@ Podminky jsou dynamicke pole — pridejte kolik potrebujete, odebirejte jednotli
 | +---------+  +--------+  +----+  +-------+  +--+ |
 |                                                   |
 | +---------+  +--------+  +------+  +-----+  +--+ |
-| | Zdroj  |  | Klic   |  | Op   |  |Hodn.|  |✕ | |
+| | Zdroj  |  | Klíč   |  | Op   |  |Hodn.|  |✕ | |
 | | [fact ] |  |[c:*:t] |  |[eq]  |  |"vip"|  |  | |
 | +---------+  +--------+  +------+  +-----+  +--+ |
 |                                                   |
-| [+ Pridat podminku]                               |
+| [+ Přidat podmínku]                               |
 +---------------------------------------------------+
 ```
 
-Kazdy radek podminky ma:
+Každý řádek podmínky má:
 
 - **Typ zdroje** — `event`, `fact`, `context`, `lookup`, `baseline`
-- **Klic zdroje** — Konkretni pole se lisi podle typu zdroje:
-  - `event` → `field` (napr. `total`, `customerId`)
-  - `fact` → `pattern` (napr. `customer:*:tier`)
+- **Klíč zdroje** — Konkrétní pole se liší podle typu zdroje:
+  - `event` → `field` (např. `total`, `customerId`)
+  - `fact` → `pattern` (např. `customer:*:tier`)
   - `context` → `key`
   - `lookup` → `name`
   - `baseline` → `metric`
-- **Operator** — Vsechny standardni operatory: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `not_in`, `contains`, `not_contains`, `matches`, `exists`, `not_exists`
-- **Hodnota** — Textovy vstup, parsovany jako JSON pokud je to mozne (cisla, booleany, pole, objekty). Unarni operatory (`exists`, `not_exists`) skryvaji pole hodnoty.
+- **Operátor** — Všechny standardní operátory: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `not_in`, `contains`, `not_contains`, `matches`, `exists`, `not_exists`
+- **Hodnota** — Textový vstup, parsovaný jako JSON pokud je to možné (čísla, booleany, pole, objekty). Unární operátory (`exists`, `not_exists`) skrývají pole hodnoty.
 
-### Builder akci
+### Builder akcí
 
-Akce nasleduji stejny vzor dynamickeho pole, s poli menicimi se podle typu akce:
+Akce následují stejný vzor dynamického pole, s poli měnícími se podle typu akce:
 
 | Typ akce | Pole |
 |----------|------|
-| `set_fact` | Klic, Hodnota (JSON) |
-| `delete_fact` | Klic |
+| `set_fact` | Klíč, Hodnota (JSON) |
+| `delete_fact` | Klíč |
 | `emit_event` | Topic, Data (JSON) |
-| `set_timer` | Konfigurace casovace (JSON) |
-| `cancel_timer` | Nazev casovace |
-| `call_service` | Sluzba, Metoda, Argumenty (JSON) |
-| `log` | Uroven (`debug`/`info`/`warn`/`error`), Zprava |
-| `conditional` | Pocet then akci, pocet else akci |
+| `set_timer` | Konfigurace časovače (JSON) |
+| `cancel_timer` | Název časovače |
+| `call_service` | Služba, Metoda, Argumenty (JSON) |
+| `log` | Úroveň (`debug`/`info`/`warn`/`error`), Zpráva |
+| `conditional` | Počet then akcí, počet else akcí |
 
-Alespon jedna akce je vyzadovana — validace formulare to vynucuje.
+Alespoň jedna akce je vyžadována — validace formuláře to vynucuje.
 
 ### Validace
 
-Formular pouziva Zod schemata s React Hook Form pro validaci na urovni poli:
+Formulář používá Zod schémata s React Hook Form pro validaci na úrovni polí:
 
 ```typescript
 const ruleFormSchema = z.object({
@@ -148,21 +148,21 @@ const ruleFormSchema = z.object({
 });
 ```
 
-Validacni chyby se zobrazuji inline pod kazdym polem. Tlacitko odeslani je zakazano, dokud formular nema zmeny a vsechny validace neprojdou.
+Validační chyby se zobrazují inline pod každým polem. Tlačítko odeslání je zakázáno, dokud formulář nemá změny a všechny validace neprojdou.
 
-### Transformace dat formulare
+### Transformace dat formuláře
 
-Formular pouziva mezireprezentaci (`RuleFormData`), ktera uchova JSON hodnoty jako surove retezce pro pohodli editace. Pri odeslani `formDataToInput()` transformuje tuto reprezentaci na vstupni format API:
+Formulář používá mezireprezentaci (`RuleFormData`), která uchovává JSON hodnoty jako surové řetězce pro pohodlí editace. Při odeslání `formDataToInput()` transformuje tuto reprezentaci na vstupní formát API:
 
-1. Retezec tagu je rozdelen podle carek do pole
-2. Pole triggeru jsou filtrovana tak, aby obsahovaly pouze pole relevantni pro dany typ (`pattern` pro fakt, `topic` pro event, `name` pro casovac)
-3. Hodnoty podminek jsou parsovany z JSON retezcu
-4. Unarni operatory zcela odstrani pole hodnoty
-5. Pole akci jsou parsovana z JSON retezcu podle typu akce
+1. Řetězec tagů je rozdělen podle čárek do pole
+2. Pole triggeru jsou filtrována tak, aby obsahovaly pouze pole relevantní pro daný typ (`pattern` pro fakt, `topic` pro event, `name` pro časovač)
+3. Hodnoty podmínek jsou parsovány z JSON řetězců
+4. Unární operátory zcela odstraní pole hodnoty
+5. Pole akcí jsou parsována z JSON řetězců podle typu akce
 
 ## Flow vizualizace
 
-Zalozka Flow vykresluje pravidlo jako interaktivni graf pomoci React Flow. Funkce `ruleToFlow()` prevadi pravidlo na uzly a hrany:
+Záložka Flow vykresluje pravidlo jako interaktivní graf pomocí React Flow. Funkce `ruleToFlow()` převádí pravidlo na uzly a hrany:
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -178,49 +178,49 @@ Zalozka Flow vykresluje pravidlo jako interaktivni graf pomoci React Flow. Funkc
                      └──────────────┘     └──────────────┘
 ```
 
-### Typy uzlu a barvy
+### Typy uzlů a barvy
 
 | Typ uzlu | Ikona | Barva | Popis |
 |----------|-------|-------|-------|
-| Trigger | ▶ | Modra (`bg-blue-50`, `border-blue-300`) | Trigger pravidla (event, fakt, casovac, temporalni) |
-| Podminka | ◆ | Zluta (`bg-amber-50`, `border-amber-300`) | Kazda podminka jako zdroj + operator + hodnota |
-| Akce | ■ | Zelena (`bg-emerald-50`, `border-emerald-300`) | Kazda akce s typem a detailem klice |
+| Trigger | ▶ | Modrá (`bg-blue-50`, `border-blue-300`) | Trigger pravidla (event, fakt, časovač, temporální) |
+| Podmínka | ◆ | Žlutá (`bg-amber-50`, `border-amber-300`) | Každá podmínka jako zdroj + operátor + hodnota |
+| Akce | ■ | Zelená (`bg-emerald-50`, `border-emerald-300`) | Každá akce s typem a detailem klíče |
 
-### Algoritmus rozlozeni
+### Algoritmus rozložení
 
-Graf je rozlozen do tri sloupcu:
+Graf je rozložen do tří sloupců:
 
-1. **Trigger** (vlevo) — Vzdy jeden uzel, vertikalne vycentrovany
-2. **Podminky** (uprostred) — Naskladane vertikalne, pripojene od triggeru
-3. **Akce** (vpravo) — Naskladane vertikalne, pripojene od vsech podminek (nebo primo od triggeru pokud nejsou podminky)
+1. **Trigger** (vlevo) — Vždy jeden uzel, vertikálně vycentrovaný
+2. **Podmínky** (uprostřed) — Naskládané vertikálně, připojené od triggeru
+3. **Akce** (vpravo) — Naskládané vertikálně, připojené od všech podmínek (nebo přímo od triggeru pokud nejsou podmínky)
 
-Parametry rozlozeni:
-- Sirka uzlu: 220px
-- Vyska uzlu: 70px
-- Horizontalni mezera: 80px
-- Vertikalni mezera: 24px
+Parametry rozložení:
+- Šířka uzlu: 220px
+- Výška uzlu: 70px
+- Horizontální mezera: 80px
+- Vertikální mezera: 24px
 
-Nejvetsi sloupec urcuje celkovou vysku a mensi sloupce jsou vertikalne vycentrovany.
+Největší sloupec určuje celkovou výšku a menší sloupce jsou vertikálně vycentrovány.
 
 ### Interakce
 
-- **Pretahovani** uzlu pro preskladani (pozice se neukladaji — rozlozeni se resetuje pri nacteni)
-- **Zoom** koleckem mysi nebo ovladacim panelem (+/- tlacitka)
-- **Posun** pretazenim pozadi
-- **MiniMapa** v pravem dolnim rohu pro orientaci ve slozitych pravidlech
-- Uzly **nejsou propojitelne** — flow pohled je pouze pro cteni. Pro upravu struktury pravidla prepnete na zalozku Form nebo YAML.
+- **Přetahování** uzlů pro přeskládání (pozice se neukládají — rozložení se resetuje při načtení)
+- **Zoom** kolečkem myši nebo ovládacím panelem (+/- tlačítka)
+- **Posun** přetažením pozadí
+- **MiniMapa** v pravém dolním rohu pro orientaci ve složitých pravidlech
+- Uzly **nejsou propojitelné** — flow pohled je pouze pro čtení. Pro úpravu struktury pravidla přepněte na záložku Form nebo YAML.
 
 ### Styl hran
 
-Hrany pouzivaji typ `smoothstep` s animovanymi carkami (sirka tahu 2, barva `#94a3b8`), coz poskytuje jasny vizualni tok zleva doprava.
+Hrany používají typ `smoothstep` s animovanými čárkami (šířka tahu 2, barva `#94a3b8`), což poskytuje jasný vizuální tok zleva doprava.
 
 ## YAML editor
 
-Zalozka YAML poskytuje textovy editor pro pravidlo:
+Záložka YAML poskytuje textový editor pro pravidlo:
 
 ```yaml
 id: high-value-alert
-name: Upozorneni na vysokou hodnotu
+name: Upozornění na vysokou hodnotu
 priority: 10
 enabled: true
 tags:
@@ -244,15 +244,15 @@ actions:
 ```
 
 YAML editor podporuje:
-- Editaci s uvedomenim si syntaxe
-- Tlacitka odeslani/zruseni (stejna jako na zalozce Form)
-- Pri odeslani se YAML parsuje a odesle do stejne mutace `updateRule`
+- Editaci s uvědoměním si syntaxe
+- Tlačítka odeslání/zrušení (stejná jako na záložce Form)
+- Při odeslání se YAML parsuje a odešle do stejné mutace `updateRule`
 
-YAML pohled je uzitecny pro copy-paste definic pravidel, hromadnou upravu a porovnani se souborovymi zdroji pravidel.
+YAML pohled je užitečný pro copy-paste definic pravidel, hromadnou úpravu a porovnání se souborovými zdroji pravidel.
 
-## Historie verzi
+## Historie verzí
 
-Zalozka History ukazuje casovou osu vsech zmen pravidla:
+Záložka History ukazuje časovou osu všech změn pravidla:
 
 ```
 v3 ─── updated ─── 2025-01-15 14:32
@@ -260,76 +260,76 @@ v2 ─── enabled ─── 2025-01-15 10:15
 v1 ─── registered ─── 2025-01-14 09:00
 ```
 
-Kazdy zaznam verze obsahuje:
-- **Cislo verze**
-- **Typ zmeny**: `registered`, `updated`, `enabled`, `disabled`, `unregistered`, `rolled_back`
-- **Casove razitko**
+Každý záznam verze obsahuje:
+- **Číslo verze**
+- **Typ změny**: `registered`, `updated`, `enabled`, `disabled`, `unregistered`, `rolled_back`
+- **Časové razítko**
 - **Popis** (pokud byl uveden)
 
 ### Diffy
 
-Vyberte dve verze pro zobrazeni diffu snimku pravidel, ktery zvyrazni, co se mezi verzemi zmenilo.
+Vyberte dvě verze pro zobrazení diffu snímků pravidel, který zvýrazní, co se mezi verzemi změnilo.
 
 ### Rollback
 
-Kliknete na "Rollback" u jakekoli predchozi verze pro obnoveni pravidla do toho stavu. Toto vytvori novy zaznam verze s `changeType: 'rolled_back'` a zaznamena, ktera verze byla obnovena.
+Klikněte na "Rollback" u jakékoliv předchozí verze pro obnovení pravidla do toho stavu. Toto vytvoří nový záznam verze s `changeType: 'rolled_back'` a zaznamená, která verze byla obnovena.
 
-## Vytvoreni pravidla: kompletni navod
+## Vytvoření pravidla: kompletní návod
 
-Tento navod vytvari pravidlo pres formularovy editor, ktere upozorni na objednavku vysoke hodnoty od VIP zakaznika.
+Tento návod vytváří pravidlo přes formulářový editor, které upozorní na objednávku vysoké hodnoty od VIP zákazníka.
 
-### Krok 1: Navigace na vytvoreni pravidla
+### Krok 1: Navigace na vytvoření pravidla
 
-Stisknete `g n` nebo kliknete na "New Rule" na strance Rules. Formular pro vytvoreni se otevre s prazdnymi vychozimi hodnotami.
+Stiskněte `g n` nebo klikněte na "New Rule" na stránce Rules. Formulář pro vytvoření se otevře s prázdnými výchozími hodnotami.
 
-### Krok 2: Vyplneni metadat
+### Krok 2: Vyplnění metadat
 
 - **ID**: `vip-high-value`
-- **Name**: `VIP objednavka vysoke hodnoty`
-- **Description**: `Upozorneni pri objednavce vysoke hodnoty od VIP zakaznika`
+- **Name**: `VIP objednávka vysoké hodnoty`
+- **Description**: `Upozornění při objednávce vysoké hodnoty od VIP zákazníka`
 - **Priority**: `20`
-- **Enabled**: zaskrtnuto
-- **Tags**: napiste `orders` Enter, `vip` Enter, `alerts` Enter
+- **Enabled**: zaškrtnuto
+- **Tags**: napište `orders` Enter, `vip` Enter, `alerts` Enter
 
 ### Krok 3: Konfigurace triggeru
 
 Vyberte typ triggeru **Event** a nastavte topic na `order.created`.
 
-### Krok 4: Pridani podminek
+### Krok 4: Přidání podmínek
 
-Dvakrat kliknete na "+ Pridat podminku" pro vytvoreni dvou radku podminek:
+Dvakrát klikněte na "+ Přidat podmínku" pro vytvoření dvou řádků podmínek:
 
-**Podminka 1** — Kontrola castky objednavky:
+**Podmínka 1** — Kontrola částky objednávky:
 - Zdroj: `event`
 - Pole: `total`
-- Operator: `>=`
+- Operátor: `>=`
 - Hodnota: `1000`
 
-**Podminka 2** — Kontrola urovne zakaznika:
+**Podmínka 2** — Kontrola úrovně zákazníka:
 - Zdroj: `fact`
 - Pattern: `customer:${event.customerId}:tier`
-- Operator: `eq`
+- Operátor: `eq`
 - Hodnota: `"vip"`
 
-### Krok 5: Pridani akci
+### Krok 5: Přidání akcí
 
-**Akce 1** — Emitovani alertoveho eventu:
+**Akce 1** — Emitování alertového eventu:
 - Typ: `emit_event`
 - Topic: `alert.vip-high-value`
 - Data: `{"orderId": "${event.orderId}", "customerId": "${event.customerId}", "total": "${event.total}"}`
 
-**Akce 2** — Zalogovani alertu:
+**Akce 2** — Zalogování alertu:
 - Typ: `log`
-- Uroven: `info`
-- Zprava: `VIP objednavka vysoke hodnoty: ${event.orderId} ($${event.total})`
+- Úroveň: `info`
+- Zpráva: `VIP objednávka vysoké hodnoty: ${event.orderId} ($${event.total})`
 
-### Krok 6: Odeslani
+### Krok 6: Odeslání
 
-Kliknete na "Create Rule". Formular validuje vsechna pole, transformuje data a odesle mutaci `createRule` pres GraphQL. Po uspechu jste presmerovani na stranku Rule Detail.
+Klikněte na "Create Rule". Formulář validuje všechna pole, transformuje data a odešle mutaci `createRule` přes GraphQL. Po úspěchu jste přesměrováni na stránku Rule Detail.
 
-### Krok 7: Overeni ve Flow
+### Krok 7: Ověření ve Flow
 
-Prepnete na zalozku Flow pro vizualni reprezentaci:
+Přepněte na záložku Flow pro vizuální reprezentaci:
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -344,99 +344,99 @@ Prepnete na zalozku Flow pro vizualni reprezentaci:
                      └──────────────┘     └──────────────┘
 ```
 
-### Krok 8: Testovani
+### Krok 8: Testování
 
-Stisknete `g e` pro navigaci na stranku Events. Pripravte predpoklady:
+Stiskněte `g e` pro navigaci na stránku Events. Připravte předpoklady:
 
-Nejprve zajistete existenci VIP faktu. Prejdete na Facts (`g f`) a vytvorte:
-- Klic: `customer:c-42:tier`
+Nejprve zajistěte existenci VIP faktu. Přejděte na Facts (`g f`) a vytvořte:
+- Klíč: `customer:c-42:tier`
 - Hodnota: `"vip"`
 
-Pak prejdete na Events (`g e`) a emitujte:
+Pak přejděte na Events (`g e`) a emitujte:
 - Topic: `order.created`
 - Data: `{"orderId": "o-99", "customerId": "c-42", "total": 1500}`
 
-Sledujte stream eventu — meli byste videt `order.created` nasledovany `alert.vip-high-value`, kdyz se pravidlo spusti.
+Sledujte stream eventů — měli byste vidět `order.created` následovaný `alert.vip-high-value`, když se pravidlo spustí.
 
-## Cviceni
+## Cvičení
 
-1. Otevrete webove rozhrani a vytvorte pravidlo nazvane "Upozorneni na nizky sklad" s temito specifikacemi:
+1. Otevřete webové rozhraní a vytvořte pravidlo nazvané "Upozornění na nízký sklad" s těmito specifikacemi:
    - Trigger: event `inventory.updated`
-   - Podminka 1: event pole `quantity` mensi nez 10
-   - Podminka 2: fakt `product:${event.productId}:tracked` se rovna `true`
+   - Podmínka 1: event pole `quantity` menší než 10
+   - Podmínka 2: fakt `product:${event.productId}:tracked` se rovná `true`
    - Akce 1: emitujte event `alert.low-stock` s `{ "productId": "${event.productId}", "quantity": "${event.quantity}" }`
    - Akce 2: nastavte fakt `product:${event.productId}:lowStock` na `true`
    - Tagy: `inventory`, `alerts`
    - Priorita: 15
-2. Prepnete na zalozku Flow a overte, ze graf ukazuje 1 trigger, 2 podminky a 2 akce
-3. Nastavte fakt `product:p-1:tracked` na `true` na strance Facts
-4. Emitujte event `inventory.updated` s `{ "productId": "p-1", "quantity": 5 }` ze stranky Events
-5. Overte, ze `product:p-1:lowStock` je `true` na strance Facts
-6. Zobrazte zalozku Version History — potvrdite verzi 1 s typem zmeny `registered`
-7. Upravte pravidlo: zmente prahovou hodnotu mnozstvi z 10 na 20 na zalozce Form
-8. Zkontrolujte zalozku History znovu — potvrdite verzi 2 s typem zmeny `updated`
+2. Přepněte na záložku Flow a ověřte, že graf ukazuje 1 trigger, 2 podmínky a 2 akce
+3. Nastavte fakt `product:p-1:tracked` na `true` na stránce Facts
+4. Emitujte event `inventory.updated` s `{ "productId": "p-1", "quantity": 5 }` ze stránky Events
+5. Ověřte, že `product:p-1:lowStock` je `true` na stránce Facts
+6. Zobrazte záložku Version History — potvrďte verzi 1 s typem změny `registered`
+7. Upravte pravidlo: změňte prahovou hodnotu množství z 10 na 20 na záložce Form
+8. Zkontrolujte záložku History znovu — potvrďte verzi 2 s typem změny `updated`
 
 <details>
-<summary>Reseni</summary>
+<summary>Řešení</summary>
 
-Vytvorte pravidlo pres zalozku Form:
+Vytvořte pravidlo přes záložku Form:
 
 **Metadata:**
 - ID: `low-stock-alert`
-- Name: `Upozorneni na nizky sklad`
+- Name: `Upozornění na nízký sklad`
 - Priority: 15
-- Enabled: zaskrtnuto
+- Enabled: zaškrtnuto
 - Tags: `inventory`, `alerts`
 
 **Trigger:**
 - Typ: Event
 - Topic: `inventory.updated`
 
-**Podminky:**
-- Podminka 1: Zdroj `event`, pole `quantity`, operator `<`, hodnota `10`
-- Podminka 2: Zdroj `fact`, pattern `product:${event.productId}:tracked`, operator `eq`, hodnota `true`
+**Podmínky:**
+- Podmínka 1: Zdroj `event`, pole `quantity`, operátor `<`, hodnota `10`
+- Podmínka 2: Zdroj `fact`, pattern `product:${event.productId}:tracked`, operátor `eq`, hodnota `true`
 
 **Akce:**
 - Akce 1: Typ `emit_event`, topic `alert.low-stock`, data `{"productId": "${event.productId}", "quantity": "${event.quantity}"}`
-- Akce 2: Typ `set_fact`, klic `product:${event.productId}:lowStock`, hodnota `true`
+- Akce 2: Typ `set_fact`, klíč `product:${event.productId}:lowStock`, hodnota `true`
 
-Kliknete na "Create Rule".
+Klikněte na "Create Rule".
 
-**Zalozka Flow** ukazuje:
+**Záložka Flow** ukazuje:
 ```
 [Event Trigger: inventory.updated]
   → [Event: quantity < 10]     → [Emit Event: alert.low-stock]
   → [Fact: product:*:tracked = true] → [Set Fact: product:*:lowStock]
 ```
 
-**Stranka Facts** (`g f`): Vytvorte `product:p-1:tracked` s hodnotou `true`
+**Stránka Facts** (`g f`): Vytvořte `product:p-1:tracked` s hodnotou `true`
 
-**Stranka Events** (`g e`): Emitujte topic `inventory.updated`, data `{"productId": "p-1", "quantity": 5}`
+**Stránka Events** (`g e`): Emitujte topic `inventory.updated`, data `{"productId": "p-1", "quantity": 5}`
 
-**Stranka Facts**: `product:p-1:lowStock` je nyni `true`
+**Stránka Facts**: `product:p-1:lowStock` je nyní `true`
 
-**Zalozka History**: Ukazuje v1 `registered`
+**Záložka History**: Ukazuje v1 `registered`
 
-**Zalozka Form**: Zmente hodnotu podminky 1 z `10` na `20`, kliknete na "Save Changes"
+**Záložka Form**: Změňte hodnotu podmínky 1 z `10` na `20`, klikněte na "Save Changes"
 
-**Zalozka History**: Nyni ukazuje v2 `updated` a v1 `registered`
+**Záložka History**: Nyní ukazuje v2 `updated` a v1 `registered`
 
 </details>
 
-## Shrnuti
+## Shrnutí
 
-- Stranka Rule Detail ma ctyri zalozky: **Form** (strukturovany editor), **YAML** (textovy editor), **Flow** (vizualni diagram), **History** (casova osa verzi)
-- Formularovy editor organizuje tvorbu pravidel do Metadat, Triggeru, Podminek a Akci se Zod validaci
-- Selektor triggeru dynamicky meni vstupni pole (pattern/topic/name) podle typu triggeru
-- Builder podminek podporuje vsechny typy zdroju (`event`, `fact`, `context`, `lookup`, `baseline`) a operatory, s automatickym skrytim pole hodnoty pro unarni operatory
-- Builder akci prizpusobuje sva pole kazdemu typu akce (`set_fact`, `emit_event`, `set_timer`, `call_service`, `log` atd.)
-- `formDataToInput()` transformuje mezilehlou formularovou reprezentaci (surove JSON retezce) na vstupni format API, parsuje hodnoty a filtruje nerelevantni pole
-- Flow pohled pouziva `ruleToFlow()` pro vytvoreni trisloupacoveho React Flow grafu: Trigger → Podminky → Akce s barevne odlisenymi, pretahovatelnymi uzly
-- Hrany pouzivaji animovane `smoothstep` propojeni s MiniMapou a ovladacim panelem pro zoom
-- YAML editor poskytuje textovou alternativu pro hromadnou upravu a export
-- Historie verzi ukazuje casovou osu zmen s diffy a moznosti rollbacku
-- Rollback vytvari novy zaznam verze s `changeType: 'rolled_back'` misto prepisu historie
+- Stránka Rule Detail má čtyři záložky: **Form** (strukturovaný editor), **YAML** (textový editor), **Flow** (vizuální diagram), **History** (časová osa verzí)
+- Formulářový editor organizuje tvorbu pravidel do Metadat, Triggeru, Podmínek a Akcí se Zod validací
+- Selektor triggeru dynamicky mění vstupní pole (pattern/topic/name) podle typu triggeru
+- Builder podmínek podporuje všechny typy zdrojů (`event`, `fact`, `context`, `lookup`, `baseline`) a operátory, s automatickým skrytím pole hodnoty pro unární operátory
+- Builder akcí přizpůsobuje svá pole každému typu akce (`set_fact`, `emit_event`, `set_timer`, `call_service`, `log` atd.)
+- `formDataToInput()` transformuje mezilehlou formulářovou reprezentaci (surové JSON řetězce) na vstupní formát API, parsuje hodnoty a filtruje nerelevantní pole
+- Flow pohled používá `ruleToFlow()` pro vytvoření třísloupcového React Flow grafu: Trigger → Podmínky → Akce s barevně odlišenými, přetahovatelnými uzly
+- Hrany používají animované `smoothstep` propojení s MiniMapou a ovládacím panelem pro zoom
+- YAML editor poskytuje textovou alternativu pro hromadnou úpravu a export
+- Historie verzí ukazuje časovou osu změn s diffy a možností rollbacku
+- Rollback vytváří nový záznam verze s `changeType: 'rolled_back'` místo přepisu historie
 
 ---
 
-Dalsi: [Pravidlovy system pro e-shop](../12-projekty/01-eshop.md)
+Další: [Pravidlový systém pro e-shop](../12-projekty/01-eshop.md)
