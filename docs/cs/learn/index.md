@@ -146,7 +146,7 @@ Každá kapitola obsahuje:
 
 ## Získání pomoci
 
-- [API Reference](../../../README.md) - Kompletní API dokumentace
+- [API Reference](../reference/index.md) - Kompletní API dokumentace
 - [Průvodce migrací](../../migration-to-dsl.md) - Migrace na DSL
 
 ---

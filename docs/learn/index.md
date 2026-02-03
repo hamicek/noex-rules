@@ -146,7 +146,7 @@ Each chapter includes:
 
 ## Getting Help
 
-- [API Reference](../../README.md) - Complete API documentation
+- [API Reference](../reference/index.md) - Complete API documentation
 - [Migration Guide](../migration-to-dsl.md) - Migrating to the DSL
 
 ---
