@@ -5,3 +5,4 @@ dist/
 .wf
 ui/dist/
 ui/dist-fastify/
+tsconfig.tsbuildinfo
