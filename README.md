@@ -959,6 +959,38 @@ Webhook payloads include HMAC signature in `X-Webhook-Signature` header when sec
 
 Swagger UI is available at `http://localhost:3000/docs` when the server is running with `swagger: true` (default).
 
+## Comparison
+
+How noex-rules compares to other JavaScript / TypeScript rule engines:
+
+| Feature | noex-rules | json-rules-engine | nools | node-rules | rools | zen-engine |
+|---------|:----------:|:-----------------:|:-----:|:----------:|:-----:|:----------:|
+| Forward chaining | Yes | Yes | Yes (Rete) | Yes | Yes | Decision tables |
+| CEP / Temporal patterns | Sequence, absence, count, aggregate | — | — | — | — | — |
+| DSL | Fluent builder + tagged templates | JSON only | Custom DSL | JSON only | Plain objects | DMN / FEEL |
+| YAML rule definitions | Built-in loader | — | — | — | — | — |
+| Fact store with pattern matching | Built-in (wildcard queries) | Almanac | Working memory | — | — | — |
+| Timer management | Built-in (duration DSL, repeat) | — | — | — | — | — |
+| Event correlation | Correlation + causation IDs | — | — | — | — | — |
+| Wildcard event subscriptions | Topic patterns (`order.*`) | — | — | — | — | — |
+| REST API | Built-in (Fastify) | — | — | — | — | — |
+| SSE + Webhooks | Built-in | — | — | — | — | — |
+| String interpolation | `${expression}` in keys & values | — | JS in DSL | — | — | FEEL expressions |
+| External service calls | `call_service` action | Custom operators | Custom functions | Custom handlers | — | Custom nodes |
+| OTP supervision | noex GenServer | — | — | — | — | — |
+| Priority-based execution | Yes | Yes | Salience | Yes | Yes | Row order |
+| OpenAPI / Swagger | Built-in | — | — | — | — | — |
+| Status | Active | Active | Archived | Low activity | Active | Active |
+
+**Key differentiators:**
+
+- **Complex Event Processing** — noex-rules is the only JS rule engine with built-in CEP: sequence detection, absence monitoring, frequency counting, and aggregate thresholds — all with time windows and groupBy support.
+- **Three DSL flavors** — fluent builder API with full TypeScript autocomplete, tagged template literals for quick prototyping, and YAML loading for configuration-driven workflows. No other JS engine offers all three.
+- **Integrated fact store** — wildcard pattern queries (`customer:*:tier`) with automatic rule re-evaluation on fact changes. No separate state management needed.
+- **Built-in timer management** — declarative timers with human-readable durations (`'15m'`), repeat intervals, and automatic event emission on expiry. Other engines require external scheduling.
+- **Production-ready REST API** — Fastify-based HTTP layer with SSE streaming, webhook delivery (HMAC-signed), and Swagger documentation out of the box.
+- **OTP supervision** — built on noex GenServer actors; if the engine crashes, the supervisor restarts it while the rest of the application continues.
+
 ## Architecture
 
 ```
