@@ -18,7 +18,8 @@ export type TraceEntryType =
   | 'timer_expired'
   | 'lookup_resolved'
   | 'backward_goal_evaluated'
-  | 'backward_rule_explored';
+  | 'backward_rule_explored'
+  | 'forward_chaining_limit';
 
 /** A single trace entry recording an engine activity */
 export interface DebugTraceEntry {

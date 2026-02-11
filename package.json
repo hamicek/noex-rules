@@ -1,6 +1,6 @@
 {
   "name": "@hamicek/noex-rules",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rule Engine with Complex Event Processing (CEP) built on noex",
   "type": "module",
   "main": "./dist/index.js",
