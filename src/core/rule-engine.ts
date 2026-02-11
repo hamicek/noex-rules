@@ -108,6 +108,7 @@ export class RuleEngine {
     this.config = {
       name: config.name ?? 'rule-engine',
       maxConcurrency: config.maxConcurrency ?? 10,
+      maxForwardDepth: config.maxForwardDepth ?? 10,
       debounceMs: config.debounceMs ?? 0,
       services: config.services ?? {}
     };
@@ -1297,6 +1298,19 @@ export class RuleEngine {
     // Pokud jsme již uvnitř zpracování pravidla (např. emit_event v akci),
     // zpracujeme přímo bez čekání na frontu - předejdeme deadlocku
     if (this.processingDepth > 0) {
+      if (this.processingDepth >= this.config.maxForwardDepth) {
+        this.traceCollector.record('forward_chaining_limit', {
+          depth: this.processingDepth,
+          maxForwardDepth: this.config.maxForwardDepth,
+          triggerType: trigger.type,
+          triggerData: trigger.type === 'event'
+            ? { topic: (trigger.data as Event).topic }
+            : trigger.type === 'fact'
+              ? { key: (trigger.data as Fact).key }
+              : { name: (trigger.data as Timer).name }
+        });
+        return;
+      }
       await this.processTriggeredRules(trigger);
       return;
     }

@@ -117,6 +117,7 @@ export interface AuditPersistenceConfig {
 export interface RuleEngineConfig {
   name?: string;
   maxConcurrency?: number;        // Max paralelních vyhodnocení
+  maxForwardDepth?: number;       // Max hloubka forward chaining rekurze (default: 10)
   debounceMs?: number;            // Debounce pro změny faktů
   persistence?: PersistenceConfig;
   services?: Record<string, unknown>;  // Externí služby pro call_service
