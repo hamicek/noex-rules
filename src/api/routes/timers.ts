@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Timer } from '../../types/timer.js';
-import { NotFoundError } from '../middleware/error-handler.js';
+import { NotFoundError, ValidationError } from '../middleware/error-handler.js';
 import { timersSchemas } from '../schemas/timer.js';
 
 interface TimerParams {
@@ -9,7 +9,7 @@ interface TimerParams {
 
 interface CreateTimerBody {
   name: string;
-  duration: string | number;
+  duration?: string | number;
   onExpire: {
     topic: string;
     data?: Record<string, unknown>;
@@ -18,6 +18,8 @@ interface CreateTimerBody {
     interval: string | number;
     maxCount?: number;
   };
+  cron?: string;
+  maxCount?: number;
 }
 
 export async function registerTimersRoutes(fastify: FastifyInstance): Promise<void> {
@@ -46,24 +48,39 @@ export async function registerTimersRoutes(fastify: FastifyInstance): Promise<vo
     '/timers',
     { schema: timersSchemas.create },
     async (request, reply): Promise<Timer> => {
-      const { name, duration, onExpire, repeat } = request.body;
+      const { name, duration, onExpire, repeat, cron, maxCount } = request.body;
+
+      if (!cron && duration === undefined) {
+        throw new ValidationError('Missing required field: duration (or use cron for scheduled timers)');
+      }
 
       const timerConfig: {
         name: string;
-        duration: string | number;
+        duration?: string | number;
         onExpire: { topic: string; data: Record<string, unknown> };
         repeat?: { interval: string | number; maxCount?: number };
+        cron?: string;
+        maxCount?: number;
       } = {
         name,
-        duration,
         onExpire: {
           topic: onExpire.topic,
           data: onExpire.data ?? {}
         }
       };
 
-      if (repeat) {
-        timerConfig.repeat = repeat;
+      if (cron) {
+        timerConfig.cron = cron;
+        if (maxCount !== undefined) {
+          timerConfig.maxCount = maxCount;
+        }
+      } else {
+        if (duration !== undefined) {
+          timerConfig.duration = duration;
+        }
+        if (repeat) {
+          timerConfig.repeat = repeat;
+        }
       }
 
       const timer = await engine.setTimer(timerConfig);

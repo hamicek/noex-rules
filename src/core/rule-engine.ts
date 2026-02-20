@@ -757,7 +757,7 @@ export class RuleEngine {
    */
   async setTimer(config: {
     name: string;
-    duration: string | number;
+    duration?: string | number | undefined;
     onExpire: {
       topic: string;
       data: Record<string, unknown>;
@@ -766,6 +766,8 @@ export class RuleEngine {
       interval: string | number;
       maxCount?: number;
     };
+    cron?: string;
+    maxCount?: number;
   }): Promise<Timer> {
     this.ensureRunning();
     const timer = await this.timerManager.setTimer(config);
@@ -773,7 +775,8 @@ export class RuleEngine {
     this.traceCollector.record('timer_set', {
       timerId: timer.id,
       timerName: timer.name,
-      duration: config.duration,
+      ...(config.duration !== undefined && { duration: config.duration }),
+      ...(config.cron !== undefined && { cron: config.cron }),
       expiresAt: timer.expiresAt,
       onExpire: timer.onExpire,
       repeat: config.repeat

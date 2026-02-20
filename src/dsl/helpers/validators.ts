@@ -8,6 +8,7 @@
  */
 
 import { DslValidationError } from './errors.js';
+import { Cron } from 'croner';
 
 const DURATION_RE = /^\d+(ms|s|m|h|d|w|y)$/;
 
@@ -47,6 +48,26 @@ export function requireDuration(value: unknown, label: string): asserts value is
   if (typeof value !== 'string' || !DURATION_RE.test(value)) {
     throw new DslValidationError(
       `${label} must be a duration string (e.g. "5s", "15m", "24h", "7d") or positive number (ms), got ${JSON.stringify(value)}`,
+    );
+  }
+}
+
+/**
+ * Asserts that `value` is a valid cron expression.
+ *
+ * @param value - The value to validate.
+ * @param label - A human-readable parameter name used in the error message.
+ * @throws {DslValidationError} If `value` is not a valid cron expression.
+ */
+export function requireCronExpression(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new DslValidationError(`${label} must be a non-empty cron expression string`);
+  }
+  try {
+    new Cron(value);
+  } catch {
+    throw new DslValidationError(
+      `${label} must be a valid cron expression (e.g. "0 8 * * MON", "*/5 * * * *"), got ${JSON.stringify(value)}`,
     );
   }
 }

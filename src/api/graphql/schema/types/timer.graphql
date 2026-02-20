@@ -25,6 +25,8 @@ type Timer {
   onExpire: TimerExpireConfig!
   """Optional repeat configuration."""
   repeat: TimerRepeatConfig
+  """Cron expression for scheduled timers (e.g. "0 8 * * MON")."""
+  cron: String
   """Correlation ID linking to originating context."""
   correlationId: String
 }
@@ -44,8 +46,12 @@ input TimerRepeatInput {
 
 input CreateTimerInput {
   name: String!
-  """Duration as string ("15m", "24h", "7d") or numeric ms string."""
-  duration: String!
+  """Duration as string ("15m", "24h", "7d") or numeric ms string. Required unless cron is set."""
+  duration: String
   onExpire: TimerExpireInput!
   repeat: TimerRepeatInput
+  """Cron expression (e.g. "0 8 * * MON"). Mutually exclusive with duration/repeat."""
+  cron: String
+  """Maximum number of cron firings. Only used with cron."""
+  maxCount: Int
 }

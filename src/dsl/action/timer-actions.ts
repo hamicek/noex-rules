@@ -2,7 +2,7 @@ import type { RuleAction } from '../../types/action.js';
 import type { TimerConfig } from '../../types/timer.js';
 import type { ActionBuilder } from '../types.js';
 import { normalizeRefData } from '../helpers/ref.js';
-import { requireNonEmptyString, requireDuration } from '../helpers/validators.js';
+import { requireNonEmptyString, requireDuration, requireCronExpression } from '../helpers/validators.js';
 import { DslValidationError } from '../helpers/errors.js';
 
 /**
@@ -11,8 +11,8 @@ import { DslValidationError } from '../helpers/errors.js';
 export interface SetTimerOptions {
   /** Unique timer name. */
   name: string;
-  /** Duration until expiration (string or milliseconds). */
-  duration: string | number;
+  /** Duration until expiration (string or milliseconds). Required unless `cron` is set. */
+  duration?: string | number;
   /** Event emitted when the timer expires. */
   onExpire: {
     /** Topic of the emitted event. */
@@ -20,13 +20,17 @@ export interface SetTimerOptions {
     /** Optional event payload (values may be {@link ref}). */
     data?: Record<string, unknown>;
   };
-  /** Optional repeat configuration. */
+  /** Optional repeat configuration (mutually exclusive with `cron`). */
   repeat?: {
     /** Interval between repetitions (string or milliseconds). */
     interval: string | number;
     /** Maximum number of repetitions. */
     maxCount?: number;
   };
+  /** Cron expression for scheduling (e.g. "0 8 * * MON"). Mutually exclusive with `duration`/`repeat`. */
+  cron?: string;
+  /** Maximum number of cron firings. Only used with `cron`. */
+  maxCount?: number;
 }
 
 /** @internal */
@@ -35,29 +39,52 @@ class SetTimerBuilder implements ActionBuilder {
 
   constructor(config: SetTimerOptions) {
     requireNonEmptyString(config.name, 'setTimer() config.name');
-    requireDuration(config.duration, 'setTimer() config.duration');
     requireNonEmptyString(config.onExpire.topic, 'setTimer() config.onExpire.topic');
-    if (config.repeat) {
-      requireDuration(config.repeat.interval, 'setTimer() config.repeat.interval');
+
+    if (config.cron && config.duration) {
+      throw new DslValidationError('setTimer(): cron and duration are mutually exclusive');
     }
+    if (config.cron && config.repeat) {
+      throw new DslValidationError('setTimer(): cron and repeat are mutually exclusive');
+    }
+
+    if (config.cron) {
+      requireCronExpression(config.cron, 'setTimer() config.cron');
+    } else {
+      if (config.duration === undefined) {
+        throw new DslValidationError('setTimer(): either duration or cron must be specified');
+      }
+      requireDuration(config.duration, 'setTimer() config.duration');
+      if (config.repeat) {
+        requireDuration(config.repeat.interval, 'setTimer() config.repeat.interval');
+      }
+    }
+
     this.config = config;
   }
 
   build(): RuleAction {
     const timerConfig: TimerConfig = {
       name: this.config.name,
-      duration: this.config.duration,
       onExpire: {
         topic: this.config.onExpire.topic,
         data: this.config.onExpire.data ? normalizeRefData(this.config.onExpire.data) : {},
       },
     };
 
-    if (this.config.repeat) {
-      timerConfig.repeat = {
-        interval: this.config.repeat.interval,
-        maxCount: this.config.repeat.maxCount,
-      };
+    if (this.config.cron) {
+      timerConfig.cron = this.config.cron;
+      if (this.config.maxCount !== undefined) {
+        timerConfig.maxCount = this.config.maxCount;
+      }
+    } else {
+      timerConfig.duration = this.config.duration;
+      if (this.config.repeat) {
+        timerConfig.repeat = {
+          interval: this.config.repeat.interval,
+          maxCount: this.config.repeat.maxCount,
+        };
+      }
     }
 
     return {
@@ -70,7 +97,9 @@ class SetTimerBuilder implements ActionBuilder {
 /** @internal Fluent builder returned by `setTimer(name)`. */
 class TimerFluentBuilder implements ActionBuilder {
   private readonly timerName: string;
-  private timerDuration: string | number = '1m';
+  private timerDuration?: string | number;
+  private cronExpression?: string;
+  private cronMaxCount?: number;
   private expireTopic: string = '';
   private expireData: Record<string, unknown> = {};
   private repeatInterval?: string | number;
@@ -81,7 +110,7 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Sets the duration before the timer expires.
+   * Sets the duration before the timer expires (mutually exclusive with {@link cron}).
    *
    * @param duration - Duration string (e.g. `"15m"`, `"24h"`) or milliseconds.
    * @returns `this` for chaining.
@@ -89,6 +118,22 @@ class TimerFluentBuilder implements ActionBuilder {
   after(duration: string | number): TimerFluentBuilder {
     requireDuration(duration, 'setTimer().after() duration');
     this.timerDuration = duration;
+    return this;
+  }
+
+  /**
+   * Sets a cron schedule (mutually exclusive with {@link after} and {@link repeat}).
+   *
+   * @param expression - Cron expression (e.g. `"0 8 * * MON"`, `"*​/5 * * * *"`).
+   * @param maxCount - Optional maximum number of firings.
+   * @returns `this` for chaining.
+   */
+  cron(expression: string, maxCount?: number): TimerFluentBuilder {
+    requireCronExpression(expression, 'setTimer().cron() expression');
+    this.cronExpression = expression;
+    if (maxCount !== undefined) {
+      this.cronMaxCount = maxCount;
+    }
     return this;
   }
 
@@ -107,7 +152,7 @@ class TimerFluentBuilder implements ActionBuilder {
   }
 
   /**
-   * Configures the timer to repeat after each expiration.
+   * Configures the timer to repeat after each expiration (mutually exclusive with {@link cron}).
    *
    * @param interval - Repeat interval (string or milliseconds).
    * @param maxCount - Optional maximum number of repetitions.
@@ -129,20 +174,38 @@ class TimerFluentBuilder implements ActionBuilder {
       );
     }
 
+    if (this.cronExpression && this.timerDuration) {
+      throw new DslValidationError(
+        `Timer "${this.timerName}": .cron() and .after() are mutually exclusive`
+      );
+    }
+    if (this.cronExpression && this.repeatInterval) {
+      throw new DslValidationError(
+        `Timer "${this.timerName}": .cron() and .repeat() are mutually exclusive`
+      );
+    }
+
     const timerConfig: TimerConfig = {
       name: this.timerName,
-      duration: this.timerDuration,
       onExpire: {
         topic: this.expireTopic,
         data: normalizeRefData(this.expireData),
       },
     };
 
-    if (this.repeatInterval !== undefined) {
-      timerConfig.repeat = {
-        interval: this.repeatInterval,
-        maxCount: this.repeatMaxCount,
-      };
+    if (this.cronExpression) {
+      timerConfig.cron = this.cronExpression;
+      if (this.cronMaxCount !== undefined) {
+        timerConfig.maxCount = this.cronMaxCount;
+      }
+    } else {
+      timerConfig.duration = this.timerDuration ?? '1m';
+      if (this.repeatInterval !== undefined) {
+        timerConfig.repeat = {
+          interval: this.repeatInterval,
+          maxCount: this.repeatMaxCount,
+        };
+      }
     }
 
     return {
@@ -189,6 +252,14 @@ class CancelTimerBuilder implements ActionBuilder {
  *   .after('15m')
  *   .emit('order.payment_timeout', { orderId: ref('event.orderId') })
  *   .repeat('5m', 3)
+ * ```
+ *
+ * **3. Cron scheduling** — use a cron expression instead of duration:
+ * @example
+ * ```typescript
+ * setTimer('weekly-report')
+ *   .cron('0 8 * * MON')
+ *   .emit('report.generate', { type: 'weekly' })
  * ```
  *
  * @param nameOrConfig - Timer name (fluent) or a complete

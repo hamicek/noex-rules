@@ -53,6 +53,7 @@
     "@fastify/swagger-ui": "^5.2.5",
     "@hamicek/noex": "^0.1.0",
     "cac": "^6.7.14",
+    "croner": "^10.0.1",
     "dataloader": "^2.2.3",
     "fastify": "^5.7.2",
     "graphql": "^16.9.0",

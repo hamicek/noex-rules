@@ -472,26 +472,42 @@ function validateTimerConfig(obj: unknown, path: string): TimerConfig {
   const expObj = requireObject(requireField(o, 'onExpire', path), `${path}.onExpire`);
   const expData = get(expObj, 'data') ?? {};
 
+  const cronValue = get(o, 'cron');
+  const durationValue = get(o, 'duration');
+
+  if (cronValue !== undefined && durationValue !== undefined) {
+    throw new YamlValidationError('cron and duration are mutually exclusive', path);
+  }
+
   const config: TimerConfig = {
     name: requireString(requireField(o, 'name', path), `${path}.name`),
-    duration: requireDuration(requireField(o, 'duration', path), `${path}.duration`),
     onExpire: {
       topic: requireString(requireField(expObj, 'topic', `${path}.onExpire`), `${path}.onExpire.topic`),
       data: normalizeValue(expData) as Record<string, unknown | { ref: string }>,
     },
   };
 
-  const repeat = get(o, 'repeat');
-  if (repeat !== undefined) {
-    const rep = requireObject(repeat, `${path}.repeat`);
-    const repeatObj: NonNullable<TimerConfig['repeat']> = {
-      interval: requireDuration(requireField(rep, 'interval', `${path}.repeat`), `${path}.repeat.interval`),
-    };
-    const maxCount = get(rep, 'maxCount');
+  if (cronValue !== undefined) {
+    config.cron = requireString(cronValue, `${path}.cron`);
+    const maxCount = get(o, 'maxCount');
     if (maxCount !== undefined) {
-      repeatObj.maxCount = requireNumber(maxCount, `${path}.repeat.maxCount`);
+      config.maxCount = requireNumber(maxCount, `${path}.maxCount`);
     }
-    config.repeat = repeatObj;
+  } else {
+    config.duration = requireDuration(requireField(o, 'duration', path), `${path}.duration`);
+
+    const repeat = get(o, 'repeat');
+    if (repeat !== undefined) {
+      const rep = requireObject(repeat, `${path}.repeat`);
+      const repeatObj: NonNullable<TimerConfig['repeat']> = {
+        interval: requireDuration(requireField(rep, 'interval', `${path}.repeat`), `${path}.repeat.interval`),
+      };
+      const maxCount = get(rep, 'maxCount');
+      if (maxCount !== undefined) {
+        repeatObj.maxCount = requireNumber(maxCount, `${path}.repeat.maxCount`);
+      }
+      config.repeat = repeatObj;
+    }
   }
 
   return config;

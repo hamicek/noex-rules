@@ -4,7 +4,7 @@ import { NotFoundError } from '../../middleware/error-handler.js';
 
 interface CreateTimerInput {
   name: string;
-  duration: string;
+  duration?: string;
   onExpire: {
     topic: string;
     data?: Record<string, unknown>;
@@ -13,6 +13,8 @@ interface CreateTimerInput {
     interval: string;
     maxCount?: number;
   };
+  cron?: string;
+  maxCount?: number;
 }
 
 export const timerResolvers = {
@@ -30,21 +32,32 @@ export const timerResolvers = {
       args: { input: CreateTimerInput },
       ctx: GraphQLContext,
     ): Promise<Timer> => {
-      const { name, duration, onExpire, repeat } = args.input;
+      const { name, duration, onExpire, repeat, cron, maxCount } = args.input;
 
       const config: {
         name: string;
-        duration: string;
+        duration?: string;
         onExpire: { topic: string; data: Record<string, unknown> };
         repeat?: { interval: string; maxCount?: number };
+        cron?: string;
+        maxCount?: number;
       } = {
         name,
-        duration,
         onExpire: { topic: onExpire.topic, data: onExpire.data ?? {} },
       };
 
-      if (repeat) {
-        config.repeat = repeat;
+      if (cron) {
+        config.cron = cron;
+        if (maxCount !== undefined) {
+          config.maxCount = maxCount;
+        }
+      } else {
+        if (duration !== undefined) {
+          config.duration = duration;
+        }
+        if (repeat) {
+          config.repeat = repeat;
+        }
       }
 
       return ctx.engine.setTimer(config);

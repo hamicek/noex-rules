@@ -3,6 +3,7 @@ import { generateId } from '../utils/id-generator.js';
 import { parseDuration } from '../utils/duration-parser.js';
 import { GenServer, TimerService } from '@hamicek/noex';
 import type { StorageAdapter } from '@hamicek/noex';
+import { Cron } from 'croner';
 
 export interface TimerManagerConfig {
   adapter?: StorageAdapter;
@@ -54,10 +55,22 @@ export class TimerManager {
 
   /**
    * Nastaví nový timer.
+   *
+   * Podporuje dva režimy:
+   * - **duration** — klasický timer s volitelným repeat
+   * - **cron** — plánování podle cron výrazu ("0 8 * * MON")
    */
   async setTimer(config: TimerConfig, correlationId?: string): Promise<Timer> {
     if (this.timers.has(config.name)) {
       await this.cancelTimer(config.name);
+    }
+
+    if (config.cron) {
+      return this.setCronTimer(config, correlationId);
+    }
+
+    if (config.duration === undefined) {
+      throw new Error(`Timer "${config.name}": either duration or cron must be specified`);
     }
 
     const duration = parseDuration(config.duration);
@@ -161,6 +174,97 @@ export class TimerManager {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //                             CRON MODE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async setCronTimer(config: TimerConfig, correlationId?: string): Promise<Timer> {
+    const delayMs = computeCronDelay(config.cron!);
+
+    const timer: Timer = {
+      id: generateId(),
+      name: config.name,
+      expiresAt: Date.now() + delayMs,
+      onExpire: {
+        topic: config.onExpire.topic,
+        data: config.onExpire.data as Record<string, unknown>
+      },
+      cron: config.cron,
+      correlationId
+    };
+
+    this.timers.set(config.name, timer);
+
+    if (this.useDurable) {
+      await this.scheduleDurableCronTimer(timer, delayMs, config.maxCount);
+    } else {
+      this.scheduleFallbackCronTimer(timer, config.maxCount, 0);
+    }
+
+    return timer;
+  }
+
+  private scheduleFallbackCronTimer(timer: Timer, maxCount: number | undefined, fireCount: number): void {
+    const delayMs = computeCronDelay(timer.cron!);
+
+    const updatedTimer: Timer = {
+      ...timer,
+      expiresAt: Date.now() + delayMs
+    };
+    this.timers.set(timer.name, updatedTimer);
+
+    const handle = setTimeout(() => {
+      void this.handleCronTimerExpired(timer.name, maxCount, fireCount);
+    }, delayMs);
+    this.handles.set(timer.name, handle);
+  }
+
+  private async handleCronTimerExpired(
+    name: string,
+    maxCount: number | undefined,
+    fireCount: number
+  ): Promise<void> {
+    const timer = this.timers.get(name);
+    if (!timer) return;
+
+    if (this.onExpireCallback) {
+      await this.onExpireCallback(timer);
+    }
+
+    const newFireCount = fireCount + 1;
+
+    if (maxCount !== undefined && newFireCount >= maxCount) {
+      this.timers.delete(name);
+      this.handles.delete(name);
+      return;
+    }
+
+    this.scheduleFallbackCronTimer(timer, maxCount, newFireCount);
+  }
+
+  private async scheduleDurableCronTimer(timer: Timer, delayMs: number, maxCount?: number): Promise<void> {
+    const durableTimerId = await TimerService.schedule(
+      this.timerServiceRef!,
+      this.receiverRef!,
+      { type: 'timer_expired', name: timer.name } as ReceiverCastMsg,
+      delayMs
+    );
+
+    const meta: TimerMetadata = {
+      name: timer.name,
+      durableTimerId,
+      timerId: timer.id,
+      onExpire: timer.onExpire,
+      fireCount: 0,
+      ...(timer.cron !== undefined && { cronExpression: timer.cron }),
+      ...(timer.correlationId !== undefined && { correlationId: timer.correlationId }),
+      ...(maxCount !== undefined && { maxCount }),
+    };
+
+    this.metadata.set(timer.name, meta);
+    await this.persistTimerMetadata();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //                            DURABLE MODE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -226,7 +330,26 @@ export class TimerManager {
       await this.onExpireCallback(timer);
     }
 
-    if (timer.repeat) {
+    if (timer.cron) {
+      meta.fireCount++;
+
+      if (meta.maxCount !== undefined && meta.fireCount >= meta.maxCount) {
+        this.timers.delete(name);
+        this.metadata.delete(name);
+      } else {
+        const delayMs = computeCronDelay(timer.cron);
+        const newDurableTimerId = await TimerService.schedule(
+          this.timerServiceRef!,
+          this.receiverRef!,
+          { type: 'timer_expired', name } as ReceiverCastMsg,
+          delayMs
+        );
+        meta.durableTimerId = newDurableTimerId;
+
+        const updatedTimer: Timer = { ...timer, expiresAt: Date.now() + delayMs };
+        this.timers.set(name, updatedTimer);
+      }
+    } else if (timer.repeat) {
       meta.fireCount++;
 
       if (meta.maxCount !== undefined && meta.fireCount >= meta.maxCount) {
@@ -274,7 +397,11 @@ export class TimerManager {
       // Cancel old timer (targets previous receiver) and reschedule with current receiver
       await TimerService.cancel(this.timerServiceRef!, entry.durableTimerId);
 
-      const remainingMs = Math.max(0, durableEntry.fireAt - Date.now());
+      // Cron timery: přepočítat delay od teď; ostatní: zbývající čas
+      const remainingMs = entry.cronExpression
+        ? computeCronDelay(entry.cronExpression)
+        : Math.max(0, durableEntry.fireAt - Date.now());
+
       const scheduleOptions = entry.repeatIntervalMs
         ? { repeat: entry.repeatIntervalMs }
         : undefined;
@@ -290,11 +417,12 @@ export class TimerManager {
       const timer: Timer = {
         id: entry.timerId,
         name: entry.name,
-        expiresAt: durableEntry.fireAt,
+        expiresAt: Date.now() + remainingMs,
         onExpire: entry.onExpire,
         repeat: entry.repeatIntervalMs
           ? { interval: entry.repeatIntervalMs, maxCount: entry.maxCount }
           : undefined,
+        cron: entry.cronExpression,
         correlationId: entry.correlationId,
       };
 
@@ -342,4 +470,19 @@ export class TimerManager {
       this.handles.delete(name);
     }
   }
+}
+
+/**
+ * Spočítá delay v ms do příštího spuštění cron výrazu.
+ * Vyhodí chybu pokud je výraz neplatný nebo nemá další spuštění.
+ */
+function computeCronDelay(expression: string): number {
+  const cron = new Cron(expression);
+  const nextRun = cron.nextRun();
+
+  if (!nextRun) {
+    throw new Error(`Cron expression "${expression}" has no next run`);
+  }
+
+  return Math.max(0, nextRun.getTime() - Date.now());
 }

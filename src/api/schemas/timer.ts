@@ -17,6 +17,7 @@ export const timerSchema = {
         maxCount: { type: 'number' }
       }
     },
+    cron: { type: 'string', description: 'Cron expression (e.g. "0 8 * * MON")' },
     onExpire: {
       type: 'object',
       properties: {
@@ -58,9 +59,11 @@ export const createTimerBodySchema = {
         maxCount: { type: 'number', description: 'Maximum repeat count' }
       },
       required: ['interval']
-    }
+    },
+    cron: { type: 'string', description: 'Cron expression (e.g. "0 8 * * MON"). Mutually exclusive with duration/repeat.' },
+    maxCount: { type: 'number', description: 'Maximum number of cron firings. Only used with cron.' }
   },
-  required: ['name', 'duration', 'onExpire']
+  required: ['name', 'onExpire']
 } as const;
 
 export const timersSchemas = {
