@@ -35,7 +35,7 @@ export type SeasonalPeriodConst = (typeof SEASONAL_PERIODS)[number];
 export const ACTION_TYPES = [
   'set_fact', 'delete_fact', 'emit_event',
   'set_timer', 'cancel_timer', 'call_service', 'log',
-  'conditional',
+  'conditional', 'for_each',
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 

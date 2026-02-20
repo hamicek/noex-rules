@@ -10,7 +10,8 @@ export type RuleAction =
   | { type: 'cancel_timer'; name: string }
   | { type: 'call_service'; service: string; method: string; args: unknown[] }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string }
-  | { type: 'conditional'; conditions: RuleCondition[]; then: RuleAction[]; else?: RuleAction[] };
+  | { type: 'conditional'; conditions: RuleCondition[]; then: RuleAction[]; else?: RuleAction[] }
+  | { type: 'for_each'; collection: unknown | { ref: string }; as: string; actions: RuleAction[]; maxIterations?: number };
 
 /** Výsledek akce */
 export interface ActionResult {
@@ -25,4 +26,10 @@ export interface ConditionalActionResult {
   conditionMet: boolean;
   branchExecuted: 'then' | 'else' | 'none';
   results: ActionResult[];
+}
+
+/** Výsledek for_each akce */
+export interface ForEachActionResult {
+  iterations: number;
+  results: ActionResult[][];
 }

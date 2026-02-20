@@ -625,6 +625,32 @@ function validateAction(obj: unknown, path: string): RuleAction {
       return { type: 'conditional', conditions, then: thenActions };
     }
 
+    case 'for_each': {
+      const collection = normalizeValue(requireField(o, 'collection', path));
+      const as = requireString(requireField(o, 'as', path), `${path}.as`);
+
+      const rawActions = requireField(o, 'actions', path);
+      const actionsArr = requireArray(rawActions, `${path}.actions`);
+      if (actionsArr.length === 0) {
+        throw new YamlValidationError('must have at least one action', `${path}.actions`);
+      }
+      const bodyActions = actionsArr.map((a, i) => validateAction(a, `${path}.actions[${i}]`));
+
+      const result: Extract<RuleAction, { type: 'for_each' }> = {
+        type: 'for_each',
+        collection,
+        as,
+        actions: bodyActions,
+      };
+
+      const maxIterations = get(o, 'maxIterations');
+      if (maxIterations !== undefined) {
+        result.maxIterations = requireNumber(maxIterations, `${path}.maxIterations`);
+      }
+
+      return result;
+    }
+
     default:
       throw new YamlValidationError(`unknown action type "${type}"`, `${path}.type`);
   }

@@ -1,4 +1,4 @@
-import type { RuleAction, ActionResult, ConditionalActionResult } from '../types/action.js';
+import type { RuleAction, ActionResult, ConditionalActionResult, ForEachActionResult } from '../types/action.js';
 import type { Event } from '../types/event.js';
 import type { FactStore } from '../core/fact-store.js';
 import type { TimerManager } from '../core/timer-manager.js';
@@ -130,6 +130,13 @@ export class ActionExecutor {
           thenActionsCount: action.then.length,
           elseActionsCount: action.else?.length ?? 0
         };
+
+      case 'for_each':
+        return {
+          as: action.as,
+          actionsCount: action.actions.length,
+          maxIterations: action.maxIterations
+        };
     }
   }
 
@@ -224,6 +231,30 @@ export class ActionExecutor {
         }
 
         return { conditionMet: false, branchExecuted: 'none', results: [] } satisfies ConditionalActionResult;
+      }
+
+      case 'for_each': {
+        const raw = resolve(action.collection, ctx);
+        if (!Array.isArray(raw)) {
+          throw new Error(`for_each: collection must be an array, got ${typeof raw}`);
+        }
+
+        const limit = action.maxIterations ?? 1000;
+        const allResults: ActionResult[][] = [];
+        const count = Math.min(raw.length, limit);
+
+        for (let idx = 0; idx < count; idx++) {
+          ctx.variables.set(action.as, raw[idx]);
+          ctx.variables.set(`${action.as}_index`, idx);
+
+          const iterResults = await this.execute(action.actions, ctx, options);
+          allResults.push(iterResults);
+        }
+
+        ctx.variables.delete(action.as);
+        ctx.variables.delete(`${action.as}_index`);
+
+        return { iterations: count, results: allResults } satisfies ForEachActionResult;
       }
     }
   }

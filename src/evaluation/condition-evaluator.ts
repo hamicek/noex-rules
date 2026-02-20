@@ -114,8 +114,14 @@ export class ConditionEvaluator {
       case 'event':
         return getNestedValue(context.trigger.data, source.field);
 
-      case 'context':
-        return context.variables.get(source.key);
+      case 'context': {
+        const dotIdx = source.key.indexOf('.');
+        if (dotIdx === -1) return context.variables.get(source.key);
+        const varName = source.key.slice(0, dotIdx);
+        const varPath = source.key.slice(dotIdx + 1);
+        const varRoot = context.variables.get(varName);
+        return varRoot !== undefined ? getNestedValue(varRoot, varPath) : undefined;
+      }
 
       case 'lookup': {
         const result = context.lookups?.get(source.name);
