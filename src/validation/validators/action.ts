@@ -82,6 +82,9 @@ export function validateAction(
     case 'conditional':
       validateConditionalAction(action, path, collector);
       break;
+    case 'try_catch':
+      validateTryCatchAction(action, path, collector);
+      break;
   }
 }
 
@@ -282,6 +285,66 @@ function validateConditionalAction(
     } else {
       for (let i = 0; i < action['else'].length; i++) {
         validateAction(action['else'][i], `${path}.else[${i}]`, collector);
+      }
+    }
+  }
+}
+
+function validateTryCatchAction(
+  action: Record<string, unknown>,
+  path: string,
+  collector: IssueCollector,
+): void {
+  if (!hasProperty(action, 'try')) {
+    collector.addError(`${path}.try`, 'try_catch action must have a "try" field');
+  } else if (!Array.isArray(action['try'])) {
+    collector.addError(`${path}.try`, 'try_catch action try must be an array');
+  } else if (action['try'].length === 0) {
+    collector.addError(`${path}.try`, 'try_catch action try must not be empty');
+  } else {
+    for (let i = 0; i < action['try'].length; i++) {
+      validateAction(action['try'][i], `${path}.try[${i}]`, collector);
+    }
+  }
+
+  const hasCatch = hasProperty(action, 'catch');
+  const hasFinally = hasProperty(action, 'finally');
+
+  if (!hasCatch && !hasFinally) {
+    collector.addError(path, 'try_catch action must have at least "catch" or "finally"');
+  }
+
+  if (hasCatch) {
+    if (!isObject(action['catch'])) {
+      collector.addError(`${path}.catch`, 'try_catch action catch must be an object');
+    } else {
+      const catchObj = action['catch'] as Record<string, unknown>;
+      if (!hasProperty(catchObj, 'actions')) {
+        collector.addError(`${path}.catch.actions`, 'try_catch catch must have an "actions" field');
+      } else if (!Array.isArray(catchObj['actions'])) {
+        collector.addError(`${path}.catch.actions`, 'try_catch catch actions must be an array');
+      } else if (catchObj['actions'].length === 0) {
+        collector.addError(`${path}.catch.actions`, 'try_catch catch actions must not be empty');
+      } else {
+        for (let i = 0; i < catchObj['actions'].length; i++) {
+          validateAction(catchObj['actions'][i], `${path}.catch.actions[${i}]`, collector);
+        }
+      }
+
+      if (hasProperty(catchObj, 'as') && typeof catchObj['as'] !== 'string') {
+        collector.addError(`${path}.catch.as`, 'try_catch catch as must be a string');
+      }
+    }
+  }
+
+  if (hasFinally) {
+    if (!Array.isArray(action['finally'])) {
+      collector.addError(`${path}.finally`, 'try_catch action finally must be an array');
+    } else if (action['finally'].length === 0) {
+      collector.addWarning(`${path}.finally`, 'try_catch action finally is empty');
+    } else {
+      for (let i = 0; i < action['finally'].length; i++) {
+        validateAction(action['finally'][i], `${path}.finally[${i}]`, collector);
       }
     }
   }

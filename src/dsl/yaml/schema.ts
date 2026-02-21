@@ -651,6 +651,60 @@ function validateAction(obj: unknown, path: string): RuleAction {
       return result;
     }
 
+    case 'try_catch': {
+      // try — required, non-empty
+      const rawTry = requireField(o, 'try', path);
+      const tryArr = requireArray(rawTry, `${path}.try`);
+      if (tryArr.length === 0) {
+        throw new YamlValidationError('must have at least one action', `${path}.try`);
+      }
+      const tryActions = tryArr.map((a, i) => validateAction(a, `${path}.try[${i}]`));
+
+      const result: Extract<RuleAction, { type: 'try_catch' }> = {
+        type: 'try_catch',
+        try: tryActions,
+      };
+
+      // catch — optional
+      const rawCatch = get(o, 'catch');
+      if (rawCatch !== undefined) {
+        const catchObj = requireObject(rawCatch, `${path}.catch`);
+        const rawCatchActions = requireField(catchObj, 'actions', `${path}.catch`);
+        const catchArr = requireArray(rawCatchActions, `${path}.catch.actions`);
+        if (catchArr.length === 0) {
+          throw new YamlValidationError('must have at least one action', `${path}.catch.actions`);
+        }
+        const catchActions = catchArr.map((a, i) => validateAction(a, `${path}.catch.actions[${i}]`));
+
+        result.catch = { actions: catchActions };
+
+        const catchAs = get(catchObj, 'as');
+        if (catchAs !== undefined) {
+          result.catch.as = requireString(catchAs, `${path}.catch.as`);
+        }
+      }
+
+      // finally — optional
+      const rawFinally = get(o, 'finally');
+      if (rawFinally !== undefined) {
+        const finallyArr = requireArray(rawFinally, `${path}.finally`);
+        if (finallyArr.length === 0) {
+          throw new YamlValidationError('must have at least one action', `${path}.finally`);
+        }
+        result.finally = finallyArr.map((a, i) => validateAction(a, `${path}.finally[${i}]`));
+      }
+
+      // At least catch or finally must be present
+      if (!result.catch && !result.finally) {
+        throw new YamlValidationError(
+          'try_catch must have at least "catch" or "finally"',
+          path,
+        );
+      }
+
+      return result;
+    }
+
     default:
       throw new YamlValidationError(`unknown action type "${type}"`, `${path}.type`);
   }

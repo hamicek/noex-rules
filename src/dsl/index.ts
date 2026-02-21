@@ -41,8 +41,8 @@ export type { SequenceBuilder, AbsenceBuilder, CountBuilder, AggregateBuilder } 
 export { event, fact, context, lookup, baseline, SourceExpr, BaselineExpr } from './condition/index.js';
 
 // Actions
-export { emit, setFact, deleteFact, setTimer, cancelTimer, callService, log, conditional, forEach } from './action/index.js';
-export { ConditionalBuilder, ForEachBuilder } from './action/index.js';
+export { emit, setFact, deleteFact, setTimer, cancelTimer, callService, log, conditional, forEach, tryCatch } from './action/index.js';
+export { ConditionalBuilder, ForEachBuilder, TryCatchBuilder } from './action/index.js';
 export type { SetTimerOptions } from './action/index.js';
 
 // Tagged template

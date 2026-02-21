@@ -5,4 +5,5 @@ export { callService } from './service-actions.js';
 export { log } from './log-action.js';
 export { conditional, ConditionalBuilder } from './conditional-action.js';
 export { forEach, ForEachBuilder } from './for-each-action.js';
+export { tryCatch, TryCatchBuilder } from './try-catch-action.js';
 export type { SetTimerOptions } from './timer-actions.js';

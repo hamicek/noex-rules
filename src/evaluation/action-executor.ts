@@ -1,4 +1,4 @@
-import type { RuleAction, ActionResult, ConditionalActionResult, ForEachActionResult } from '../types/action.js';
+import type { RuleAction, ActionResult, ConditionalActionResult, ForEachActionResult, TryCatchActionResult } from '../types/action.js';
 import type { Event } from '../types/event.js';
 import type { FactStore } from '../core/fact-store.js';
 import type { TimerManager } from '../core/timer-manager.js';
@@ -137,6 +137,13 @@ export class ActionExecutor {
           actionsCount: action.actions.length,
           maxIterations: action.maxIterations
         };
+
+      case 'try_catch':
+        return {
+          tryActionsCount: action.try.length,
+          hasCatch: !!action.catch,
+          hasFinally: !!action.finally,
+        };
     }
   }
 
@@ -255,6 +262,77 @@ export class ActionExecutor {
         ctx.variables.delete(`${action.as}_index`);
 
         return { iterations: count, results: allResults } satisfies ForEachActionResult;
+      }
+
+      case 'try_catch': {
+        const tryResults: ActionResult[] = [];
+        let caughtError: string | undefined;
+
+        // Try block — stop on first failure
+        for (let idx = 0; idx < action.try.length; idx++) {
+          const tryAction = action.try[idx]!;
+          const startTime = performance.now();
+
+          options?.onActionStarted?.({
+            actionIndex: idx,
+            actionType: tryAction.type,
+            input: this.buildActionInput(tryAction, ctx)
+          });
+
+          try {
+            const result = await this.executeAction(tryAction, ctx, options);
+            const durationMs = performance.now() - startTime;
+
+            options?.onActionCompleted?.({
+              actionIndex: idx,
+              actionType: tryAction.type,
+              output: result,
+              durationMs
+            });
+
+            tryResults.push({ action: tryAction, success: true, result });
+          } catch (error) {
+            const durationMs = performance.now() - startTime;
+            const message = error instanceof Error ? error.message : String(error);
+
+            options?.onActionFailed?.({
+              actionIndex: idx,
+              actionType: tryAction.type,
+              error: message,
+              durationMs
+            });
+
+            tryResults.push({ action: tryAction, success: false, error: message });
+            caughtError = message;
+            break;
+          }
+        }
+
+        // Catch block — only when try failed and catch is defined
+        let catchResults: ActionResult[] | undefined;
+        if (caughtError !== undefined && action.catch) {
+          if (action.catch.as) {
+            ctx.variables.set(action.catch.as, { message: caughtError });
+          }
+          catchResults = await this.execute(action.catch.actions, ctx, options);
+          if (action.catch.as) {
+            ctx.variables.delete(action.catch.as);
+          }
+        }
+
+        // Finally block — always runs
+        let finallyResults: ActionResult[] | undefined;
+        if (action.finally) {
+          finallyResults = await this.execute(action.finally, ctx, options);
+        }
+
+        return {
+          branchExecuted: caughtError !== undefined ? 'catch' : 'try',
+          error: caughtError,
+          tryResults,
+          catchResults,
+          finallyResults,
+        } satisfies TryCatchActionResult;
       }
     }
   }

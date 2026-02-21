@@ -11,7 +11,8 @@ export type RuleAction =
   | { type: 'call_service'; service: string; method: string; args: unknown[] }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string }
   | { type: 'conditional'; conditions: RuleCondition[]; then: RuleAction[]; else?: RuleAction[] }
-  | { type: 'for_each'; collection: unknown | { ref: string }; as: string; actions: RuleAction[]; maxIterations?: number };
+  | { type: 'for_each'; collection: unknown | { ref: string }; as: string; actions: RuleAction[]; maxIterations?: number }
+  | { type: 'try_catch'; try: RuleAction[]; catch?: { as?: string; actions: RuleAction[] }; finally?: RuleAction[] };
 
 /** Výsledek akce */
 export interface ActionResult {
@@ -32,4 +33,13 @@ export interface ConditionalActionResult {
 export interface ForEachActionResult {
   iterations: number;
   results: ActionResult[][];
+}
+
+/** Výsledek try_catch akce */
+export interface TryCatchActionResult {
+  branchExecuted: 'try' | 'catch';
+  error?: string;
+  tryResults: ActionResult[];
+  catchResults?: ActionResult[];
+  finallyResults?: ActionResult[];
 }
