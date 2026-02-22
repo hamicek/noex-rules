@@ -326,13 +326,15 @@ export class ActionExecutor {
           finallyResults = await this.execute(action.finally, ctx, options);
         }
 
-        return {
+        const result: TryCatchActionResult = {
           branchExecuted: caughtError !== undefined ? 'catch' : 'try',
-          error: caughtError,
           tryResults,
-          catchResults,
-          finallyResults,
-        } satisfies TryCatchActionResult;
+        };
+        if (caughtError !== undefined) result.error = caughtError;
+        if (catchResults !== undefined) result.catchResults = catchResults;
+        if (finallyResults !== undefined) result.finallyResults = finallyResults;
+
+        return result;
       }
     }
   }
